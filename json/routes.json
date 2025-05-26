@@ -1,0 +1,384 @@
+[{
+  "id": "route_001",
+  "created_at": "2023-05-15T08:00:00Z",
+  "updated_at": "2023-05-20T10:30:00Z",
+  "name": "黄山经典徒步路线",
+  "description": "这条路线带您游览黄山最著名的景点，包括迎客松、光明顶和西海大峡谷。沿途可欣赏壮丽的云海和奇特的松树。",
+  "region_id": "region_001",
+  "region": "黄山风景区",
+  "basic_info": {
+    "distance": 15.5,
+    "duration": "8小时",
+    "elevation_gain": 1200,
+    "elevation_loss": 800.5,
+    "difficulty": 2,
+    "route_type": 2,
+    "route_direction": 0,
+    "best_season": ["春季", "秋季"]
+  },
+  "ratings": {
+    "overall": 4.8,
+    "scenery": 5.0,
+    "difficulty": 3.5,
+    "experience": 4.7,
+    "facilities": 4.2,
+    "rating_count": 256
+  },
+  "tags": ["山岳", "森林", "观景", "摄影", "世界遗产"],
+  "waypoints": [
+    {
+      "id": "wp_001",
+      "name": "云谷寺",
+      "description": "黄山东部入口，海拔约630米",
+      "latitude": 30.1234,
+      "longitude": 118.1567,
+      "elevation": 630.0,
+      "type": "entrance",
+      "icon_url": "https://example.com/icons/entrance.png",
+      "image_url": "https://example.com/images/yungu_temple.jpg",
+      "sequence_number": 1
+    },
+    {
+      "id": "wp_002",
+      "name": "迎客松",
+      "description": "黄山标志性景观，形似伸臂欢迎远方来客",
+      "latitude": 30.1334,
+      "longitude": 118.1667,
+      "elevation": 1650.0,
+      "type": "attraction",
+      "icon_url": "https://example.com/icons/attraction.png",
+      "image_url": "https://example.com/images/welcome_pine.jpg",
+      "sequence_number": 2
+    },
+    {
+      "id": "wp_003",
+      "name": "光明顶",
+      "description": "黄山主峰之一，海拔1860米，是观赏日出的绝佳地点",
+      "latitude": 30.1434,
+      "longitude": 118.1767,
+      "elevation": 1860.0,
+      "type": "peak",
+      "icon_url": "https://example.com/icons/peak.png",
+      "image_url": "https://example.com/images/bright_summit.jpg",
+      "sequence_number": 3
+    },
+    {
+      "id": "wp_004",
+      "name": "西海大峡谷",
+      "description": "黄山西部的壮观峡谷，景色秀丽",
+      "latitude": 30.1534,
+      "longitude": 118.1467,
+      "elevation": 1500.0,
+      "type": "attraction",
+      "icon_url": "https://example.com/icons/attraction.png",
+      "image_url": "https://example.com/images/west_sea_canyon.jpg",
+      "sequence_number": 4
+    },
+    {
+      "id": "wp_005",
+      "name": "排云亭",
+      "description": "位于西海大峡谷边缘的观景亭",
+      "latitude": 30.1634,
+      "longitude": 118.1367,
+      "elevation": 1630.0,
+      "type": "rest",
+      "icon_url": "https://example.com/icons/rest.png",
+      "image_url": "https://example.com/images/cloud_pavilion.jpg",
+      "sequence_number": 5
+    },
+    {
+      "id": "wp_006",
+      "name": "慈光阁",
+      "description": "黄山西部出口，可乘索道下山",
+      "latitude": 30.1734,
+      "longitude": 118.1267,
+      "elevation": 820.0,
+      "type": "exit",
+      "icon_url": "https://example.com/icons/exit.png",
+      "image_url": "https://example.com/images/mercy_pavilion.jpg",
+      "sequence_number": 6
+    }
+  ],
+  "segments": [
+    {
+      "id": "seg_001",
+      "created_at": "2023-05-15T08:00:00Z",
+      "updated_at": "2023-05-15T08:00:00Z",
+      "startPoint": "wp_001",
+      "endPoint": "wp_002",
+      "distance": 2.5,
+      "elevationGain": 1020,
+      "elevationLoss": 0,
+      "estimatedTime": 2.0,
+      "difficulty": 3,
+      "terrain": "石阶",
+      "path": [
+        {
+          "latitude": 30.1234,
+          "longitude": 118.1567,
+          "elevation": 630.0,
+          "timestamp": "2023-05-15T08:00:00Z",
+          "distance_from_start": 0.0,
+          "point_type": "start",
+          "name": "云谷寺起点",
+          "description": "徒步起点",
+          "type": "start"
+        },
+        {
+          "latitude": 30.1284,
+          "longitude": 118.1617,
+          "elevation": 1140.0,
+          "timestamp": "2023-05-15T09:00:00Z",
+          "distance_from_start": 1250.0,
+          "point_type": "waypoint",
+          "name": "半山亭",
+          "description": "休息点",
+          "type": "rest"
+        },
+        {
+          "latitude": 30.1334,
+          "longitude": 118.1667,
+          "elevation": 1650.0,
+          "timestamp": "2023-05-15T10:00:00Z",
+          "distance_from_start": 2500.0,
+          "point_type": "end",
+          "name": "迎客松",
+          "description": "段落终点",
+          "type": "end"
+        }
+      ],
+      "surfaceType": "石阶",
+      "hazards": ["陡峭台阶", "湿滑路面"],
+      "seasonalClosures": [
+        {
+          "startDate": "2023-07-15T00:00:00Z",
+          "endDate": "2023-08-15T00:00:00Z",
+          "reason": "暴雨季节，山路湿滑危险"
+        }
+      ],
+      "trafficLevel": 3
+    },
+    {
+      "id": "seg_002",
+      "created_at": "2023-05-15T08:00:00Z",
+      "updated_at": "2023-05-15T08:00:00Z",
+      "startPoint": "wp_002",
+      "endPoint": "wp_003",
+      "distance": 3.0,
+      "elevationGain": 210,
+      "elevationLoss": 0,
+      "estimatedTime": 1.5,
+      "difficulty": 2,
+      "terrain": "石阶、平路",
+      "path": [
+        {
+          "latitude": 30.1334,
+          "longitude": 118.1667,
+          "elevation": 1650.0,
+          "timestamp": "2023-05-15T10:00:00Z",
+          "distance_from_start": 0.0,
+          "point_type": "start",
+          "name": "迎客松",
+          "description": "段落起点",
+          "type": "start"
+        },
+        {
+          "latitude": 30.1384,
+          "longitude": 118.1717,
+          "elevation": 1755.0,
+          "timestamp": "2023-05-15T11:00:00Z",
+          "distance_from_start": 1500.0,
+          "point_type": "waypoint",
+          "name": "天海",
+          "description": "黄山高山湖泊",
+          "type": "attraction"
+        },
+        {
+          "latitude": 30.1434,
+          "longitude": 118.1767,
+          "elevation": 1860.0,
+          "timestamp": "2023-05-15T11:30:00Z",
+          "distance_from_start": 3000.0,
+          "point_type": "end",
+          "name": "光明顶",
+          "description": "段落终点",
+          "type": "end"
+        }
+      ],
+      "surfaceType": "石阶、平路",
+      "hazards": [],
+      "seasonalClosures": [],
+      "trafficLevel": 2
+    }
+  ],
+  "daily_plans": [
+    {
+      "id": "dp_001",
+      "day_number": 1,
+      "title": "黄山东线登山",
+      "description": "从云谷寺出发，经迎客松到达光明顶，住宿山顶",
+      "distance": 5.5,
+      "duration": "4小时",
+      "elevation_gain": 1230,
+      "elevation_loss": 0,
+      "start_waypoint_id": "wp_001",
+      "end_waypoint_id": "wp_003",
+      "segment_ids": ["seg_001", "seg_002"],
+      "accommodation": "北海宾馆"
+    },
+    {
+      "id": "dp_002",
+      "day_number": 2,
+      "title": "黄山西线下山",
+      "description": "从光明顶出发，游览西海大峡谷，经排云亭到达慈光阁下山",
+      "distance": 10.0,
+      "duration": "5小时",
+      "elevation_gain": 0,
+      "elevation_loss": 1040,
+      "start_waypoint_id": "wp_003",
+      "end_waypoint_id": "wp_006",
+      "segment_ids": ["seg_003", "seg_004", "seg_005"],
+      "accommodation": "黄山市区酒店"
+    }
+  ],
+  "weather_info": {
+    "description": "黄山气候多变，山顶常有云雾，春秋两季最为宜人",
+    "seasonal": {
+      "春季": "3-5月，气温10-20℃，山花盛开，云海壮观",
+      "夏季": "6-8月，气温20-30℃，雨水较多，需防暑防雨",
+      "秋季": "9-11月，气温10-20℃，天高气爽，能见度最佳",
+      "冬季": "12-2月，气温-10-5℃，常有积雪，景色壮美但需防寒"
+    },
+    "best_seasons": ["春季", "秋季"],
+    "precautions": "山顶天气多变，请携带雨具和保暖衣物，注意防晒"
+  },
+  "facilities": {
+    "water": "山上有饮用水供应点，但价格较高，建议自带部分饮用水",
+    "food": "山顶有餐厅和小卖部，提供简单餐食，价格较高",
+    "accommodation": "山顶有北海宾馆、白云宾馆等住宿点，需提前预订",
+    "toilets": "主要景点和住宿区附近有公共厕所",
+    "signal_coverage": "山顶大部分区域有手机信号，但在峡谷等地可能较弱"
+  },
+  "safety_info": {
+    "emergencyContacts": [
+      {
+        "name": "景区救援",
+        "phone": "0559-12345",
+        "description": "黄山景区紧急救援电话"
+      },
+      {
+        "name": "紧急救援",
+        "phone": "120",
+        "description": "医疗紧急救援"
+      }
+    ],
+    "riskAreas": [
+      {
+        "id": "risk_001",
+        "created_at": "2023-05-15T08:00:00Z",
+        "updated_at": "2023-05-15T08:00:00Z",
+        "name": "陡峭台阶区",
+        "description": "部分路段台阶陡峭，雨天湿滑",
+        "boundary": [
+          {
+            "latitude": 30.1284,
+            "longitude": 118.1617,
+            "altitude": 1140.0
+          },
+          {
+            "latitude": 30.1294,
+            "longitude": 118.1627,
+            "altitude": 1200.0
+          },
+          {
+            "latitude": 30.1304,
+            "longitude": 118.1637,
+            "altitude": 1300.0
+          },
+          {
+            "latitude": 30.1314,
+            "longitude": 118.1647,
+            "altitude": 1400.0
+          }
+        ],
+        "level": 3
+      },
+      {
+        "id": "risk_002",
+        "created_at": "2023-05-15T08:00:00Z",
+        "updated_at": "2023-05-15T08:00:00Z",
+        "name": "西海大峡谷危险区",
+        "description": "峡谷边缘有危险区域，请勿靠近",
+        "boundary": [
+          {
+            "latitude": 30.1534,
+            "longitude": 118.1467,
+            "altitude": 1500.0
+          },
+          {
+            "latitude": 30.1544,
+            "longitude": 118.1457,
+            "altitude": 1490.0
+          },
+          {
+            "latitude": 30.1554,
+            "longitude": 118.1447,
+            "altitude": 1480.0
+          },
+          {
+            "latitude": 30.1564,
+            "longitude": 118.1437,
+            "altitude": 1470.0
+          }
+        ],
+        "level": 4
+      }
+    ],
+    "cellSignal": [
+      {
+        "id": "signal_001",
+        "created_at": "2023-05-15T08:00:00Z",
+        "updated_at": "2023-05-15T08:00:00Z",
+        "name": "信号弱区",
+        "description": "西海大峡谷内信号较弱",
+        "boundary": [
+          {
+            "latitude": 30.1534,
+            "longitude": 118.1467,
+            "altitude": 1500.0
+          },
+          {
+            "latitude": 30.1544,
+            "longitude": 118.1457,
+            "altitude": 1490.0
+          },
+          {
+            "latitude": 30.1554,
+            "longitude": 118.1447,
+            "altitude": 1480.0
+          },
+          {
+            "latitude": 30.1564,
+            "longitude": 118.1437,
+            "altitude": 1470.0
+          }
+        ],
+        "level": 2
+      }
+    ]
+  },
+  "image_urls": [
+    "https://example.com/images/huangshan1.jpg",
+    "https://example.com/images/huangshan2.jpg",
+    "https://example.com/images/huangshan3.jpg",
+    "https://example.com/images/huangshan4.jpg",
+    "https://example.com/images/huangshan5.jpg"
+  ],
+  "cover_url": "https://example.com/images/huangshan_cover.jpg",
+  "map_data_id": "map_001",
+  "created_by": "user_001",
+  "is_favorite": false,
+  "popularity": 1250,
+  "related_route_ids": ["route_002", "route_003", "route_004"],
+  "status": "completed"
+}]

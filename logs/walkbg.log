@@ -1,0 +1,108 @@
+2025-05-27 00:01:08 [main] INFO  org.example.WalkbgApplicationKt - Starting WalkbgApplicationKt using Java 17.0.12 with PID 67151 (/Users/sunyongji/Develop/AI/walkbg/target/classes started by sunyongji in /Users/sunyongji/Develop/AI/walkbg)
+2025-05-27 00:01:08 [main] DEBUG org.example.WalkbgApplicationKt - Running with Spring Boot v3.2.3, Spring v6.1.4
+2025-05-27 00:01:08 [main] INFO  org.example.WalkbgApplicationKt - No active profile set, falling back to 1 default profile: "default"
+2025-05-27 00:01:09 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-05-27 00:01:09 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 92 ms. Found 9 JPA repository interfaces.
+2025-05-27 00:01:09 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-05-27 00:01:09 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.support.BeanDefinitionOverrideException: Invalid bean definition with name 'dailyPlanRepository' defined in org.example.repository.DailyPlanRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig: Cannot register bean definition [Root bean: class [org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean]; scope=; abstract=false; lazyInit=false; autowireMode=0; dependencyCheck=0; autowireCandidate=true; primary=false; factoryBeanName=null; factoryMethodName=null; initMethodNames=null; destroyMethodNames=null; defined in org.example.repository.DailyPlanRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig] for bean 'dailyPlanRepository' since there is already [Root bean: class [org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean]; scope=; abstract=false; lazyInit=false; autowireMode=0; dependencyCheck=0; autowireCandidate=true; primary=false; factoryBeanName=null; factoryMethodName=null; initMethodNames=null; destroyMethodNames=null; defined in org.example.repository.DailyPlanRepository defined in @EnableJpaRepositories declared on DatabaseConfig] bound.
+2025-05-27 00:01:09 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-05-27 00:01:09 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+The bean 'dailyPlanRepository', defined in org.example.repository.DailyPlanRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig, could not be registered. A bean with that name has already been defined in org.example.repository.DailyPlanRepository defined in @EnableJpaRepositories declared on DatabaseConfig and overriding is disabled.
+
+Action:
+
+Consider renaming one of the beans or enabling overriding by setting spring.main.allow-bean-definition-overriding=true
+
+2025-05-27 00:06:15 [main] INFO  org.example.WalkbgApplicationKt - Starting WalkbgApplicationKt using Java 17.0.12 with PID 76644 (/Users/sunyongji/Develop/AI/walkbg/target/classes started by sunyongji in /Users/sunyongji/Develop/AI/walkbg)
+2025-05-27 00:06:15 [main] DEBUG org.example.WalkbgApplicationKt - Running with Spring Boot v3.2.3, Spring v6.1.4
+2025-05-27 00:06:15 [main] INFO  org.example.WalkbgApplicationKt - No active profile set, falling back to 1 default profile: "default"
+2025-05-27 00:06:17 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-05-27 00:06:17 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 83 ms. Found 9 JPA repository interfaces.
+2025-05-27 00:06:17 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-05-27 00:06:17 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.support.BeanDefinitionOverrideException: Invalid bean definition with name 'userRepository' defined in org.example.repository.UserRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig: Cannot register bean definition [Root bean: class [org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean]; scope=; abstract=false; lazyInit=false; autowireMode=0; dependencyCheck=0; autowireCandidate=true; primary=false; factoryBeanName=null; factoryMethodName=null; initMethodNames=null; destroyMethodNames=null; defined in org.example.repository.UserRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig] for bean 'userRepository' since there is already [Root bean: class [org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean]; scope=; abstract=false; lazyInit=false; autowireMode=0; dependencyCheck=0; autowireCandidate=true; primary=false; factoryBeanName=null; factoryMethodName=null; initMethodNames=null; destroyMethodNames=null; defined in org.example.repository.UserRepository defined in @EnableJpaRepositories declared on DatabaseConfig] bound.
+2025-05-27 00:06:17 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-05-27 00:06:17 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+The bean 'userRepository', defined in org.example.repository.UserRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig, could not be registered. A bean with that name has already been defined in org.example.repository.UserRepository defined in @EnableJpaRepositories declared on DatabaseConfig and overriding is disabled.
+
+Action:
+
+Consider renaming one of the beans or enabling overriding by setting spring.main.allow-bean-definition-overriding=true
+
+2025-05-27 00:08:50 [main] INFO  org.example.WalkbgApplicationKt - Starting WalkbgApplicationKt using Java 17.0.12 with PID 81541 (/Users/sunyongji/Develop/AI/walkbg/target/classes started by sunyongji in /Users/sunyongji/Develop/AI/walkbg)
+2025-05-27 00:08:50 [main] DEBUG org.example.WalkbgApplicationKt - Running with Spring Boot v3.2.3, Spring v6.1.4
+2025-05-27 00:08:50 [main] INFO  org.example.WalkbgApplicationKt - No active profile set, falling back to 1 default profile: "default"
+2025-05-27 00:08:51 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-05-27 00:08:51 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 261 ms. Found 9 JPA repository interfaces.
+2025-05-27 00:08:51 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-05-27 00:08:51 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.support.BeanDefinitionOverrideException: Invalid bean definition with name 'EMEquipmentTemplateRepository' defined in org.example.repository.EMEquipmentTemplateRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig: Cannot register bean definition [Root bean: class [org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean]; scope=; abstract=false; lazyInit=false; autowireMode=0; dependencyCheck=0; autowireCandidate=true; primary=false; factoryBeanName=null; factoryMethodName=null; initMethodNames=null; destroyMethodNames=null; defined in org.example.repository.EMEquipmentTemplateRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig] for bean 'EMEquipmentTemplateRepository' since there is already [Root bean: class [org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean]; scope=; abstract=false; lazyInit=false; autowireMode=0; dependencyCheck=0; autowireCandidate=true; primary=false; factoryBeanName=null; factoryMethodName=null; initMethodNames=null; destroyMethodNames=null; defined in org.example.repository.EMEquipmentTemplateRepository defined in @EnableJpaRepositories declared on DatabaseConfig] bound.
+2025-05-27 00:08:51 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-05-27 00:08:51 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+The bean 'EMEquipmentTemplateRepository', defined in org.example.repository.EMEquipmentTemplateRepository defined in @EnableJpaRepositories declared on EMRepositoryConfig, could not be registered. A bean with that name has already been defined in org.example.repository.EMEquipmentTemplateRepository defined in @EnableJpaRepositories declared on DatabaseConfig and overriding is disabled.
+
+Action:
+
+Consider renaming one of the beans or enabling overriding by setting spring.main.allow-bean-definition-overriding=true
+
+2025-05-27 00:17:37 [main] INFO  org.example.WalkbgApplicationKt - Starting WalkbgApplicationKt using Java 17.0.12 with PID 94310 (/Users/sunyongji/Develop/AI/walkbg/target/classes started by sunyongji in /Users/sunyongji/Develop/AI/walkbg)
+2025-05-27 00:17:37 [main] DEBUG org.example.WalkbgApplicationKt - Running with Spring Boot v3.2.3, Spring v6.1.4
+2025-05-27 00:17:37 [main] INFO  org.example.WalkbgApplicationKt - No active profile set, falling back to 1 default profile: "default"
+2025-05-27 00:17:38 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-05-27 00:17:38 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 82 ms. Found 9 JPA repository interfaces.
+2025-05-27 00:17:40 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2025-05-27 00:17:40 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-05-27 00:17:40 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.19]
+2025-05-27 00:17:40 [main] INFO  o.a.c.c.C.[.[localhost].[/walkbg] - Initializing Spring embedded WebApplicationContext
+2025-05-27 00:17:40 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2428 ms
+2025-05-27 00:17:40 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-05-27 00:17:40 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:walkbgdb user=SA
+2025-05-27 00:17:40 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-05-27 00:17:40 [main] INFO  o.s.b.a.h.H2ConsoleAutoConfiguration - H2 console available at '/h2-console'. Database available at 'jdbc:h2:mem:walkbgdb'
+2025-05-27 00:17:40 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-05-27 00:17:40 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2025-05-27 00:17:40 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-05-27 00:17:41 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-05-27 00:17:41 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-05-27 00:17:42 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-05-27 00:17:42 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-05-27 00:17:43 [main] INFO  o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-05-27 00:17:45 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: 8cb84256-d069-4ebf-9cf3-6f955ff02038
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2025-05-27 00:17:46 [main] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 5 endpoint(s) beneath base path '/actuator'
+2025-05-27 00:17:46 [main] INFO  o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@6bb8ebb0, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@133b3a95, org.springframework.security.web.context.SecurityContextHolderFilter@3449a463, org.springframework.security.web.header.HeaderWriterFilter@4593aeea, org.springframework.web.filter.CorsFilter@33f24b0, org.springframework.security.web.authentication.logout.LogoutFilter@59c69874, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@1ad66c9d, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@6aae82b1, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@3bb8d847, org.springframework.security.web.access.ExceptionTranslationFilter@557b62fc, org.springframework.security.web.access.intercept.AuthorizationFilter@7e74ee89]
+2025-05-27 00:17:46 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/walkbg'
+2025-05-27 00:17:46 [main] INFO  org.example.WalkbgApplicationKt - Started WalkbgApplicationKt in 9.523 seconds (process running for 10.097)
+2025-05-27 00:17:46 [main] INFO  org.example.config.DataInitializer - Data initialization disabled
+2025-05-27 00:27:25 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[.[localhost].[/walkbg] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-05-27 00:27:25 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2025-05-27 00:27:25 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 11 ms

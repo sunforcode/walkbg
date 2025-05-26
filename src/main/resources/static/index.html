@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WalkBG 应用</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 1em;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .container {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2E7D32;
+        }
+        .api-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border-radius: 5px;
+        }
+        code {
+            background-color: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>WalkBG 应用</h1>
+    </header>
+    
+    <div class="container">
+        <h2>欢迎使用 WalkBG 后台服务</h2>
+        <p>这是一个基于 Spring Boot 和 Kotlin 构建的后台服务应用。</p>
+        
+        <div class="api-section">
+            <h3>API 端点</h3>
+            <ul>
+                <li><code>GET /api/users</code> - 获取所有用户</li>
+                <li><code>GET /api/users/{id}</code> - 获取指定ID的用户</li>
+                <li><code>POST /api/users</code> - 创建新用户</li>
+                <li><code>PUT /api/users/{id}</code> - 更新指定ID的用户</li>
+                <li><code>DELETE /api/users/{id}</code> - 删除指定ID的用户</li>
+            </ul>
+        </div>
+        
+        <div class="api-section">
+            <h3>数据库管理</h3>
+            <p>本应用使用 H2 内存数据库。您可以通过以下链接访问 H2 控制台：</p>
+            <p><a href="/walkbg/h2-console" target="_blank">H2 数据库控制台</a></p>
+            <p>连接信息：</p>
+            <ul>
+                <li>JDBC URL: <code>jdbc:h2:file:./data/walkbgdb</code></li>
+                <li>用户名: <code>sa</code></li>
+                <li>密码: <code>password</code></li>
+            </ul>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2023 WalkBG 应用 | 版本 1.0.0</p>
+    </footer>
+</body>
+</html>

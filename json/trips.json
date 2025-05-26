@@ -1,0 +1,371 @@
+[
+  {
+    "id": "trip001",
+    "name": "三日高山徒步",
+    "description": "三日高山徒步行程，包含湖泊和山脊露营",
+    "start_date": "2023-07-01T00:00:00.000Z",
+    "end_date": "2023-07-03T00:00:00.000Z",
+    "status": 0,
+    "route_ids": ["route001"],
+    "primary_route_id": "route001",
+    "participants": [
+      {
+        "id": "p001",
+        "user_id": "user001",
+        "name": "张三",
+        "role": "组织者",
+        "status": "已确认",
+        "contact": "13800138000",
+        "notes": "负责路线规划和安全"
+      },
+      {
+        "id": "p002",
+        "user_id": "user002",
+        "name": "李四",
+        "role": "参与者",
+        "status": "已确认",
+        "contact": "13900139000",
+        "notes": "负责食物和炊具"
+      },
+      {
+        "id": "p003",
+        "user_id": "user003",
+        "name": "王五",
+        "role": "参与者",
+        "status": "待确认",
+        "contact": "13700137000",
+        "notes": "摄影师"
+      }
+    ],
+    "participant_count": 3,
+    "organizer_id": "user001",
+    "equipment_list_id": "el001",
+    "equipment_list": {
+      "id": "el001",
+      "name": "三日高山徒步装备清单",
+      "description": "适合三日高山徒步的基础装备清单，包含住宿、穿着、工具等必要装备",
+      "routeId": "route001",
+      "routeName": "某某山三日穿越路线",
+      "tripDays": 3,
+      "seasons": [1, 2],
+      "equipments": [
+        {
+          "id": "ei001",
+          "name": "三季帐篷",
+          "description": "轻量化三季帐篷，适合春夏秋季使用",
+          "weight": 1800.0,
+          "quantity": 1,
+          "necessity": 0,
+          "brand": "牧高笛",
+          "model": "冷山2",
+          "price": 699.0,
+          "notes": "防水性能良好，内帐透气",
+          "category": "住宿装备",
+          "prepared": false,
+          "is_owned":false,
+
+          "createdAt": "2023-05-01T08:00:00.000Z",
+          "updatedAt": "2023-05-01T08:00:00.000Z"
+        },
+        {
+          "id": "ei002",
+          "name": "睡袋",
+          "description": "三季睡袋，舒适温度5°C",
+          "weight": 1200.0,
+          "quantity": 1,
+          "necessity": 0,
+          "brand": "探路者",
+          "model": "羽绒睡袋",
+          "price": 499.0,
+          "notes": "压缩后体积小，保暖性好",
+          "category": "住宿装备",
+          "prepared": false,
+          "is_owned":false,
+
+          "createdAt": "2023-05-01T08:00:00.000Z",
+          "updatedAt": "2023-05-01T08:00:00.000Z"
+        },
+        {
+          "id": "ei003",
+          "name": "防潮垫",
+          "description": "可折叠防潮垫，隔热保暖",
+          "weight": 350.0,
+          "quantity": 1,
+          "necessity": 0,
+          "brand": "迪卡侬",
+          "model": "充气防潮垫",
+          "price": 199.0,
+          "notes": "厚度2.5cm，R值3.2",
+          "category": "住宿装备",
+          "prepared": false,
+          "is_owned":false,
+
+          "createdAt": "2023-05-01T08:00:00.000Z",
+          "updatedAt": "2023-05-01T08:00:00.000Z"
+        },
+        {
+          "id": "ei004",
+          "name": "登山包",
+          "description": "50L登山包，适合2-4天徒步",
+          "weight": 1500.0,
+          "quantity": 1,
+          "necessity": 0,
+          "brand": "始祖鸟",
+          "model": "Bora 50",
+          "price": 2499.0,
+          "notes": "背负系统舒适，多功能口袋",
+          "category": "背包装备",
+          "prepared": false,
+          "is_owned":false,
+
+          "createdAt": "2023-05-01T08:00:00.000Z",
+          "updatedAt": "2023-05-01T08:00:00.000Z"
+        },
+        {
+          "id": "ei005",
+          "name": "防水袋",
+          "description": "用于保护电子设备和衣物的防水袋",
+          "weight": 80.0,
+          "quantity": 2,
+          "necessity": 1,
+          "brand": "迪卡侬",
+          "model": "防水袋5L",
+          "price": 39.0,
+          "notes": "完全防水，可装手机和钱包",
+          "category": "背包装备",
+          "prepared": false,
+          "is_owned":false,
+
+          "createdAt": "2023-05-01T08:00:00.000Z",
+          "updatedAt": "2023-05-01T08:00:00.000Z"
+        }
+      ],
+      "totalWeight": 7605.0,
+      "baseWeight": 5605.0,
+      "consumableWeight": 1000.0,
+      "wornWeight": 1000.0,
+      "creatorId": "user001",
+      "creatorName": "户外爱好者",
+      "tags": ["高山", "夏季", "徒步"],
+      "isOfficial": true,
+      "createdAt": "2023-05-01T08:00:00.000Z",
+      "updatedAt": "2023-05-01T08:00:00.000Z"
+    },
+    "meal_plan_id": "mp001",
+    "meal_plan": {
+      "id": "mp001",
+      "name": "三日高山徒步膳食计划",
+      "description": "适合三日高山徒步的膳食计划，注重高能量和便携性",
+      "tripDays": 3,
+      "personCount": 2,
+      "dayMealPlans": [
+        {
+          "dayNumber": 1,
+          "breakfast": [
+            {
+              "id": "fi001",
+              "name": "即食燕麦片",
+              "description": "即食燕麦片，加水即可食用",
+              "weight": 100.0,
+              "quantity": 1,
+              "calories": 380.0,
+              "protein": 12.0,
+              "fat": 7.0,
+              "carbs": 65.0,
+              "price": 5.0,
+              "prepared": true,
+              
+              "is_owned":false,
+              "notes": "含坚果和干果，能量充足"
+            }
+          ],
+          "lunch": [
+            {
+              "id": "fi002",
+              "name": "能量棒",
+              "description": "高能量密度的能量棒",
+              "weight": 50.0,
+              "quantity": 2,
+              "calories": 450.0,
+              "protein": 10.0,
+              "fat": 20.0,
+              "carbs": 55.0,
+              "price": 8.0,
+              "prepared": true,
+              "is_owned":false,
+              "notes": "含坚果和巧克力，适合快速补充能量"
+            }
+          ],
+          "dinner": [
+            {
+              "id": "fi003",
+              "name": "冻干牛肉饭",
+              "description": "冻干技术处理的牛肉饭，加热水复原",
+              "weight": 120.0,
+              "quantity": 1,
+              "calories": 420.0,
+              "protein": 25.0,
+              "fat": 12.0,
+              "carbs": 50.0,
+              "price": 35.0,
+              "prepared": true,
+              "is_owned":false,
+
+              "notes": "口感好，复原快，高蛋白质"
+            }
+          ],
+          "snacks": [
+            {
+              "id": "fi006",
+              "name": "巧克力",
+              "description": "70%黑巧克力",
+              "weight": 30.0,
+              "quantity": 1,
+              "calories": 550.0,
+              "protein": 5.0,
+              "fat": 40.0,
+              "carbs": 35.0,
+              "price": 15.0,
+              "prepared": true,
+              "is_owned":false,
+              "notes": "高能量，适合快速补充能量"
+            }
+          ],
+          "drinks": [
+            {
+              "id": "fi009",
+              "name": "运动饮料粉",
+              "description": "电解质运动饮料粉",
+              "weight": 20.0,
+              "quantity": 2,
+              "calories": 80.0,
+              "protein": 0.0,
+              "fat": 0.0,
+              "carbs": 20.0,
+              "price": 3.0,
+              "prepared": true,
+              "is_owned":false,
+
+              "notes": "补充电解质，预防脱水"
+            }
+          ]
+        }
+      ],
+      "tags": ["高山", "夏季", "徒步"],
+      "creatorId": "user001",
+      "creatorName": "户外爱好者",
+      "createdAt": "2023-05-01T08:00:00.000Z",
+      "updatedAt": "2023-05-01T08:00:00.000Z"
+    },
+    "water_plan_id": "wp001",
+    "water_plan": {
+      "id": "wp001",
+      "name": "三日徒步饮水计划",
+      "description": "适合三日高山徒步的饮水计划，包含水源规划和饮水建议",
+      "tripDays": 3,
+      "personCount": 2,
+      "dayWaterPlans": [
+        {
+          "dayNumber": 1,
+          "baseWaterIntake": 2000,
+          "activityWaterIntake": 3000,
+          "temperature": 28.5,
+          "activityIntensity": "high",
+          "availableSources": [
+            {
+              "id": "ws001",
+              "name": "山涧溪流",
+              "description": "位于营地西北方向500米处的小溪流，水质清澈",
+              "type": "stream",
+              "location": "营地西北方向500米",
+              "distanceFromTrail": 50.0,
+              "quality": "excellent",
+              "reliability": 4,
+              "estimatedVolume": 5000,
+              "needsTreatment": true,
+              "createdAt": "2023-05-01T08:00:00.000Z",
+              "updatedAt": "2023-05-01T08:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "waterSources": [
+        {
+          "id": "ws001",
+          "name": "山涧溪流",
+          "description": "位于营地西北方向500米处的小溪流，水质清澈",
+          "type": "stream",
+          "location": "营地西北方向500米",
+          "distanceFromTrail": 50.0,
+          "quality": "excellent",
+          "reliability": 4,
+          "estimatedVolume": 5000,
+          "needsTreatment": true,
+          "createdAt": "2023-05-01T08:00:00.000Z",
+          "updatedAt": "2023-05-01T08:00:00.000Z"
+        }
+      ],
+      "tags": ["高山", "夏季", "徒步"],
+      "creatorId": "user001",
+      "creatorName": "户外爱好者",
+      "createdAt": "2023-05-01T08:00:00.000Z",
+      "updatedAt": "2023-05-01T08:00:00.000Z"
+    },
+    "itinerary": [
+      {
+        "id": "daily_plan_001",
+        "day_number": 1,
+        "title": "黄山北门 - 始信峰 - 白鹅岭",
+        "description": "从黄山北门进入景区，经过云谷寺，登上始信峰，欣赏奇松怪石，傍晚抵达白鹅岭住宿。",
+        "distance": 8.5,
+        "duration": "6小时",
+        "elevation_gain": 800,
+        "elevation_loss": 200,
+        "start_waypoint_id": "waypoint_001",
+        "end_waypoint_id": "waypoint_002",
+        "segment_ids": [],
+        "accommodation": "白鹅岭山庄"
+      },
+      {
+        "id": "daily_plan_002",
+        "day_number": 2,
+        "title": "白鹅岭 - 光明顶 - 西海大峡谷",
+        "description": "早起观赏日出，登顶光明顶，游览西海大峡谷，傍晚返回白鹅岭住宿。",
+        "distance": 10.2,
+        "duration": "7小时",
+        "elevation_gain": 600,
+        "elevation_loss": 300,
+        "start_waypoint_id": "waypoint_002",
+        "end_waypoint_id": "waypoint_003",
+        "segment_ids": [],
+        "accommodation": "白鹅岭山庄"
+      },
+      {
+        "id": "daily_plan_003",
+        "day_number": 3,
+        "title": "白鹅岭 - 莲花峰 - 排云亭",
+        "description": "游览莲花峰，经过百步云梯，抵达排云亭结束行程。",
+        "distance": 6.8,
+        "duration": "5小时",
+        "elevation_gain": 400,
+        "elevation_loss": 600,
+        "start_waypoint_id": "waypoint_003",
+        "end_waypoint_id": "waypoint_004",
+        "segment_ids": [],
+        "accommodation": "下山"
+      }
+    ],
+    "cover_url": "https://images.unsplash.com/photo-1551632811-561732d1e306?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+    "image_urls": [
+      "https://images.unsplash.com/photo-1551632811-561732d1e306?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1501555088652-021faa106b9b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1433838552652-f9a46b332c40?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80"
+    ],
+    "budget": 1500.0,
+    "actual_cost": 0.0,
+    "notes": "需要准备防雨装备，山区天气多变",
+    "privacy_setting": "public",
+    "createdAt": "2023-06-15T10:00:00.000Z",
+    "updatedAt": "2023-06-15T10:00:00.000Z"
+  }
+]

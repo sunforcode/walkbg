@@ -1,0 +1,87 @@
+spring:
+  datasource:
+    # 主数据库配置
+    primary:
+      url: jdbc:postgresql://localhost:5432/walkbg
+      username: ${DB_USERNAME:walkbg_user}
+      password: ${DB_PASSWORD:walkbg_pass}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        # 连接池配置
+        maximum-pool-size: 20
+        minimum-idle: 5
+        idle-timeout: 300000
+        connection-timeout: 20000
+        max-lifetime: 1200000
+        leak-detection-threshold: 60000
+        
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate  # 生产环境使用 validate，开发环境可用 update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+    properties:
+      hibernate:
+        # SQL优化
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+        # 查询优化
+        default_batch_fetch_size: 16
+        # 统计信息
+        generate_statistics: false
+        # 格式化SQL（开发环境）
+        format_sql: false
+        show_sql: false
+        
+  # Redis配置
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: 0
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+# 自定义数据库配置
+database:
+  # 分页配置
+  pagination:
+    default-size: 20
+    max-size: 100
+    
+  # 缓存配置
+  cache:
+    ttl:
+      user-info: 3600      # 用户信息缓存1小时
+      route-list: 1800     # 路线列表缓存30分钟
+      equipment-template: 7200  # 装备模板缓存2小时
+      
+  # 索引配置
+  indexes:
+    # 核心业务索引
+    users:
+      - "idx_users_email"
+      - "idx_users_username"
+      - "idx_users_created_at"
+    routes:
+      - "idx_routes_region_id"
+      - "idx_routes_difficulty"
+      - "idx_routes_popularity"
+      - "idx_routes_location"
+      - "idx_routes_created_by"
+    trips:
+      - "idx_trips_organizer_id"
+      - "idx_trips_status"
+      - "idx_trips_date_range"
+    equipment_items:
+      - "idx_equipment_items_category"
+      - "idx_equipment_items_user_inventory"
+      - "idx_equipment_items_equipment_list"

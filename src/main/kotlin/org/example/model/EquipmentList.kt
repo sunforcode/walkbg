@@ -1,155 +1,102 @@
 package org.example.model
 
 import jakarta.persistence.*
+import java.math.BigDecimal
 import java.time.Instant
 
 @Entity
-@Table(name = "em_equipment_lists")
-data class EMEquipmentList(
+@Table(
+    name = "equipment_lists",
+    indexes = [
+        Index(name = "idx_equipment_lists_trip_id", columnList = "trip_id"),
+        Index(name = "idx_equipment_lists_creator_id", columnList = "creator_id"),
+        Index(name = "idx_equipment_lists_type", columnList = "type")
+    ]
+)
+data class EquipmentList(
     @Id
+    @Column(length = 64)
     val id: String,
-    
-    @Column(nullable = false)
+
+    @Column(nullable = false, length = 200)
     var name: String,
     
-    @Column(columnDefinition = "TEXT")
-    var description: String? = null,
-    
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    var type: EMEquipmentListType,
+    var type: Int, // 0: 个人装备, 1: 团队装备, 2: 模板装备
     
-    var routeId: String? = null,
-    
-    var routeName: String? = null,
-    
+    @Column(name = "trip_id", length = 64)
     var tripId: String? = null,
     
-    var tripDays: Int = 1,
+    @Column(name = "creator_id", length = 64)
+    var creatorId: String? = null,
     
+    @Column(name = "total_weight", nullable = false, precision = 8, scale = 2)
+    var totalWeight: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "person_count", nullable = false)
     var personCount: Int = 1,
     
     @Column(nullable = false)
-    var totalWeight: Double = 0.0,
+    var status: Int = 0, // 0: 规划中, 1: 准备中, 2: 已完成
     
-    var baseWeight: Double = 0.0,
-    
-    var consumableWeight: Double = 0.0,
-    
-    var wornWeight: Double = 0.0,
-    
-    var creatorId: String? = null,
-    
-    var creatorName: String? = null,
-    
-    var isOfficial: Boolean = false,
-    
-    var isTemplate: Boolean = false,
-    
-    var templateId: String? = null,
-    
-    @Enumerated(EnumType.STRING)
-    var status: EMEquipmentListStatus = EMEquipmentListStatus.PLANNING,
-    
-    var lastUsedAt: Instant? = null,
-    
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
     
-    @Column(nullable = false)
+    @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
     
-    @OneToMany(mappedBy = "equipmentList", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val equipmentItems: MutableList<EMEquipmentItem> = mutableListOf(),
+    // 关联关系
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trip_id", insertable = false, updatable = false)
+    var trip: Trip? = null,
     
-    @OneToMany(mappedBy = "equipmentList", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val seasons: MutableList<EMEquipmentListSeason> = mutableListOf(),
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creator_id", insertable = false, updatable = false)
+    var creator: User? = null,
     
-    @OneToMany(mappedBy = "equipmentList", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val tags: MutableList<EMEquipmentListTag> = mutableListOf()
+    @OneToMany(mappedBy = "equipmentList", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
+    val equipmentListItems: MutableList<EquipmentListItem> = mutableListOf()
 ) {
-    // 添加关联实体的辅助方法
-    fun addEquipmentItem(item: EMEquipmentItem) {
-        equipmentItems.add(item)
-        item.equipmentList = this
-        recalculateWeights()
+
+    fun addEquipmentItem(equipmentListItem: EquipmentListItem) {
+        equipmentListItems.add(equipmentListItem)
+        equipmentListItem.equipmentList = this
+        recalculateWeight()
     }
-    
-    fun removeEquipmentItem(item: EMEquipmentItem) {
-        equipmentItems.remove(item)
-        recalculateWeights()
+
+    fun removeEquipmentItem(equipmentListItem: EquipmentListItem) {
+        equipmentListItems.remove(equipmentListItem)
+        recalculateWeight()
     }
-    
-    fun addSeason(season: EMSeasonSuitability) {
-        seasons.add(EMEquipmentListSeason(equipmentList = this, season = season))
-    }
-    
-    fun addTag(tag: String) {
-        tags.add(EMEquipmentListTag(equipmentList = this, tag = tag))
-    }
-    
-    private fun recalculateWeights() {
-        var base = 0.0
-        var consumable = 0.0
-        var worn = 0.0
-        
-        for (item in equipmentItems) {
-            val itemWeight = item.weight * item.quantity
-            when {
-                item.category == EMEquipmentCategory.FOOD -> consumable += itemWeight
-                item.isWorn -> worn += itemWeight
-                else -> base += itemWeight
-            }
+
+    private fun recalculateWeight() {
+        totalWeight = equipmentListItems.sumOf { item ->
+            item.equipmentItem?.weight?.multiply(BigDecimal(item.quantity)) ?: BigDecimal.ZERO
         }
-        
-        baseWeight = base
-        consumableWeight = consumable
-        wornWeight = worn
-        totalWeight = base + consumable + worn
         updatedAt = Instant.now()
     }
-    
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
-        
-        other as EMEquipmentList
-        
+
+        other as EquipmentList
+
         return id == other.id
     }
-    
+
     override fun hashCode(): Int {
         return id.hashCode()
     }
-    
+
     override fun toString(): String {
-        return "EMEquipmentList(id='$id', name='$name')"
+        return "EquipmentList(id='$id', name='$name')"
     }
 }
 
-// 枚举类型定义
-enum class EMEquipmentListType {
-    SHORT_HIKE,    // 短途徒步（1-3天）
-    LONG_HIKE,     // 长途徒步（4天以上）
-    CAMPING,       // 露营
-    MOUNTAINEERING, // 登山
-    TREKKING,      // 穿越
-    CUSTOM         // 自定义
+enum class EquipmentListType {
+    SHORT_HIKE, LONG_HIKE, CAMPING, MOUNTAINEERING, TREKKING, CUSTOM
 }
-
-enum class EMEquipmentListStatus {
-    PLANNING,   // 规划中
-    PREPARING,  // 准备中
-    READY,      // 已完成准备
-    IN_USE,     // 使用中
-    COMPLETED,  // 已完成
-    ARCHIVED    // 已归档
-}
-
-enum class EMSeasonSuitability {
-    SPRING,     // 春季
-    SUMMER,     // 夏季
-    AUTUMN,     // 秋季
-    WINTER,     // 冬季
-    ALL_SEASONS // 四季
+enum class EquipmentListStatus {
+    PLANNING, PREPARING, READY, IN_USE, COMPLETED, ARCHIVED
 }

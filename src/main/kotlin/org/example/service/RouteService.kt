@@ -1,112 +1,81 @@
 package org.example.service
 
-import org.example.model.*
-import org.example.repository.RouteRepository
-import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
+import org.example.model.Route
+import org.example.model.UserFavoriteRoute
+import org.example.model.UserCompletedRoute
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import java.math.BigDecimal
 
-@Service
-class RouteService(private val routeRepository: RouteRepository) {
+/**
+ * 路线服务接口
+ */
+interface RouteService {
+    
+    // 基础CRUD操作
+    fun getAllRoutes(pageable: Pageable): Page<Route>
+    fun getRouteById(id: String): Route?
+    fun createRoute(route: Route): Route
+    fun updateRoute(id: String, route: Route): Route?
+    fun deleteRoute(id: String): Boolean
+    
+    // 搜索功能
+    fun searchRoutes(
+        keyword: String? = null,
+        region: String? = null,
+        difficulty: Int? = null, // 改为Int类型
+        routeType: Int? = null,
+        status: Int? = null,
+        tag: String? = null,
+        season: String? = null,
+        minDistance: BigDecimal? = null,
+        maxDistance: BigDecimal? = null,
+        pageable: Pageable
+    ): Page<Route>
+    
+    fun searchByName(name: String, pageable: Pageable): Page<Route>
+    fun searchByRegion(region: String, pageable: Pageable): Page<Route>
+    fun searchByDifficulty(difficulty: Int, pageable: Pageable): Page<Route> // 改为Int类型
+    fun searchByRouteType(routeType: Int, pageable: Pageable): Page<Route>
+    fun searchByStatus(status: Int, pageable: Pageable): Page<Route>
+    fun searchByDistanceRange(minDistance: BigDecimal, maxDistance: BigDecimal, pageable: Pageable): Page<Route>
 
-    fun getAllRoutes(): List<Route> = routeRepository.findAll()
-    
-    fun getRouteById(id: String): Route? = routeRepository.findById(id).orElse(null)
-    
-    fun getRoutesByName(name: String): List<Route> = routeRepository.findByName(name)
-    
-    fun getRoutesByRegion(region: String): List<Route> = routeRepository.findByRegion(region)
-    
-    fun getRoutesByTag(tag: String): List<Route> = routeRepository.findByTag(tag)
-    
-    fun getRoutesBySeason(season: String): List<Route> = routeRepository.findBySeason(season)
-    
-    fun getRoutesByDifficultyLessThanEqual(difficulty: Int): List<Route> = 
-        routeRepository.findByDifficultyLessThanEqual(difficulty)
-    
-    fun getRoutesByDifficultyGreaterThanEqual(difficulty: Int): List<Route> = 
-        routeRepository.findByDifficultyGreaterThanEqual(difficulty)
-    
-    fun getRoutesByDistanceRange(minDistance: Double, maxDistance: Double): List<Route> = 
-        routeRepository.findByDistanceBetween(minDistance, maxDistance)
-    
-    fun getPopularRoutes(minPopularity: Int = 0): List<Route> = 
-        routeRepository.findByPopularityGreaterThanOrderByPopularityDesc(minPopularity)
-    
-    fun getTop10PopularRoutes(): List<Route> = routeRepository.findTop10ByOrderByPopularityDesc()
-    
-    @Transactional
-    fun createRoute(route: Route): Route = routeRepository.save(route)
-    
-    @Transactional
-    fun updateRoute(id: String, route: Route): Route? {
-        return if (routeRepository.existsById(id)) {
-            val updatedRoute = route.copy(
-                id = id,
-                updatedAt = Instant.now()
-            )
-            routeRepository.save(updatedRoute)
-        } else {
-            null
-        }
-    }
-    
-    @Transactional
-    fun deleteRoute(id: String): Boolean {
-        return if (routeRepository.existsById(id)) {
-            routeRepository.deleteById(id)
-            true
-        } else {
-            false
-        }
-    }
-    
-    @Transactional
-    fun addWaypointToRoute(routeId: String, waypoint: Waypoint): Route? {
-        val route = getRouteById(routeId) ?: return null
-        route.addWaypoint(waypoint)
-        return routeRepository.save(route)
-    }
-    
-    @Transactional
-    fun addSegmentToRoute(routeId: String, segment: Segment): Route? {
-        val route = getRouteById(routeId) ?: return null
-        route.addSegment(segment)
-        return routeRepository.save(route)
-    }
-    
-    @Transactional
-    fun addDailyPlanToRoute(routeId: String, dailyPlan: DailyPlan): Route? {
-        val route = getRouteById(routeId) ?: return null
-        route.addDailyPlan(dailyPlan)
-        return routeRepository.save(route)
-    }
-    
-    @Transactional
-    fun addTagToRoute(routeId: String, tag: String): Route? {
-        val route = getRouteById(routeId) ?: return null
-        route.addTag(tag)
-        return routeRepository.save(route)
-    }
-    
-    @Transactional
-    fun addSeasonToRoute(routeId: String, season: String): Route? {
-        val route = getRouteById(routeId) ?: return null
-        route.addSeason(season)
-        return routeRepository.save(route)
-    }
-    
-    @Transactional
-    fun addImageToRoute(routeId: String, imageUrl: String, isCover: Boolean = false): Route? {
-        val route = getRouteById(routeId) ?: return null
-        route.addImage(imageUrl, isCover)
-        return routeRepository.save(route)
-    }
-    
-    @Transactional
-    fun incrementRoutePopularity(routeId: String): Route? {
-        val route = getRouteById(routeId) ?: return null
-        val updatedRoute = route.copy(popularity = route.popularity + 1)
-        return routeRepository.save(updatedRoute)
-    }
+    // 热门和推荐
+    fun getPopularRoutes(): List<Route>
+    fun incrementPopularity(id: String)
+
+    // 用户收藏路线功能
+    fun addToFavorites(userId: String, routeId: String): UserFavoriteRoute
+    fun removeFromFavorites(userId: String, routeId: String): Boolean
+    fun getUserFavoriteRoutes(userId: String, pageable: Pageable): Page<Route>
+    fun isRouteFavorited(userId: String, routeId: String): Boolean
+    fun getRouteFavoriteCount(routeId: String): Long
+    fun getMostFavoritedRoutes(): List<Route>
+
+    // 用户完成路线功能
+    fun markRouteAsCompleted(userId: String, routeId: String): UserCompletedRoute
+    fun getUserCompletedRoutes(userId: String, pageable: Pageable): Page<Route>
+    fun isRouteCompleted(userId: String, routeId: String): Boolean
+    fun getRouteCompletionCount(routeId: String): Long
+    fun getMostCompletedRoutes(): List<Route>
+    fun getUserCompletionStats(userId: String): Map<String, Any>
+
+    // 地理位置相关
+    fun getRoutesByLocation(
+        minLatitude: BigDecimal, maxLatitude: BigDecimal,
+        minLongitude: BigDecimal, maxLongitude: BigDecimal,
+        pageable: Pageable
+    ): Page<Route>
+
+    // 创建者相关
+    fun getRoutesByCreator(createdBy: String, pageable: Pageable): Page<Route>
+
+    // 统计功能
+    fun getRouteStatistics(): Map<String, Any>
+    fun getRoutesByTag(tag: String, pageable: Pageable): Page<Route>
+    fun getRoutesBySeason(season: String, pageable: Pageable): Page<Route>
+
+    // 验证
+    fun existsById(id: String): Boolean
+    fun validateRoute(route: Route): Boolean
 }

@@ -1,97 +1,101 @@
 package org.example.service
 
-import org.example.model.*
-import org.example.repository.TripRepository
-import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
+import org.example.model.Trip
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 
-@Service
-class TripService(private val tripRepository: TripRepository) {
+/**
+ * 行程服务接口
+ */
+interface TripService {
 
-    fun getAllTrips(): List<Trip> = tripRepository.findAll()
+    /**
+     * 获取所有行程（分页）
+     */
+    fun getAllTrips(pageable: Pageable): Page<Trip>
     
-    fun getTripById(id: String): Trip? = tripRepository.findById(id).orElse(null)
+    /**
+     * 根据ID获取行程详情
+     */
+    fun getTripById(id: String): Trip?
     
-    fun getTripsByName(name: String): List<Trip> = tripRepository.findByName(name)
+    /**
+     * 创建新行程
+     */
+    fun createTrip(trip: Trip): Trip
     
-    fun getTripsByOrganizerId(organizerId: String): List<Trip> = tripRepository.findByOrganizerId(organizerId)
+    /**
+     * 更新行程
+     */
+    fun updateTrip(id: String, trip: Trip): Trip?
     
-    fun getTripsByStatus(status: Int): List<Trip> = tripRepository.findByStatus(status)
-    
-    fun getTripsByStartDateAfter(date: Instant): List<Trip> = tripRepository.findByStartDateAfter(date)
-    
-    fun getTripsByStartDateBefore(date: Instant): List<Trip> = tripRepository.findByStartDateBefore(date)
-    
-    fun getTripsByStartDateBetween(startDate: Instant, endDate: Instant): List<Trip> = 
-        tripRepository.findByStartDateBetween(startDate, endDate)
-    
-    fun getTripsByParticipantUserId(userId: String): List<Trip> = tripRepository.findByParticipantUserId(userId)
-    
-    fun getTripsByRouteId(routeId: String): List<Trip> = tripRepository.findByRouteId(routeId)
-    
-    fun getTripsByPrivacySetting(privacySetting: String): List<Trip> = tripRepository.findByPrivacySetting(privacySetting)
-    
-    fun getRecentTrips(): List<Trip> = tripRepository.findTop10ByOrderByCreatedAtDesc()
-    
-    @Transactional
-    fun createTrip(trip: Trip): Trip = tripRepository.save(trip)
-    
-    @Transactional
-    fun updateTrip(id: String, trip: Trip): Trip? {
-        return if (tripRepository.existsById(id)) {
-            val updatedTrip = trip.copy(
-                id = id,
-                updatedAt = Instant.now()
-            )
-            tripRepository.save(updatedTrip)
-        } else {
-            null
-        }
-    }
-    
-    @Transactional
-    fun deleteTrip(id: String): Boolean {
-        return if (tripRepository.existsById(id)) {
-            tripRepository.deleteById(id)
-            true
-        } else {
-            false
-        }
-    }
-    
-    @Transactional
-    fun addRouteToTrip(tripId: String, route: Route, isPrimary: Boolean = false): Trip? {
-        val trip = getTripById(tripId) ?: return null
-        trip.addRoute(route, isPrimary)
-        return tripRepository.save(trip)
-    }
-    
-    @Transactional
-    fun addParticipantToTrip(tripId: String, participant: Participant): Trip? {
-        val trip = getTripById(tripId) ?: return null
-        trip.addParticipant(participant)
-        return tripRepository.save(trip)
-    }
-    
-    @Transactional
-    fun addItineraryItemToTrip(tripId: String, itineraryItem: TripItinerary): Trip? {
-        val trip = getTripById(tripId) ?: return null
-        trip.addItineraryItem(itineraryItem)
-        return tripRepository.save(trip)
-    }
-    
-    @Transactional
-    fun addImageToTrip(tripId: String, imageUrl: String, isCover: Boolean = false): Trip? {
-        val trip = getTripById(tripId) ?: return null
-        trip.addImage(imageUrl, isCover)
-        return tripRepository.save(trip)
-    }
-    
-    @Transactional
-    fun updateTripStatus(tripId: String, status: Int): Trip? {
-        val trip = getTripById(tripId) ?: return null
-        val updatedTrip = trip.copy(status = status)
-        return tripRepository.save(updatedTrip)
-    }
+    /**
+     * 删除行程
+     */
+    fun deleteTrip(id: String): Boolean
+
+    /**
+     * 搜索行程
+     */
+    fun searchTrips(
+        keyword: String?,
+        status: Int?,
+        organizerId: String?,
+        pageable: Pageable
+    ): Page<Trip>
+
+    /**
+     * 获取用户的所有行程
+     */
+    fun getUserTrips(userId: String, pageable: Pageable): Page<Trip>
+
+    /**
+     * 获取即将开始的行程
+     */
+    fun getUpcomingTrips(pageable: Pageable): Page<Trip>
+
+    /**
+     * 获取正在进行的行程
+     */
+    fun getOngoingTrips(pageable: Pageable): Page<Trip>
+
+    /**
+     * 获取已完成的行程
+     */
+    fun getCompletedTrips(pageable: Pageable): Page<Trip>
+
+    /**
+     * 获取热门行程
+     */
+    fun getPopularTrips(): List<Trip>
+
+    /**
+     * 获取最近创建的行程
+     */
+    fun getRecentTrips(): List<Trip>
+
+    /**
+     * 获取行程统计信息
+     */
+    fun getTripStatistics(): Map<String, Any>
+
+    /**
+     * 根据组织者获取行程
+     */
+    fun getTripsByOrganizer(organizerId: String, pageable: Pageable): Page<Trip>
+
+    /**
+     * 根据状态获取行程
+     */
+    fun getTripsByStatus(status: Int, pageable: Pageable): Page<Trip>
+
+    /**
+     * 获取用户参与的行程
+     */
+    fun getTripsByParticipant(userId: String, pageable: Pageable): Page<Trip>
+
+    /**
+     * 更新行程状态
+     */
+    fun updateTripStatus(id: String, status: Int): Trip?
 }

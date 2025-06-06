@@ -1,32 +1,78 @@
 package org.example.repository
 
-import org.example.model.EMEquipmentListType
-import org.example.model.EMEquipmentTemplate
-import org.example.model.EMSeasonSuitability
+import org.example.model.EquipmentTemplate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 @Repository
-interface EMEquipmentTemplateRepository : JpaRepository<EMEquipmentTemplate, String> {
+interface EquipmentTemplateRepository : JpaRepository<EquipmentTemplate, String> {
     
-    fun findByType(type: EMEquipmentListType, pageable: Pageable): Page<EMEquipmentTemplate>
+    /**
+     * 按创建者查询
+     */
+    fun findByCreatorId(creatorId: String, pageable: Pageable): Page<EquipmentTemplate>
     
-    @Query("SELECT DISTINCT et FROM EMEquipmentTemplate et JOIN et.seasons s WHERE s.season = :season")
-    fun findBySeason(season: EMSeasonSuitability, pageable: Pageable): Page<EMEquipmentTemplate>
+    /**
+     * 查询官方模板
+     */
+    fun findByIsOfficialTrue(pageable: Pageable): Page<EquipmentTemplate>
     
-    fun findByIsOfficial(isOfficial: Boolean, pageable: Pageable): Page<EMEquipmentTemplate>
+    fun findByIsOfficialFalse(pageable: Pageable): Page<EquipmentTemplate>
+
+    fun findByCreatorIdAndIsOfficialFalse(creatorId: String, pageable: Pageable): Page<EquipmentTemplate>
+
+    /**
+     * 按类型查询
+     */
+    fun findByType(type: Int, pageable: Pageable): Page<EquipmentTemplate>
+
+    /**
+     * 按分类查询
+     */
+    fun findByCategory(category: Int, pageable: Pageable): Page<EquipmentTemplate>
+
+    /**
+     * 关键词搜索
+     */
+    @Query("SELECT et FROM EquipmentTemplate et WHERE LOWER(et.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    fun searchByName(@Param("keyword") keyword: String, pageable: Pageable): Page<EquipmentTemplate>
     
-    @Query("SELECT et FROM EMEquipmentTemplate et WHERE LOWER(et.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(et.description) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-    fun searchByKeyword(keyword: String, pageable: Pageable): Page<EMEquipmentTemplate>
-    
-    fun findByCreatorId(creatorId: String, pageable: Pageable): Page<EMEquipmentTemplate>
-    
-    fun findTop10ByOrderByUsageCountDesc(): List<EMEquipmentTemplate>
-    
-    fun findTop10ByOrderByRatingDesc(): List<EMEquipmentTemplate>
-    
-    fun findTop10ByIsOfficialTrueOrderByUsageCountDesc(): List<EMEquipmentTemplate>
+    /**
+     * 多条件查询
+     */
+    @Query("""
+        SELECT et FROM EquipmentTemplate et
+        WHERE (:keyword IS NULL OR LOWER(et.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        AND (:category IS NULL OR et.category = :category)
+        AND (:type IS NULL OR et.type = :type)
+        AND (:isOfficial IS NULL OR et.isOfficial = :isOfficial)
+    """)
+    fun searchTemplates(
+        @Param("keyword") keyword: String?,
+        @Param("category") category: Int?,
+        @Param("type") type: Int?,
+        @Param("isOfficial") isOfficial: Boolean?,
+        pageable: Pageable
+    ): Page<EquipmentTemplate>
+
+    /**
+     * 按使用次数排序
+     */
+    fun findTop10ByOrderByUsageCountDesc(): List<EquipmentTemplate>
+
+    /**
+     * 按评分排序
+     */
+    fun findTop10ByOrderByRatingDesc(): List<EquipmentTemplate>
+
+    /**
+     * 官方热门模板
+     */
+    fun findTop10ByOrderByCreatedAtDesc(): List<EquipmentTemplate>
+
+    fun findByCategoryAndType(category: Int, type: Int, pageable: Pageable): Page<EquipmentTemplate>
 }

@@ -1,76 +1,74 @@
 package org.example.controller
 
-import org.example.dto.TripDto
-import org.example.dto.toDto
 import org.example.model.Trip
 import org.example.service.TripService
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-import java.util.*
 
+/**
+ * 行程控制器
+ */
 @RestController
 @RequestMapping("/api/trips")
-class TripController(private val tripService: TripService) {
+@CrossOrigin(origins = ["*"])
+class TripController(
+    private val tripService: TripService
+) {
 
+    /**
+     * 获取所有行程（分页）
+     */
     @GetMapping
-    fun getAllTrips(): ResponseEntity<List<TripDto>> {
-        return ResponseEntity.ok(tripService.getAllTrips().map { it.toDto() })
+    fun getAllTrips(pageable: Pageable): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getAllTrips(pageable)
+        return ResponseEntity.ok(trips)
     }
 
+    /**
+     * 根据ID获取行程
+     */
     @GetMapping("/{id}")
-    fun getTripById(@PathVariable id: String): ResponseEntity<TripDto> {
+    fun getTripById(@PathVariable id: String): ResponseEntity<Trip> {
         val trip = tripService.getTripById(id)
         return if (trip != null) {
-            ResponseEntity.ok(trip.toDto())
+            ResponseEntity.ok(trip)
         } else {
             ResponseEntity.notFound().build()
         }
     }
+
+    /**
+     * 创建行程
+     */
     @PostMapping
-    fun createTrip(@RequestBody trip: Trip): ResponseEntity<TripDto> {
-        return ResponseEntity.status(HttpStatus.CREATED).body(tripService.createTrip(trip).toDto())
+    fun createTrip(@RequestBody trip: Trip): ResponseEntity<Trip> {
+        return try {
+            val createdTrip = tripService.createTrip(trip)
+            ResponseEntity.status(HttpStatus.CREATED).body(createdTrip)
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().build()
+        }
     }
 
-    @PostMapping("/sample")
-    fun createSampleTrip(): ResponseEntity<TripDto> {
-        val startDate = Instant.now().plus(30, ChronoUnit.DAYS)
-        val endDate = startDate.plus(3, ChronoUnit.DAYS)
-
-        val trip = Trip(
-            id = UUID.randomUUID().toString(),
-            name = "三日高山徒步",
-            description = "三日高山徒步行程，包含湖泊和山脊露营",
-            startDate = startDate,
-            endDate = endDate,
-            status = 0,
-            participantCount = 3,
-            organizerId = "user001",
-            budget = 1500.0,
-            notes = "需要准备防雨装备，山区天气多变",
-            privacySetting = "public",
-            coverUrl = "https://images.unsplash.com/photo-1551632811-561732d1e306",
-            createdAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
-
-        val savedTrip = tripService.createTrip(trip)
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedTrip.toDto())
-    }
-
+    /**
+     * 更新行程
+     */
     @PutMapping("/{id}")
-    fun updateTrip(@PathVariable id: String, @RequestBody trip: Trip): ResponseEntity<TripDto> {
+    fun updateTrip(@PathVariable id: String, @RequestBody trip: Trip): ResponseEntity<Trip> {
         val updatedTrip = tripService.updateTrip(id, trip)
         return if (updatedTrip != null) {
-            ResponseEntity.ok(updatedTrip.toDto())
+            ResponseEntity.ok(updatedTrip)
         } else {
             ResponseEntity.notFound().build()
         }
     }
 
+    /**
+     * 删除行程
+     */
     @DeleteMapping("/{id}")
     fun deleteTrip(@PathVariable id: String): ResponseEntity<Void> {
         val deleted = tripService.deleteTrip(id)
@@ -79,5 +77,137 @@ class TripController(private val tripService: TripService) {
         } else {
             ResponseEntity.notFound().build()
         }
+    }
+
+    /**
+     * 搜索行程
+     */
+    @GetMapping("/search")
+    fun searchTrips(
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) status: Int?,
+        @RequestParam(required = false) organizerId: String?,
+        pageable: Pageable
+    ): ResponseEntity<Page<Trip>> {
+        val trips = tripService.searchTrips(keyword, status, organizerId, pageable)
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 获取用户的行程
+     */
+    @GetMapping("/user/{userId}")
+    fun getUserTrips(
+        @PathVariable userId: String,
+        pageable: Pageable
+    ): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getUserTrips(userId, pageable)
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 获取即将开始的行程
+     */
+    @GetMapping("/upcoming")
+    fun getUpcomingTrips(pageable: Pageable): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getUpcomingTrips(pageable)
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 获取热门行程
+     */
+    @GetMapping("/popular")
+    fun getPopularTrips(): ResponseEntity<List<Trip>> {
+        val trips = tripService.getPopularTrips()
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 获取最近创建的行程
+     */
+    @GetMapping("/recent")
+    fun getRecentTrips(): ResponseEntity<List<Trip>> {
+        val trips = tripService.getRecentTrips()
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 获取正在进行的行程
+     */
+    @GetMapping("/ongoing")
+    fun getOngoingTrips(pageable: Pageable): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getOngoingTrips(pageable)
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 获取已完成的行程
+     */
+    @GetMapping("/completed")
+    fun getCompletedTrips(pageable: Pageable): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getCompletedTrips(pageable)
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 获取行程统计信息
+     */
+    @GetMapping("/statistics")
+    fun getTripStatistics(): ResponseEntity<Map<String, Any>> {
+        val statistics = tripService.getTripStatistics()
+        return ResponseEntity.ok(statistics)
+    }
+
+    /**
+     * 获取用户参与的行程
+     */
+    @GetMapping("/participant/{userId}")
+    fun getTripsByParticipant(
+        @PathVariable userId: String,
+        pageable: Pageable
+    ): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getTripsByParticipant(userId, pageable)
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 更新行程状态
+     */
+    @PatchMapping("/{id}/status")
+    fun updateTripStatus(
+        @PathVariable id: String,
+        @RequestParam status: Int
+    ): ResponseEntity<Trip> {
+        val trip = tripService.updateTripStatus(id, status)
+        return if (trip != null) {
+            ResponseEntity.ok(trip)
+        } else {
+            ResponseEntity.notFound().build()
+        }
+    }
+
+    /**
+     * 根据组织者获取行程
+     */
+    @GetMapping("/organizer/{organizerId}")
+    fun getTripsByOrganizer(
+        @PathVariable organizerId: String,
+        pageable: Pageable
+    ): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getTripsByOrganizer(organizerId, pageable)
+        return ResponseEntity.ok(trips)
+    }
+
+    /**
+     * 根据状态获取行程
+     */
+    @GetMapping("/status/{status}")
+    fun getTripsByStatus(
+        @PathVariable status: Int,
+        pageable: Pageable
+    ): ResponseEntity<Page<Trip>> {
+        val trips = tripService.getTripsByStatus(status, pageable)
+        return ResponseEntity.ok(trips)
     }
 }

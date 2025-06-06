@@ -1,124 +1,74 @@
 package org.example.controller
 
-import org.example.dto.RouteDto
-import org.example.dto.toDto
 import org.example.model.Route
 import org.example.service.RouteService
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.time.Instant
-import java.util.*
 
+/**
+ * 路线控制器
+ */
 @RestController
 @RequestMapping("/api/routes")
-class RouteController(private val routeService: RouteService) {
+@CrossOrigin(origins = ["*"])
+class RouteController(
+    private val routeService: RouteService
+) {
 
+    /**
+     * 获取所有路线（分页）
+     */
     @GetMapping
-    fun getAllRoutes(): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getAllRoutes().map { it.toDto() })
+    fun getAllRoutes(pageable: Pageable): ResponseEntity<Page<Route>> {
+        val routes = routeService.getAllRoutes(pageable)
+        return ResponseEntity.ok(routes)
     }
 
+    /**
+     * 根据ID获取路线
+     */
     @GetMapping("/{id}")
-    fun getRouteById(@PathVariable id: String): ResponseEntity<RouteDto> {
+    fun getRouteById(@PathVariable id: String): ResponseEntity<Route> {
         val route = routeService.getRouteById(id)
         return if (route != null) {
-            ResponseEntity.ok(route.toDto())
+            ResponseEntity.ok(route)
         } else {
             ResponseEntity.notFound().build()
         }
     }
 
-    @GetMapping("/search/name")
-    fun getRoutesByName(@RequestParam name: String): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getRoutesByName(name).map { it.toDto() })
-    }
-
-    @GetMapping("/search/region")
-    fun getRoutesByRegion(@RequestParam region: String): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getRoutesByRegion(region).map { it.toDto() })
-    }
-
-    @GetMapping("/search/tag")
-    fun getRoutesByTag(@RequestParam tag: String): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getRoutesByTag(tag).map { it.toDto() })
-    }
-
-    @GetMapping("/search/season")
-    fun getRoutesBySeason(@RequestParam season: String): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getRoutesBySeason(season).map { it.toDto() })
-    }
-
-    @GetMapping("/search/difficulty/max")
-    fun getRoutesByMaxDifficulty(@RequestParam difficulty: Int): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getRoutesByDifficultyLessThanEqual(difficulty).map { it.toDto() })
-    }
-
-    @GetMapping("/search/difficulty/min")
-    fun getRoutesByMinDifficulty(@RequestParam difficulty: Int): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getRoutesByDifficultyGreaterThanEqual(difficulty).map { it.toDto() })
-    }
-
-    @GetMapping("/search/distance")
-    fun getRoutesByDistanceRange(
-        @RequestParam minDistance: Double,
-        @RequestParam maxDistance: Double
-    ): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getRoutesByDistanceRange(minDistance, maxDistance).map { it.toDto() })
-    }
-
-    @GetMapping("/popular")
-    fun getPopularRoutes(@RequestParam(required = false, defaultValue = "0") minPopularity: Int): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getPopularRoutes(minPopularity).map { it.toDto() })
-    }
-
-    @GetMapping("/top10")
-    fun getTop10PopularRoutes(): ResponseEntity<List<RouteDto>> {
-        return ResponseEntity.ok(routeService.getTop10PopularRoutes().map { it.toDto() })
-    }
-
+    /**
+     * 创建路线
+     */
     @PostMapping
-    fun createRoute(@RequestBody route: Route): ResponseEntity<RouteDto> {
-        return ResponseEntity.status(HttpStatus.CREATED).body(routeService.createRoute(route).toDto())
+    fun createRoute(@RequestBody route: Route): ResponseEntity<Route> {
+        return try {
+            val createdRoute = routeService.createRoute(route)
+            ResponseEntity.status(HttpStatus.CREATED).body(createdRoute)
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().build()
+        }
     }
 
-    @PostMapping("/sample")
-    fun createSampleRoute(): ResponseEntity<RouteDto> {
-        val route = Route(
-            id = UUID.randomUUID().toString(),
-            name = "黄山经典徒步路线",
-            description = "这条路线带您游览黄山最著名的景点，包括迎客松、光明顶和西海大峡谷。",
-            region = "黄山风景区",
-            distance = 15.5,
-            duration = "8小时",
-            difficulty = 2,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
-
-        val savedRoute = routeService.createRoute(route)
-
-        // 添加季节和标签
-        savedRoute.addSeason("春季")
-        savedRoute.addSeason("秋季")
-        savedRoute.addTag("山岳")
-        savedRoute.addTag("森林")
-
-        val updatedRoute = routeService.updateRoute(savedRoute.id, savedRoute)
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(updatedRoute?.toDto())
-    }
-
+    /**
+     * 更新路线
+     */
     @PutMapping("/{id}")
-    fun updateRoute(@PathVariable id: String, @RequestBody route: Route): ResponseEntity<RouteDto> {
+    fun updateRoute(@PathVariable id: String, @RequestBody route: Route): ResponseEntity<Route> {
         val updatedRoute = routeService.updateRoute(id, route)
         return if (updatedRoute != null) {
-            ResponseEntity.ok(updatedRoute.toDto())
+            ResponseEntity.ok(updatedRoute)
         } else {
             ResponseEntity.notFound().build()
         }
     }
 
+    /**
+     * 删除路线
+     */
     @DeleteMapping("/{id}")
     fun deleteRoute(@PathVariable id: String): ResponseEntity<Void> {
         val deleted = routeService.deleteRoute(id)
@@ -129,13 +79,131 @@ class RouteController(private val routeService: RouteService) {
         }
     }
 
-    @PostMapping("/{id}/popularity")
-    fun incrementRoutePopularity(@PathVariable id: String): ResponseEntity<RouteDto> {
-        val route = routeService.incrementRoutePopularity(id)
-        return if (route != null) {
-            ResponseEntity.ok(route.toDto())
-        } else {
-            ResponseEntity.notFound().build()
+    /**
+     * 搜索路线
+     */
+    @GetMapping("/search")
+    fun searchRoutes(
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) difficulty: Int?,
+        @RequestParam(required = false) region: String?,
+        pageable: Pageable
+    ): ResponseEntity<Page<Route>> {
+        val routes = routeService.searchRoutes(keyword, region, difficulty, pageable = pageable)
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 根据难度获取路线
+     */
+    @GetMapping("/difficulty/{difficulty}")
+    fun getRoutesByDifficulty(
+        @PathVariable difficulty: Int,
+        pageable: Pageable
+    ): ResponseEntity<Page<Route>> {
+        val routes = routeService.searchByDifficulty(difficulty, pageable)
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 根据地区获取路线
+     */
+    @GetMapping("/region/{region}")
+    fun getRoutesByRegion(
+        @PathVariable region: String,
+        pageable: Pageable
+    ): ResponseEntity<Page<Route>> {
+        val routes = routeService.searchByRegion(region, pageable)
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 获取热门路线
+     */
+    @GetMapping("/popular")
+    fun getPopularRoutes(): ResponseEntity<List<Route>> {
+        val routes = routeService.getPopularRoutes()
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 获取最受收藏的路线
+     */
+    @GetMapping("/most-favorited")
+    fun getMostFavoritedRoutes(): ResponseEntity<List<Route>> {
+        val routes = routeService.getMostFavoritedRoutes()
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 获取最多完成的路线
+     */
+    @GetMapping("/most-completed")
+    fun getMostCompletedRoutes(): ResponseEntity<List<Route>> {
+        val routes = routeService.getMostCompletedRoutes()
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 增加路线热度
+     */
+    @PostMapping("/{id}/increment-popularity")
+    fun incrementPopularity(@PathVariable id: String): ResponseEntity<Route> {
+        return try {
+            routeService.incrementPopularity(id)
+            val route = routeService.getRouteById(id)
+            if (route != null) {
+                ResponseEntity.ok(route)
+            } else {
+                ResponseEntity.notFound().build()
+            }
+        } catch (e: Exception) {
+            ResponseEntity.badRequest().build()
         }
+    }
+
+    /**
+     * 获取路线统计信息
+     */
+    @GetMapping("/statistics")
+    fun getRouteStatistics(): ResponseEntity<Map<String, Any>> {
+        val statistics = routeService.getRouteStatistics()
+        return ResponseEntity.ok(statistics)
+    }
+
+    /**
+     * 根据创建者获取路线
+     */
+    @GetMapping("/creator/{creatorId}")
+    fun getRoutesByCreator(
+        @PathVariable creatorId: String,
+        pageable: Pageable
+    ): ResponseEntity<Page<Route>> {
+        val routes = routeService.getRoutesByCreator(creatorId, pageable)
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 根据标签获取路线
+     */
+    @GetMapping("/tag/{tag}")
+    fun getRoutesByTag(
+        @PathVariable tag: String,
+        pageable: Pageable
+    ): ResponseEntity<Page<Route>> {
+        val routes = routeService.getRoutesByTag(tag, pageable)
+        return ResponseEntity.ok(routes)
+    }
+
+    /**
+     * 根据季节获取路线
+     */
+    @GetMapping("/season/{season}")
+    fun getRoutesBySeason(
+        @PathVariable season: String,
+        pageable: Pageable
+    ): ResponseEntity<Page<Route>> {
+        val routes = routeService.getRoutesBySeason(season, pageable)
+        return ResponseEntity.ok(routes)
     }
 }

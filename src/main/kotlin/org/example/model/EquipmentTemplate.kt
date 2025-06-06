@@ -4,68 +4,72 @@ import jakarta.persistence.*
 import java.time.Instant
 
 @Entity
-@Table(name = "em_equipment_templates")
-data class EMEquipmentTemplate(
+@Table(name = "equipment_templates")
+data class EquipmentTemplate(
     @Id
+    @Column(length = 64)
     val id: String,
     
     @Column(nullable = false)
     var name: String,
     
+    @Column(nullable = false)
+    var category: Int, // 0: 住宿装备, 1: 饮食装备, 2: 保暖装备, 等等
+
     @Column(columnDefinition = "TEXT")
     var description: String? = null,
     
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    var type: EMEquipmentListType,
-    
+    var type: Int, // 改为Int类型，避免枚举依赖问题
+
     @Column(nullable = false)
     var isOfficial: Boolean = false,
     
     var creatorId: String? = null,
     
     var creatorName: String? = null,
-    
+
     @Column(nullable = false)
     var usageCount: Int = 0,
-    
+
     @Column(nullable = false)
     var rating: Double = 0.0,
     
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
     
-    @Column(nullable = false)
+    @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
     
     @OneToMany(mappedBy = "template", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val equipmentItems: MutableList<EMTemplateEquipmentItem> = mutableListOf(),
+    val equipmentItems: MutableList<TemplateEquipmentItem> = mutableListOf(),
     
     @OneToMany(mappedBy = "template", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val seasons: MutableList<EMTemplateSeasonSuitability> = mutableListOf(),
+    val seasons: MutableList<TemplateSeasonSuitability> = mutableListOf(),
     
     @OneToMany(mappedBy = "template", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val tags: MutableList<EMTemplateTag> = mutableListOf()
+    val tags: MutableList<TemplateTag> = mutableListOf()
 ) {
+
     // 添加关联实体的辅助方法
-    fun addEquipmentItem(item: EMTemplateEquipmentItem) {
+    fun addEquipmentItem(item: TemplateEquipmentItem) {
         equipmentItems.add(item)
         item.template = this
     }
-    
-    fun addSeason(season: EMSeasonSuitability) {
-        seasons.add(EMTemplateSeasonSuitability(template = this, season = season))
+
+    fun addSeason(season: Int) { // 0: 春季, 1: 夏季, 2: 秋季, 3: 冬季
+        seasons.add(TemplateSeasonSuitability(template = this, season = season))
     }
     
     fun addTag(tag: String) {
-        tags.add(EMTemplateTag(template = this, tag = tag))
+        tags.add(TemplateTag(template = this, tag = tag))
     }
     
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
         
-        other as EMEquipmentTemplate
+        other as EquipmentTemplate
         
         return id == other.id
     }
@@ -75,22 +79,21 @@ data class EMEquipmentTemplate(
     }
     
     override fun toString(): String {
-        return "EMEquipmentTemplate(id='$id', name='$name')"
+        return "EquipmentTemplate(id='$id', name='$name')"
     }
 }
 
 @Entity
-@Table(name = "em_template_equipment_items")
-data class EMTemplateEquipmentItem(
+@Table(name = "template_equipment_items")
+data class TemplateEquipmentItem(
     @Id
     val id: String,
-    
+
     @Column(nullable = false)
     var name: String,
     
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    var category: EMEquipmentCategory,
+    var category: Int, // 0: 住宿装备, 1: 饮食装备, 2: 保暖装备, 等等
     
     @Column(columnDefinition = "TEXT")
     var description: String? = null,
@@ -98,16 +101,14 @@ data class EMTemplateEquipmentItem(
     @Column(nullable = false)
     var weight: Double = 0.0,
     
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    var weightUnit: EMWeightUnit = EMWeightUnit.GRAM,
+    var weightUnit: Int = 0, // 0: 克, 1: 千克, 2: 磅
     
     @Column(nullable = false)
     var quantity: Int = 1,
     
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    var necessity: EMEquipmentNecessity = EMEquipmentNecessity.RECOMMENDED,
+    var necessity: Int = 1, // 0: 必需, 1: 推荐, 2: 可选
     
     var brand: String? = null,
     
@@ -124,13 +125,13 @@ data class EMTemplateEquipmentItem(
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "template_id")
-    var template: EMEquipmentTemplate? = null
+    var template: EquipmentTemplate? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
         
-        other as EMTemplateEquipmentItem
+        other as TemplateEquipmentItem
         
         return id == other.id
     }
@@ -141,31 +142,30 @@ data class EMTemplateEquipmentItem(
 }
 
 @Entity
-@Table(name = "em_template_seasons")
-data class EMTemplateSeasonSuitability(
+@Table(name = "template_seasons")
+data class TemplateSeasonSuitability(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "template_id")
-    var template: EMEquipmentTemplate? = null,
+    var template: EquipmentTemplate? = null,
     
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    val season: EMSeasonSuitability
+    val season: Int // 0: 春季, 1: 夏季, 2: 秋季, 3: 冬季
 )
 
 @Entity
-@Table(name = "em_template_tags")
-data class EMTemplateTag(
+@Table(name = "template_tags")
+data class TemplateTag(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "template_id")
-    var template: EMEquipmentTemplate? = null,
+    var template: EquipmentTemplate? = null,
     
     @Column(nullable = false)
     val tag: String

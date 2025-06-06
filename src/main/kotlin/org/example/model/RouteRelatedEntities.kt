@@ -2,11 +2,11 @@ package org.example.model
 
 import jakarta.persistence.*
 import java.time.Instant
-
 @Entity
 @Table(name = "waypoints")
 data class Waypoint(
     @Id
+    @Column(length = 64)
     val id: String,
     @Column(nullable = false)
     val name: String,
@@ -19,33 +19,28 @@ data class Waypoint(
     val iconUrl: String? = null,
     val imageUrl: String? = null,
     val sequenceNumber: Int,
-    @Column(nullable = false)
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
-    @Column(nullable = false)
-    val updatedAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now(),
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")
     var route: Route? = null
 ) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as Waypoint
-        return id == other.id
-    }
-    override fun hashCode(): Int {
-        return id.hashCode()
-    }
     override fun toString(): String {
         return "Waypoint(id='$id', name='$name')"
     }
 }
-
 @Entity
 @Table(name = "segments")
 data class Segment(
     @Id
+    @Column(length = 64)
     val id: String,
+
     val distance: Double? = null,
     val elevationGain: Double? = null,
     val elevationLoss: Double? = null,
@@ -54,10 +49,12 @@ data class Segment(
     val terrain: String? = null,
     val surfaceType: String? = null,
     val trafficLevel: Int? = null,
-    @Column(nullable = false)
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
-    @Column(nullable = false)
-    val updatedAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now(),
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")
     var route: Route? = null,
@@ -149,7 +146,9 @@ data class SegmentClosure(
 @Table(name = "daily_plans")
 data class DailyPlan(
     @Id
+    @Column(length = 64)
     val id: String,
+
     val dayNumber: Int,
     val title: String,
     @Column(columnDefinition = "TEXT")
@@ -159,6 +158,13 @@ data class DailyPlan(
     val elevationGain: Double? = null,
     val elevationLoss: Double? = null,
     val accommodation: String? = null,
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    val createdAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now(),
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")
     var route: Route? = null,
@@ -368,16 +374,21 @@ data class EmergencyContact(
 @Table(name = "risk_areas")
 data class RiskArea(
     @Id
+    @Column(length = 64)
     val id: String,
+
     @Column(nullable = false)
     val name: String,
     @Column(columnDefinition = "TEXT")
     val description: String? = null,
     val level: Int? = null,
-    @Column(nullable = false)
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
-    @Column(nullable = false)
-    val updatedAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now(),
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "safety_info_id")
     var safetyInfo: SafetyInfo? = null,
@@ -414,16 +425,21 @@ data class RiskAreaBoundary(
 @Table(name = "signal_areas")
 data class SignalArea(
     @Id
+    @Column(length = 64)
     val id: String,
+
     @Column(nullable = false)
     val name: String,
     @Column(columnDefinition = "TEXT")
     val description: String? = null,
     val level: Int? = null,
-    @Column(nullable = false)
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
-    @Column(nullable = false)
-    val updatedAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now(),
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "safety_info_id")
     var safetyInfo: SafetyInfo? = null,

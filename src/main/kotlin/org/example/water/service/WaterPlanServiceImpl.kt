@@ -5,8 +5,6 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.example.water.model.WaterPlan
-import org.example.water.model.WaterDay
-import org.example.water.repository.WaterDayRepository
 import org.example.water.repository.WaterPlanRepository
 import java.time.Instant
 
@@ -16,8 +14,7 @@ import java.time.Instant
 @Service
 @Transactional
 class WaterPlanServiceImpl(
-    private val waterPlanRepository: WaterPlanRepository,
-    private val waterDayRepository: WaterDayRepository
+    private val waterPlanRepository: WaterPlanRepository
 ) : WaterPlanService {
 
     // 基础CRUD操作
@@ -129,15 +126,8 @@ class WaterPlanServiceImpl(
     // 用水计划详情
     override fun getWaterPlanWithDays(id: String): WaterPlan? {
         val waterPlan = getWaterPlanById(id)
-        if (waterPlan != null) {
-            // 预加载用水天数数据
-            waterPlan.waterDays.size // 触发懒加载
-        }
+      
         return waterPlan
-    }
-
-    override fun getWaterDaysByPlanId(waterPlanId: String): List<WaterDay> {
-        return waterDayRepository.findByWaterPlanIdOrderByDayNumber(waterPlanId)
     }
 
     // 水源统计

@@ -46,11 +46,6 @@ interface RouteRepository : JpaRepository<Route, String> {
     @Query("SELECT r FROM Route r JOIN r.tags t WHERE t.tag = :tag")
     fun findByTagsTag(@Param("tag") tag: String, pageable: Pageable): Page<Route>
     
-    /**
-     * 根据季节查找路线
-     */
-    @Query("SELECT r FROM Route r JOIN r.seasons s WHERE s.season = :season")
-    fun findBySeasonsSeason(@Param("season") season: String, pageable: Pageable): Page<Route>
     
     /**
      * 根据距离范围查找路线
@@ -62,14 +57,7 @@ interface RouteRepository : JpaRepository<Route, String> {
      */
     fun findTop10ByOrderByPopularityDesc(): List<Route>
 
-    /**
-     * 根据经纬度范围查找路线
-     */
-    fun findByLatitudeBetweenAndLongitudeBetween(
-        minLatitude: BigDecimal, maxLatitude: BigDecimal,
-        minLongitude: BigDecimal, maxLongitude: BigDecimal,
-        pageable: Pageable
-    ): Page<Route>
+
 
     /**
      * 根据创建者查找路线
@@ -82,7 +70,6 @@ interface RouteRepository : JpaRepository<Route, String> {
     @Query("""
         SELECT DISTINCT r FROM Route r
         LEFT JOIN r.tags t
-        LEFT JOIN r.seasons s
         WHERE (:keyword IS NULL OR
                LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
                LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
@@ -91,7 +78,6 @@ interface RouteRepository : JpaRepository<Route, String> {
         AND (:routeType IS NULL OR r.routeType = :routeType)
         AND (:status IS NULL OR r.status = :status)
         AND (:tag IS NULL OR t.tag = :tag)
-        AND (:season IS NULL OR s.season = :season)
     """)
     fun searchRoutes(
         @Param("keyword") keyword: String?,
@@ -100,7 +86,6 @@ interface RouteRepository : JpaRepository<Route, String> {
         @Param("routeType") routeType: Int?,
         @Param("status") status: Int?,
         @Param("tag") tag: String?,
-        @Param("season") season: String?,
         pageable: Pageable
     ): Page<Route>
 
@@ -109,9 +94,10 @@ interface RouteRepository : JpaRepository<Route, String> {
      */
     @Query("""
         SELECT r FROM Route r
-        JOIN UserFavoriteRoute ufr ON ufr.routeId = r.id
-        WHERE ufr.userId = :userId
-        ORDER BY ufr.favoritedAt DESC
+        JOIN UserFavoriteRoute ufr ON ufr.route = r
+        JOIN User u ON ufr.user = u
+        WHERE u.id = :userId
+        ORDER BY ufr.createdAt DESC
     """)
     fun findUserFavoriteRoutes(@Param("userId") userId: String, pageable: Pageable): Page<Route>
 
@@ -120,8 +106,9 @@ interface RouteRepository : JpaRepository<Route, String> {
      */
     @Query("""
         SELECT r FROM Route r
-        JOIN UserCompletedRoute ucr ON ucr.routeId = r.id
-        WHERE ucr.userId = :userId
+        JOIN UserCompletedRoute ucr ON ucr.route = r
+        JOIN User u ON ucr.user = u
+        WHERE u.id = :userId
         ORDER BY ucr.completedAt DESC
     """)
     fun findUserCompletedRoutes(@Param("userId") userId: String, pageable: Pageable): Page<Route>
@@ -131,7 +118,9 @@ interface RouteRepository : JpaRepository<Route, String> {
      */
     @Query("""
         SELECT COUNT(ufr) > 0 FROM UserFavoriteRoute ufr
-        WHERE ufr.userId = :userId AND ufr.routeId = :routeId
+        JOIN User u ON ufr.user = u
+        JOIN Route r ON ufr.route = r
+        WHERE u.id = :userId AND r.id = :routeId
     """)
     fun isRouteFavoritedByUser(@Param("userId") userId: String, @Param("routeId") routeId: String): Boolean
 
@@ -140,7 +129,9 @@ interface RouteRepository : JpaRepository<Route, String> {
      */
     @Query("""
         SELECT COUNT(ucr) > 0 FROM UserCompletedRoute ucr
-        WHERE ucr.userId = :userId AND ucr.routeId = :routeId
+        JOIN User u ON ucr.user = u
+        JOIN Route r ON ucr.route = r
+        WHERE u.id = :userId AND r.id = :routeId
     """)
     fun isRouteCompletedByUser(@Param("userId") userId: String, @Param("routeId") routeId: String): Boolean
 
@@ -148,7 +139,9 @@ interface RouteRepository : JpaRepository<Route, String> {
      * 统计路线被收藏的次数
      */
     @Query("""
-        SELECT COUNT(ufr) FROM UserFavoriteRoute ufr WHERE ufr.routeId = :routeId
+        SELECT COUNT(ufr) FROM UserFavoriteRoute ufr
+        JOIN Route r ON ufr.route = r
+        WHERE r.id = :routeId
     """)
     fun countRouteFavorites(@Param("routeId") routeId: String): Long
 
@@ -156,7 +149,9 @@ interface RouteRepository : JpaRepository<Route, String> {
      * 统计路线被完成的次数
      */
     @Query("""
-        SELECT COUNT(ucr) FROM UserCompletedRoute ucr WHERE ucr.routeId = :routeId
+        SELECT COUNT(ucr) FROM UserCompletedRoute ucr
+        JOIN Route r ON ucr.route = r
+        WHERE r.id = :routeId
     """)
     fun countRouteCompletions(@Param("routeId") routeId: String): Long
 }

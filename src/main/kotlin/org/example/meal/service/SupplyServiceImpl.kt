@@ -89,7 +89,8 @@ class SupplyServiceImpl(
     }
 
     override fun getSuppliesByPriceRange(priceRange: String, pageable: Pageable): Page<Supply> {
-        return supplyRepository.findByPriceRangeAndIsActiveTrue(priceRange, pageable)
+        // TODO: 价格范围功能暂时不可用，返回空页面
+        return Page.empty(pageable)
     }
 
     override fun searchSuppliesWithFilters(
@@ -102,7 +103,7 @@ class SupplyServiceImpl(
         pageable: Pageable
     ): Page<Supply> {
         return supplyRepository.findSuppliesWithFilters(
-            routeId, supplyType, priceRange, minElevation, maxElevation, name, pageable
+            routeId, supplyType, minElevation, maxElevation, name, pageable
         )
     }
 

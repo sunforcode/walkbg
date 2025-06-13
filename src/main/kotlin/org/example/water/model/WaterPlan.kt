@@ -50,17 +50,8 @@ data class WaterPlan(
     var creator: User? = null,
     
     @OneToMany(mappedBy = "waterPlan", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val waterDays: MutableList<WaterDay> = mutableListOf(),
-
-    @OneToMany(mappedBy = "waterPlan", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     val tags: MutableList<WaterPlanTag> = mutableListOf()
 ) {
-    fun addWaterDay(waterDay: WaterDay) {
-        waterDays.add(waterDay)
-        waterDay.waterPlan = this
-        updatedAt = Instant.now()
-    }
-    
     fun addTag(tag: String) {
         tags.add(WaterPlanTag(tag = tag, waterPlan = this))
         updatedAt = Instant.now()

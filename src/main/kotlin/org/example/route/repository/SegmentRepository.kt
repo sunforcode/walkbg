@@ -29,7 +29,7 @@ interface SegmentRepository : JpaRepository<Segment, String> {
     /**
      * 根据地形类型查找路段
      */
-    fun findByTerrain(terrain: String): List<Segment>
+    fun findByTerrain(terrain: Int): List<Segment>
 
     /**
      * 根据路面类型查找路段

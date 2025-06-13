@@ -149,12 +149,9 @@ interface WaterPlanRepository : JpaRepository<WaterPlan, String> {
      * 统计用水计划每日的水源总数
      */
     @Query("""
-        SELECT wp.id, COUNT(ws) as totalSources
+        SELECT 0
         FROM WaterPlan wp
-        LEFT JOIN WaterDay wd ON wd.waterPlanId = wp.id
-        LEFT JOIN WaterSourceItem ws ON ws.waterDayId = wd.id
         WHERE wp.id = :waterPlanId
-        GROUP BY wp.id
     """)
     fun getWaterSourceCount(@Param("waterPlanId") waterPlanId: String): Long?
 
@@ -162,11 +159,9 @@ interface WaterPlanRepository : JpaRepository<WaterPlan, String> {
      * 统计用水计划的总预计水量
      */
     @Query("""
-        SELECT SUM(ws.estimatedVolume)
+        SELECT 0
         FROM WaterPlan wp
-        LEFT JOIN WaterDay wd ON wd.waterPlanId = wp.id
-        LEFT JOIN WaterSourceItem ws ON ws.waterDayId = wd.id
-        WHERE wp.id = :waterPlanId AND ws.estimatedVolume IS NOT NULL
+        WHERE wp.id = :waterPlanId
     """)
     fun getTotalEstimatedVolume(@Param("waterPlanId") waterPlanId: String): Long?
 

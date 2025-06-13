@@ -74,7 +74,7 @@ data class RouteWithDetailsDto(
  * 路线图片DTO
  */
 data class RouteImageDto(
-    val id: Long,
+    val id: String,
     @JsonProperty("image_url")
     val imageUrl: String,
     @JsonProperty("is_cover")

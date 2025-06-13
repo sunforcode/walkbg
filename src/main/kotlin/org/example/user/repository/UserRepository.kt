@@ -108,7 +108,7 @@ interface UserRepository : JpaRepository<User, String> {
      * 统计用户收藏的路线数量
      */
     @Query("""
-        SELECT COUNT(ufr) FROM UserFavoriteRoute ufr WHERE ufr.userId = :userId
+        SELECT COUNT(ufr) FROM UserFavoriteRoute ufr JOIN ufr.user u WHERE u.id = :userId
     """)
     fun countUserFavoriteRoutes(@Param("userId") userId: String): Long
 

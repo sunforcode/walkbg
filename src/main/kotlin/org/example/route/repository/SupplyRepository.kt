@@ -42,10 +42,8 @@ interface SupplyRepository : JpaRepository<Supply, String> {
      */
     fun findByRouteIdAndIsActiveTrueOrderByElevationAsc(routeId: String): List<Supply>
     
-    /**
-     * 根据价格范围查找补给点
-     */
-    fun findByPriceRangeAndIsActiveTrue(priceRange: String, pageable: Pageable): Page<Supply>
+    // TODO: 价格范围功能暂时移除，因为 Supply 实体中没有 priceRange 属性
+    // fun findByPriceRangeAndIsActiveTrue(priceRange: String, pageable: Pageable): Page<Supply>
     
     /**
      * 复合查询：根据多个条件查找补给点
@@ -54,14 +52,12 @@ interface SupplyRepository : JpaRepository<Supply, String> {
            "s.isActive = true AND " +
            "(:routeId IS NULL OR s.routeId = :routeId) AND " +
            "(:supplyType IS NULL OR s.supplyType = :supplyType) AND " +
-           "(:priceRange IS NULL OR s.priceRange = :priceRange) AND " +
            "(:minElevation IS NULL OR s.elevation >= :minElevation) AND " +
            "(:maxElevation IS NULL OR s.elevation <= :maxElevation) AND " +
            "(:name IS NULL OR LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%')))")
     fun findSuppliesWithFilters(
         @Param("routeId") routeId: String?,
         @Param("supplyType") supplyType: String?,
-        @Param("priceRange") priceRange: String?,
         @Param("minElevation") minElevation: BigDecimal?,
         @Param("maxElevation") maxElevation: BigDecimal?,
         @Param("name") name: String?,

@@ -1,5 +1,6 @@
 package org.example.water.model
 
+
 import jakarta.persistence.*
 
 /**

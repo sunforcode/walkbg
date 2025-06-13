@@ -3,7 +3,7 @@ package org.example.water.service
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.example.water.model.WaterPlan
-import org.example.water.model.WaterDay
+
 import java.time.Instant
 
 /**
@@ -54,7 +54,6 @@ interface WaterPlanService {
 
     // 用水计划详情
     fun getWaterPlanWithDays(id: String): WaterPlan?
-    fun getWaterDaysByPlanId(waterPlanId: String): List<WaterDay>
 
     // 水源统计
     fun getWaterSourceCount(waterPlanId: String): Long?

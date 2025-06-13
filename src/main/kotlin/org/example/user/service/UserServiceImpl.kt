@@ -9,7 +9,7 @@ import org.example.user.repository.UserRepository
 import org.example.user.repository.UserFavoriteRouteRepository
 import org.example.user.repository.UserCompletedRouteRepository
 import org.example.user.repository.UserEquipmentItemRepository
-import org.example.infrastructure.repository.RouteRepository
+import org.example.route.repository.RouteRepository
 import org.example.trip.repository.TripParticipantRepository
 import org.example.trip.model.TripParticipant
 import org.springframework.data.domain.Page
@@ -101,8 +101,19 @@ class UserServiceImpl(
     // 用户收藏路线管理
     override fun addFavoriteRoute(userId: String, routeId: String): UserFavoriteRoute {
         val favoriteRoute = UserFavoriteRoute(
-            id = UUID.randomUUID().toString()
+            id = UUID.randomUUID().toString(),
+            createdAt = Instant.now()
         )
+        // 设置关联实体
+        val user = userRepository.findById(userId).orElseThrow {
+            IllegalArgumentException("用户不存在: $userId")
+        }
+        val route = routeRepository.findById(routeId).orElseThrow {
+            IllegalArgumentException("路线不存在: $routeId")
+        }
+        favoriteRoute.user = user
+        favoriteRoute.route = route
+
         return userFavoriteRouteRepository.save(favoriteRoute)
     }
 
@@ -111,7 +122,9 @@ class UserServiceImpl(
     }
 
     override fun getUserFavoriteRoutes(userId: String, pageable: Pageable): Page<UserFavoriteRoute> {
-        return userFavoriteRouteRepository.findByUserId(userId, pageable)
+        // TODO: 临时实现，需要重新实现分页查询
+        val allFavorites = userFavoriteRouteRepository.findByUserId(userId)
+        return org.springframework.data.domain.PageImpl(allFavorites, pageable, allFavorites.size.toLong())
     }
 
     override fun isRouteFavorited(userId: String, routeId: String): Boolean {

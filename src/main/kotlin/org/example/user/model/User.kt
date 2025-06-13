@@ -27,7 +27,7 @@ data class User(
     @Column(nullable = false, unique = true, length = 50)
     var username: String = "",
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 50)
     var nickname: String = "",
 
     @Column(nullable = false, unique = true, length = 100)
@@ -47,6 +47,9 @@ data class User(
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
+
+    @Column(name = "last_login_at")
+    var lastLoginAt: Instant? = null,
 
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now()

@@ -1,19 +1,17 @@
 package org.example.route.service
 
-import org.example.infrastructure.repository.RouteRepository
 import org.example.user.repository.UserRepository
 import org.example.user.repository.UserFavoriteRouteRepository
 import org.example.user.model.UserFavoriteRoute
 import org.example.route.model.Route
+import org.example.route.repository.RouteRepository
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.*
-import jakarta.persistence.criteria.Predicate
 
 /**
  * 路线领域服务实现
@@ -52,60 +50,24 @@ class RouteServiceImpl(
         userId: String?,
         pageable: Pageable
     ): Page<Route> {
-        // 使用Specification构建动态查询条件
-        val spec = Specification<Route> { root, query, criteriaBuilder ->
-            val predicates = mutableListOf<Predicate>()
-
-            // 关键字查询
-            keyword?.let {
-                val keywordLike = "%$it%"
-                val nameLike = criteriaBuilder.like(root.get("name"), keywordLike)
-                val descriptionLike = criteriaBuilder.like(root.get("description"), keywordLike)
-                predicates.add(criteriaBuilder.or(nameLike, descriptionLike))
-            }
-
-            // 地区ID查询
-            regionId?.let {
-                predicates.add(criteriaBuilder.equal(root.get<String>("regionId"), it))
-            }
-
-            // 难度查询
-            difficulty?.let {
-                predicates.add(criteriaBuilder.equal(root.get<Int>("difficulty"), it))
-            }
-
-            // 路线类型查询
-            routeType?.let {
-                predicates.add(criteriaBuilder.equal(root.get<Int>("routeType"), it))
-            }
-
-            // 距离范围查询
-            if (minDistance != null && maxDistance != null) {
-                predicates.add(criteriaBuilder.between(root.get("distance"), minDistance, maxDistance))
-            } else if (minDistance != null) {
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("distance"), minDistance))
-            } else if (maxDistance != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("distance"), maxDistance))
-            }
-
-            // 标签查询 - 这里需要使用JOIN，比较复杂，暂时不实现
-
-            // 用户收藏查询 - 这里需要使用JOIN，比较复杂，暂时不实现
-
-            criteriaBuilder.and(*predicates.toTypedArray())
-        }
-
-        // 如果有标签查询，使用专门的方法
-        if (!tags.isNullOrEmpty()) {
-            return routeRepository.findByTags(tags, tags.size.toLong(), pageable)
-        }
-
-        // 如果是查询用户收藏，使用专门的方法
+        // 如果是查询用户收藏的路线
         if (userId != null) {
-            return routeRepository.findFavoritesByUserId(userId, pageable)
+            return routeRepository.findUserFavoriteRoutes(userId, pageable)
         }
 
-        return routeRepository.findAll(spec, pageable)
+        // 处理标签查询 - 只取第一个标签
+        val tag = tags?.firstOrNull()
+
+        // 使用repository的searchRoutes方法进行多条件查询
+        return routeRepository.searchRoutes(
+            keyword = keyword,
+            region = regionId,
+            difficulty = difficulty,
+            routeType = routeType,
+            status = null, // RouteService接口中没有status参数，传null
+            tag = tag,
+            pageable = pageable
+        )
     }
 
     /**
@@ -148,8 +110,10 @@ class RouteServiceImpl(
      */
     @Transactional
     override fun incrementPopularity(id: String): Boolean {
-        val result = routeRepository.incrementPopularity(id)
-        return result > 0
+        val route = routeRepository.findById(id).orElse(null) ?: return false
+        route.incrementPopularity()
+        routeRepository.save(route)
+        return true
     }
 
     /**
@@ -157,8 +121,10 @@ class RouteServiceImpl(
      */
     @Transactional
     override fun incrementUsageCount(id: String): Boolean {
-        val result = routeRepository.incrementUsageCount(id)
-        return result > 0
+        val route = routeRepository.findById(id).orElse(null) ?: return false
+        route.incrementUsageCount()
+        routeRepository.save(route)
+        return true
     }
 
     /**
@@ -199,6 +165,6 @@ class RouteServiceImpl(
      * 检查路线是否被收藏
      */
     override fun isFavorite(routeId: String, userId: String): Boolean {
-        return userFavoriteRouteRepository.existsByUserIdAndRouteId(userId, routeId)
+        return routeRepository.isRouteFavoritedByUser(userId, routeId)
     }
 }

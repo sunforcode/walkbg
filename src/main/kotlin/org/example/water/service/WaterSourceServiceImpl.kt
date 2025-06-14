@@ -50,7 +50,6 @@ class WaterSourceServiceImpl(
     override fun deleteWaterSource(id: String): Boolean {
         return waterSourceRepository.findById(id).map { waterSource ->
             val deletedWaterSource = waterSource.copy(
-                isActive = false,
                 updatedAt = Instant.now()
             )
             waterSourceRepository.save(deletedWaterSource)
@@ -63,25 +62,25 @@ class WaterSourceServiceImpl(
     }
 
     override fun getWaterSourcesByRouteSorted(routeId: String): List<WaterSource> {
-        return waterSourceRepository.findByRouteIdAndIsActiveTrueOrderByElevationAsc(routeId)
+        return waterSourceRepository.findByRouteIdOrderByElevationAsc(routeId)
     }
 
     override fun getWaterSourcesByType(waterType: Int, pageable: Pageable): Page<WaterSource> {
-        return waterSourceRepository.findByWaterTypeAndIsActiveTrue(waterType, pageable)
+        return waterSourceRepository.findByWaterType(waterType, pageable)
     }
 
     override fun getWaterSourcesByQuality(waterQuality: Int, pageable: Pageable): Page<WaterSource> {
-        return waterSourceRepository.findByWaterQualityAndIsActiveTrue(waterQuality, pageable)
+        return waterSourceRepository.findByWaterQuality(waterQuality, pageable)
     }
 
     override fun getWaterSourcesByRouteAndType(routeId: String, waterType: Int, pageable: Pageable): Page<WaterSource> {
-        return waterSourceRepository.findByRouteIdAndWaterTypeAndIsActiveTrue(routeId, waterType, pageable)
+        return waterSourceRepository.findByRouteIdAndWaterType(routeId, waterType, pageable)
     }
 
     override fun getWaterSourcesByElevationRange(minElevation: BigDecimal?, maxElevation: BigDecimal?, pageable: Pageable): Page<WaterSource> {
         return when {
             minElevation != null && maxElevation != null -> {
-                waterSourceRepository.findByElevationBetweenAndIsActiveTrue(minElevation, maxElevation, pageable)
+                waterSourceRepository.findByElevationBetween(minElevation, maxElevation, pageable)
             }
             else -> {
                 waterSourceRepository.findAll(pageable)
@@ -90,11 +89,11 @@ class WaterSourceServiceImpl(
     }
 
     override fun searchWaterSourcesByName(name: String, pageable: Pageable): Page<WaterSource> {
-        return waterSourceRepository.findByNameContainingIgnoreCaseAndIsActiveTrue(name, pageable)
+        return waterSourceRepository.findByNameContainingIgnoreCase(name, pageable)
     }
 
     override fun getSafeWaterSources(pageable: Pageable): Page<WaterSource> {
-        return waterSourceRepository.findByRequiresTreatmentFalseAndIsActiveTrue(pageable)
+        return waterSourceRepository.findByRequiresTreatmentFalse(pageable)
     }
 
     override fun searchWaterSourcesWithFilters(
@@ -113,7 +112,7 @@ class WaterSourceServiceImpl(
     }
 
     override fun countWaterSourcesByRoute(routeId: String): Long {
-        return waterSourceRepository.countByRouteIdAndIsActiveTrue(routeId)
+        return waterSourceRepository.countByRouteId(routeId)
     }
 
     override fun verifyWaterSource(id: String, verifiedBy: String): WaterSource? {

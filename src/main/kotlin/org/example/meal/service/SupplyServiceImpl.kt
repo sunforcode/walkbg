@@ -32,7 +32,6 @@ class SupplyServiceImpl(
             val updatedSupply = existingSupply.copy(
                 name = supply.name,
                 description = supply.description,
-                routeId = supply.routeId,
                 latitude = supply.latitude,
                 longitude = supply.longitude,
                 elevation = supply.elevation,
@@ -49,7 +48,6 @@ class SupplyServiceImpl(
     override fun deleteSupply(id: String): Boolean {
         return supplyRepository.findById(id).map { supply ->
             val deletedSupply = supply.copy(
-                isActive = false,
                 updatedAt = Instant.now()
             )
             supplyRepository.save(deletedSupply)
@@ -58,25 +56,25 @@ class SupplyServiceImpl(
     }
 
     override fun getSuppliesByRoute(routeId: String, pageable: Pageable): Page<Supply> {
-        return supplyRepository.findByRouteIdAndIsActiveTrue(routeId, pageable)
+        return supplyRepository.findByRouteId(routeId, pageable)
     }
 
     override fun getSuppliesByRouteSorted(routeId: String): List<Supply> {
-        return supplyRepository.findByRouteIdAndIsActiveTrueOrderByElevationAsc(routeId)
+        return supplyRepository.findByRouteIdOrderByElevationAsc(routeId)
     }
 
-    override fun getSuppliesByType(supplyType: String, pageable: Pageable): Page<Supply> {
-        return supplyRepository.findBySupplyTypeAndIsActiveTrue(supplyType, pageable)
+    override fun getSuppliesByType(supplyType: Int, pageable: Pageable): Page<Supply> {
+        return supplyRepository.findBySupplyType(supplyType, pageable)
     }
 
-    override fun getSuppliesByRouteAndType(routeId: String, supplyType: String, pageable: Pageable): Page<Supply> {
-        return supplyRepository.findByRouteIdAndSupplyTypeAndIsActiveTrue(routeId, supplyType, pageable)
+    override fun getSuppliesByRouteAndType(routeId: String, supplyType: Int, pageable: Pageable): Page<Supply> {
+        return supplyRepository.findByRouteIdAndSupplyType(routeId, supplyType, pageable)
     }
 
     override fun getSuppliesByElevationRange(minElevation: BigDecimal?, maxElevation: BigDecimal?, pageable: Pageable): Page<Supply> {
         return when {
             minElevation != null && maxElevation != null -> {
-                supplyRepository.findByElevationBetweenAndIsActiveTrue(minElevation, maxElevation, pageable)
+                supplyRepository.findByElevationBetween(minElevation, maxElevation, pageable)
             }
             else -> {
                 supplyRepository.findAll(pageable)
@@ -85,7 +83,7 @@ class SupplyServiceImpl(
     }
 
     override fun searchSuppliesByName(name: String, pageable: Pageable): Page<Supply> {
-        return supplyRepository.findByNameContainingIgnoreCaseAndIsActiveTrue(name, pageable)
+        return supplyRepository.findByNameContainingIgnoreCase(name, pageable)
     }
 
     override fun getSuppliesByPriceRange(priceRange: String, pageable: Pageable): Page<Supply> {
@@ -95,7 +93,7 @@ class SupplyServiceImpl(
 
     override fun searchSuppliesWithFilters(
         routeId: String?,
-        supplyType: String?,
+        supplyType: Int?,
         priceRange: String?,
         minElevation: BigDecimal?,
         maxElevation: BigDecimal?,
@@ -108,7 +106,7 @@ class SupplyServiceImpl(
     }
 
     override fun countSuppliesByRoute(routeId: String): Long {
-        return supplyRepository.countByRouteIdAndIsActiveTrue(routeId)
+        return supplyRepository.countByRouteId(routeId)
     }
 
     override fun updateSupplyVerification(id: String, verifiedBy: String): Supply? {

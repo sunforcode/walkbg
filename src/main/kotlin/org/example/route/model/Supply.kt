@@ -1,6 +1,7 @@
 package org.example.route.model
 
 import jakarta.persistence.*
+import org.example.user.model.User
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -49,8 +50,9 @@ data class Supply(
     @Column(name = "updated_by", length = 64)
     var updatedBy: String? = null,
 
-    @Column(name = "is_active", nullable = false)
-    var isActive: Boolean = true,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by", insertable = false, updatable = false)
+    var updatedByUser: User? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
@@ -60,11 +62,8 @@ data class Supply(
 
     // 关联关系
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id", insertable = false, updatable = false)
-    var route: Route? = null,
-
-    @Column(name = "route_id", length = 64)
-    var routeId: String? = null
+    @JoinColumn(name = "route_id")
+    var route: Route? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

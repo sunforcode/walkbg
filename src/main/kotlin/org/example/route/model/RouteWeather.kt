@@ -18,6 +18,9 @@ data class RouteWeather(
     @Column(columnDefinition = "TEXT")
     val precautions: String? = null,
     
+    @Column(name = "best_seasons", columnDefinition = "TEXT")
+    val bestSeasons: String? = null, // JSON 字符串存储最佳季节数组
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")
     var route: Route? = null,

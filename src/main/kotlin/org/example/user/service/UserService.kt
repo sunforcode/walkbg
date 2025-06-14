@@ -21,7 +21,6 @@ interface UserService {
     fun createUser(user: User): User
     fun updateUser(id: String, user: User): User?
     fun deleteUser(id: String): Boolean
-    fun searchUsers(keyword: String?, isActive: Boolean?, pageable: Pageable): Page<User>
     
     // 用户统计信息
     fun getUserStatistics(): Map<String, Any>

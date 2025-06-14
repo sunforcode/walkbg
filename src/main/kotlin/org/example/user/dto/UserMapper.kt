@@ -24,7 +24,6 @@ object UserMapper {
             avatarUrl = user.avatarUrl,
             phone = user.phone,
             bio = user.bio,
-            isActive = user.isActive,
             createdAt = user.createdAt,
             lastLoginAt = user.lastLoginAt
         )
@@ -49,7 +48,6 @@ object UserMapper {
             avatarUrl = createRequest.avatarUrl,
             phone = createRequest.phone,
             bio = createRequest.bio,
-            isActive = true,
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )
@@ -64,7 +62,6 @@ object UserMapper {
             avatarUrl = updateRequest.avatarUrl ?: user.avatarUrl,
             phone = updateRequest.phone ?: user.phone,
             bio = updateRequest.bio ?: user.bio,
-            isActive = updateRequest.isActive ?: user.isActive,
             updatedAt = Instant.now()
         )
     }

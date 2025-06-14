@@ -58,8 +58,8 @@ class RouteController(
                     name = route.name,
                     description = route.description,
                     region = route.region,
-                    distance = route.distance,
-                    duration = route.duration,
+                    distance = route.mapData?.distance,
+                    duration = route.mapData?.duration,
                     difficulty = route.difficulty,
                     coverUrl = route.coverUrl,
                     popularity = route.popularity,
@@ -90,7 +90,7 @@ class RouteController(
             } else {
                 // 如果提供了用户ID，检查是否收藏
                 if (userId != null) {
-                    route.isFavorite = routeService.isFavorite(id, userId)
+                    route.isFavoriteByUser = routeService.isFavorite(id, userId)
                 }
 
                 val response = RouteWithDetailsDto(
@@ -99,24 +99,191 @@ class RouteController(
                     description = route.description,
                     region = route.region,
                     regionId = route.regionId,
-                    distance = route.distance,
-                    duration = route.duration,
-                    latitude = null,
-                    longitude = null,
-                    altitude = null,
-                    elevationGain = route.elevationGain,
-                    elevationLoss = route.elevationLoss,
                     difficulty = route.difficulty,
                     routeType = route.routeType,
-                    routeDirection = route.routeDirection,
+                    // 从关联的 mapData 获取地理信息
+                    distance = route.mapData?.distance,
+                    duration = route.mapData?.duration,
+                    latitude = route.mapData?.latitude,
+                    longitude = route.mapData?.longitude,
+                    altitude = route.mapData?.altitude,
+                    elevationGain = route.mapData?.elevationGain,
+                    elevationLoss = route.mapData?.elevationLoss,
                     status = route.status,
                     coverUrl = route.coverUrl,
-                    mapDataId = null,
                     defaultMapId = route.defaultMapId,
-                    createdBy = route.createdBy,
                     popularity = route.popularity,
+                    usageCount = route.usageCount,
+                    isLoop = route.isLoop,
+                    imageUrls = route.imageUrls?.split(",") ?: emptyList(),
+                    isFavorite = route.isFavorite,
                     createdAt = route.createdAt,
-                    updatedAt = route.updatedAt
+                    updatedAt = route.updatedAt,
+                    // 统计数据从 mapData 获取
+                    favoriteCount = route.mapData?.favoriteCount ?: 0,
+                    completionCount = route.mapData?.completionCount ?: 0,
+                    tripCount = route.mapData?.tripCount ?: 0,
+                    // 创建者信息
+                    creator = route.creator?.let { user ->
+                        org.example.user.dto.UserBasicDto(
+                            id = user.id,
+                            username = user.username,
+                            nickname = user.nickname,
+                            email = user.email,
+                            avatarUrl = user.avatarUrl,
+                            createdAt = user.createdAt
+                        )
+                    },
+                    // 关联对象数据
+                    tags = route.tags.map { it.tag },
+                    campsites = route.campsites.map { campsite ->
+                        org.example.route.dto.CampsiteDto(
+                            id = campsite.id,
+                            name = campsite.name,
+                            description = campsite.description,
+                            latitude = campsite.latitude,
+                            longitude = campsite.longitude,
+                            elevation = campsite.elevation,
+                            campsiteType = campsite.campsiteType,
+                            notes = campsite.notes,
+                            createdAt = campsite.createdAt,
+                            updatedAt = campsite.updatedAt,
+                            verifiedBy = campsite.verifiedBy?.let { user ->
+                                org.example.user.dto.UserBasicDto(
+                                    id = user.id,
+                                    username = user.username,
+                                    nickname = user.nickname,
+                                    email = user.email,
+                                    avatarUrl = user.avatarUrl,
+                                    createdAt = user.createdAt
+                                )
+                            }
+                        )
+                    },
+                    markerPoints = route.markerPoints.map { marker ->
+                        org.example.route.dto.MarkerPointDto(
+                            id = marker.id,
+                            name = marker.name,
+                            description = marker.description,
+                            markerType = marker.markerType,
+                            iconUrl = marker.iconUrl,
+                            latitude = marker.latitude,
+                            longitude = marker.longitude,
+                            createdAt = marker.createdAt,
+                            updatedAt = marker.updatedAt,
+                            color = marker.color,
+                            elevation = marker.elevation
+                        )
+                    },
+                    supplies = route.supplies.map { supply ->
+                        org.example.route.dto.SupplyDto(
+                            id = supply.id,
+                            name = supply.name,
+                            description = supply.description,
+                            routeId = supply.route?.id,
+                            latitude = supply.latitude,
+                            longitude = supply.longitude,
+                            elevation = supply.elevation,
+                            supplyType = supply.supplyType,
+                            lastVerified = supply.lastVerified,
+                            lastVerifiedAt = supply.lastVerifiedAt,
+                            updatedBy = supply.updatedByUser?.let { user ->
+                                org.example.user.dto.UserBasicDto(
+                                    id = user.id,
+                                    username = user.username,
+                                    nickname = user.nickname,
+                                    email = user.email,
+                                    avatarUrl = user.avatarUrl,
+                                    createdAt = user.createdAt
+                                )
+                            },
+                            createdAt = supply.createdAt,
+                            updatedAt = supply.updatedAt
+                        )
+                    },
+                    waterSources = route.waterSources.map { water ->
+                        org.example.water.dto.WaterSourceDto(
+                            id = water.id,
+                            name = water.name,
+                            description = water.description,
+                            latitude = water.latitude,
+                            longitude = water.longitude,
+                            elevation = water.elevation,
+                            waterType = water.waterType,
+                            waterQuality = water.waterQuality,
+                            requiresTreatment = water.requiresTreatment,
+                            reliability = water.reliability,
+                            notes = water.notes,
+                            lastVerified = water.lastVerified,
+                            verifiedBy = water.verifiedBy?.let { user ->
+                                org.example.user.dto.UserBasicDto(
+                                    id = user.id,
+                                    username = user.username,
+                                    nickname = user.nickname,
+                                    email = user.email,
+                                    avatarUrl = user.avatarUrl,
+                                    createdAt = user.createdAt
+                                )
+                            },
+                            createdAt = water.createdAt,
+                            updatedAt = water.updatedAt
+                        )
+                    },
+                    dailyPlans = route.dailyPlans.map { plan ->
+                        org.example.route.dto.DailyPlanDto(
+                            id = plan.id,
+                            dayNumber = plan.dayNumber,
+                            title = plan.title,
+                            description = plan.description,
+                            distance = plan.distance,
+                            estimatedTime = plan.estimatedTime,
+                            elevationGain = plan.elevationGain,
+                            elevationLoss = plan.elevationLoss,
+                            maxElevation = plan.maxElevation,
+                            minElevation = plan.minElevation,
+                            accommodation = plan.accommodation,
+                            notes = plan.notes,
+                            createdAt = plan.createdAt,
+                            updatedAt = plan.updatedAt,
+                            segments = plan.segments.map { planSegment ->
+                                org.example.route.dto.DailyPlanSegmentDto(
+                                    id = planSegment.id,
+                                    sequenceNumber = planSegment.sequenceNumber,
+                                    segment = planSegment.segment?.let { segment ->
+                                        org.example.route.dto.SegmentDto(
+                                            id = segment.id,
+                                            name = segment.name,
+                                            description = segment.description,
+                                            distance = segment.distance,
+                                            elevationGain = segment.elevationGain,
+                                            elevationLoss = segment.elevationLoss,
+                                            estimatedTime = segment.estimatedTime,
+                                            difficulty = segment.difficulty,
+                                            routeType = segment.routeType,
+                                            notes = segment.notes,
+                                            startPoint = null, // 简化处理
+                                            endPoint = null,   // 简化处理
+                                            keypoints = emptyList() // 简化处理
+                                        )
+                                    }
+                                )
+                            }
+                        )
+                    },
+                    weatherInfo = route.weatherInfo?.let { weather ->
+                        org.example.route.dto.RouteWeatherDto(
+                            id = weather.id,
+                            description = weather.description,
+                            precautions = weather.precautions,
+                            seasonalWeather = weather.seasonalWeather.map { seasonal ->
+                                org.example.route.dto.SeasonalWeatherDto(
+                                    id = seasonal.id,
+                                    season = seasonal.season,
+                                    description = seasonal.description
+                                )
+                            }
+                        )
+                    }
                 )
 
                 ResponseUtil.success(response)

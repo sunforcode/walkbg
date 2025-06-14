@@ -71,10 +71,6 @@ class UserServiceImpl(
         }
     }
 
-    override fun searchUsers(keyword: String?, isActive: Boolean?, pageable: Pageable): Page<User> {
-        return userRepository.searchUsers(keyword, isActive, pageable)
-    }
-
     // 用户统计信息
     override fun getUserStatistics(): Map<String, Any> {
         return userRepository.getUserStatistics()

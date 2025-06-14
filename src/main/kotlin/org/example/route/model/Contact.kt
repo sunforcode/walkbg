@@ -43,7 +43,11 @@ data class Contact(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now(),
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route_id")
+    var route: Route? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

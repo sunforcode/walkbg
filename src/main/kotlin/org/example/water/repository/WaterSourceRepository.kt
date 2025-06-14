@@ -15,51 +15,50 @@ interface WaterSourceRepository : JpaRepository<WaterSource, String> {
     /**
      * 根据路线ID查找水源
      */
-    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId AND ws.isActive = true")
+    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId")
     fun findByRouteId(@Param("routeId") routeId: String, pageable: Pageable): Page<WaterSource>
     
     /**
      * 根据水源类型查找
      */
-    fun findByWaterTypeAndIsActiveTrue(waterType: Int, pageable: Pageable): Page<WaterSource>
+    fun findByWaterType(waterType: Int, pageable: Pageable): Page<WaterSource>
     
     /**
      * 根据水质查找
      */
-    fun findByWaterQualityAndIsActiveTrue(waterQuality: Int, pageable: Pageable): Page<WaterSource>
+    fun findByWaterQuality(waterQuality: Int, pageable: Pageable): Page<WaterSource>
     
     /**
      * 根据路线ID和水源类型查找
      */
-    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId AND ws.waterType = :waterType AND ws.isActive = true")
-    fun findByRouteIdAndWaterTypeAndIsActiveTrue(@Param("routeId") routeId: String, @Param("waterType") waterType: Int, pageable: Pageable): Page<WaterSource>
+    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId AND ws.waterType = :waterType")
+    fun findByRouteIdAndWaterType(@Param("routeId") routeId: String, @Param("waterType") waterType: Int, pageable: Pageable): Page<WaterSource>
     
     /**
      * 根据海拔范围查找水源
      */
-    fun findByElevationBetweenAndIsActiveTrue(minElevation: BigDecimal, maxElevation: BigDecimal, pageable: Pageable): Page<WaterSource>
+    fun findByElevationBetween(minElevation: BigDecimal, maxElevation: BigDecimal, pageable: Pageable): Page<WaterSource>
     
     /**
      * 根据名称模糊查询水源
      */
-    fun findByNameContainingIgnoreCaseAndIsActiveTrue(name: String, pageable: Pageable): Page<WaterSource>
+    fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<WaterSource>
     
     /**
      * 根据路线ID查找水源，按海拔排序
      */
-    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId AND ws.isActive = true ORDER BY ws.elevation ASC")
-    fun findByRouteIdAndIsActiveTrueOrderByElevationAsc(@Param("routeId") routeId: String): List<WaterSource>
+    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId ORDER BY ws.elevation ASC")
+    fun findByRouteIdOrderByElevationAsc(@Param("routeId") routeId: String): List<WaterSource>
     
     /**
      * 查找不需要处理的水源
      */
-    fun findByRequiresTreatmentFalseAndIsActiveTrue(pageable: Pageable): Page<WaterSource>
+    fun findByRequiresTreatmentFalse(pageable: Pageable): Page<WaterSource>
     
     /**
      * 复合查询：根据多个条件查找水源
      */
     @Query("SELECT ws FROM WaterSource ws LEFT JOIN ws.route r WHERE " +
-           "ws.isActive = true AND " +
            "(:routeId IS NULL OR r.id = :routeId) AND " +
            "(:waterType IS NULL OR ws.waterType = :waterType) AND " +
            "(:waterQuality IS NULL OR ws.waterQuality = :waterQuality) AND " +
@@ -81,6 +80,6 @@ interface WaterSourceRepository : JpaRepository<WaterSource, String> {
     /**
      * 统计路线的水源数量
      */
-    @Query("SELECT COUNT(ws) FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId AND ws.isActive = true")
-    fun countByRouteIdAndIsActiveTrue(@Param("routeId") routeId: String): Long
+    @Query("SELECT COUNT(ws) FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId")
+    fun countByRouteId(@Param("routeId") routeId: String): Long
 }

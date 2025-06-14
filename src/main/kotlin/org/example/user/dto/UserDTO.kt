@@ -17,7 +17,6 @@ data class UserResponseDTO(
     val avatarUrl: String? = null,
     val phone: String? = null,
     val bio: String? = null,
-    val isActive: Boolean,
     val createdAt: Instant,
     val lastLoginAt: Instant? = null
 )
@@ -67,8 +66,6 @@ data class UpdateUserRequestDTO(
 
     @field:Size(max = 1000, message = "个人简介长度不能超过1000个字符")
     val bio: String? = null,
-
-    val isActive: Boolean? = null
 )
 
 /**

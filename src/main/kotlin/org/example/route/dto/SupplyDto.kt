@@ -1,6 +1,7 @@
 package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.example.user.dto.UserBasicDto
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -23,9 +24,7 @@ data class SupplyDto(
     @JsonProperty("last_verified_at")
     val lastVerifiedAt: Instant?, // 最后验证时间
     @JsonProperty("updated_by")
-    val updatedBy: String?,
-    @JsonProperty("is_active")
-    val isActive: Boolean,
+    val updatedBy: UserBasicDto?,
     @JsonProperty("created_at")
     val createdAt: Instant,
     @JsonProperty("updated_at")
@@ -49,8 +48,6 @@ data class WaypointDto(
     val lastVerifiedAt: Instant?, // 最后验证时间
     @JsonProperty("updated_by")
     val updatedBy: String?,
-    @JsonProperty("is_active")
-    val isActive: Boolean,
     @JsonProperty("created_at")
     val createdAt: Instant,
     @JsonProperty("updated_at")

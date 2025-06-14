@@ -49,6 +49,11 @@ data class MarkerPoint(
 
     val longitude: Double? = null,
 
+    val elevation: Double? = null,
+
+    @Column(length = 7)
+    val color: String? = null, // 颜色值，如 #228B22
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 

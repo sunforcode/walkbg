@@ -20,7 +20,7 @@ class RouteContactServiceImpl(
 
     override fun addContactToRoute(routeId: String, contactId: String, contactType: Int, priority: Int, notes: String?): RouteContact {
         // 检查是否已经关联
-        if (routeContactRepository.existsByRouteIdAndContactIdAndIsActiveTrue(routeId, contactId)) {
+        if (routeContactRepository.existsByRouteIdAndContactId(routeId, contactId)) {
             throw IllegalArgumentException("联系人已经与该路线关联")
         }
         
@@ -37,15 +37,11 @@ class RouteContactServiceImpl(
     }
 
     override fun removeContactFromRoute(routeId: String, contactId: String): Boolean {
-        val routeContacts = routeContactRepository.findByRouteIdAndIsActiveTrueOrderByPriorityAsc(routeId)
+        val routeContacts = routeContactRepository.findByRouteIdOrderByPriorityAsc(routeId)
         val routeContact = routeContacts.find { it.contactId == contactId }
         
         return if (routeContact != null) {
-            val updatedRouteContact = routeContact.copy(
-                isActive = false,
-                updatedAt = Instant.now()
-            )
-            routeContactRepository.save(updatedRouteContact)
+            routeContactRepository.delete(routeContact)
             true
         } else {
             false
@@ -53,23 +49,23 @@ class RouteContactServiceImpl(
     }
 
     override fun getContactsByRoute(routeId: String, pageable: Pageable): Page<RouteContact> {
-        return routeContactRepository.findByRouteIdAndIsActiveTrue(routeId, pageable)
+        return routeContactRepository.findByRouteId(routeId, pageable)
     }
 
     override fun getContactsByRouteAndType(routeId: String, contactType: Int, pageable: Pageable): Page<RouteContact> {
-        return routeContactRepository.findByRouteIdAndContactTypeAndIsActiveTrue(routeId, contactType, pageable)
+        return routeContactRepository.findByRouteIdAndContactType(routeId, contactType, pageable)
     }
 
     override fun getContactsByRouteSorted(routeId: String): List<RouteContact> {
-        return routeContactRepository.findByRouteIdAndIsActiveTrueOrderByPriorityAsc(routeId)
+        return routeContactRepository.findByRouteIdOrderByPriorityAsc(routeId)
     }
 
     override fun getContactsByRouteAndTypeSorted(routeId: String, contactType: Int): List<RouteContact> {
-        return routeContactRepository.findByRouteIdAndContactTypeAndIsActiveTrueOrderByPriorityAsc(routeId, contactType)
+        return routeContactRepository.findByRouteIdAndContactTypeOrderByPriorityAsc(routeId, contactType)
     }
 
     override fun getRoutesByContact(contactId: String, pageable: Pageable): Page<RouteContact> {
-        return routeContactRepository.findByContactIdAndIsActiveTrue(contactId, pageable)
+        return routeContactRepository.findByContactId(contactId, pageable)
     }
 
     override fun updateRouteContact(id: String, contactType: Int?, priority: Int?, notes: String?): RouteContact? {
@@ -85,7 +81,7 @@ class RouteContactServiceImpl(
     }
 
     override fun isContactAssociatedWithRoute(routeId: String, contactId: String): Boolean {
-        return routeContactRepository.existsByRouteIdAndContactIdAndIsActiveTrue(routeId, contactId)
+        return routeContactRepository.existsByRouteIdAndContactId(routeId, contactId)
     }
 
     override fun searchRouteContactsWithFilters(routeId: String, contactType: Int?): List<RouteContact> {
@@ -93,13 +89,13 @@ class RouteContactServiceImpl(
     }
 
     override fun getRouteContactsWithDetails(routeId: String): List<Contact> {
-        val routeContacts = routeContactRepository.findByRouteIdAndIsActiveTrueOrderByPriorityAsc(routeId)
+        val routeContacts = routeContactRepository.findByRouteIdOrderByPriorityAsc(routeId)
         val contactIds = routeContacts.map { it.contactId }
         return contactRepository.findAllById(contactIds)
     }
 
     override fun getRouteContactsWithDetailsByType(routeId: String, contactType: Int): List<Contact> {
-        val routeContacts = routeContactRepository.findByRouteIdAndContactTypeAndIsActiveTrueOrderByPriorityAsc(routeId, contactType)
+        val routeContacts = routeContactRepository.findByRouteIdAndContactTypeOrderByPriorityAsc(routeId, contactType)
         val contactIds = routeContacts.map { it.contactId }
         return contactRepository.findAllById(contactIds)
     }

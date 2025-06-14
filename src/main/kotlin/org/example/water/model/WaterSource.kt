@@ -73,9 +73,6 @@ data class WaterSource(
     @Column(columnDefinition = "TEXT")
     val notes: String? = null,
 
-    @Column(name = "is_active", nullable = false)
-    val isActive: Boolean = true,
-
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
     

@@ -42,9 +42,6 @@ data class User(
     @Column(name = "bio", columnDefinition = "TEXT")
     var bio: String? = null,
 
-    @Column(name = "is_active", nullable = false)
-    var isActive: Boolean = true,
-
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 

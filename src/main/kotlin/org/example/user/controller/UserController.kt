@@ -148,16 +148,6 @@ class UserController(
     /**
      * 搜索用户
      */
-    @GetMapping("/search")
-    @Operation(summary = "搜索用户", description = "根据关键词和状态搜索用户")
-    fun searchUsers(
-        @Parameter(description = "搜索关键词") @RequestParam(required = false) keyword: String?,
-        @Parameter(description = "是否激活") @RequestParam(required = false) isActive: Boolean?,
-        @Valid @ModelAttribute request: BaseQueryRequest
-    ): ResponseEntity<ApiResponse<Page<User>>> {
-        val users = userService.searchUsers(keyword, isActive, request.toPageable())
-        return ResponseUtil.successPage(users, "搜索用户成功")
-    }
 
     /**
      * 获取用户统计信息

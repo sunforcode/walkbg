@@ -37,9 +37,6 @@ data class TripContact(
     @Column(columnDefinition = "TEXT")
     var notes: String? = null, // 备注信息
 
-    @Column(name = "is_active", nullable = false)
-    var isActive: Boolean = true, // 是否激活
-
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 

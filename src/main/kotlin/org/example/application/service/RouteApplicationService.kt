@@ -24,7 +24,7 @@ class RouteApplicationService(
 
         // 如果提供了用户ID，检查是否收藏
         if (userId != null) {
-            route.isFavorite = routeService.isFavorite(id, userId)
+            route.isFavoriteByUser = routeService.isFavorite(id, userId)
         }
 
         // TODO: 实现Route到RouteDto的转换
@@ -41,7 +41,7 @@ class RouteApplicationService(
         // 如果提供了用户ID，检查每条路线是否被收藏
         if (userId != null) {
             routes.forEach { route ->
-                route.isFavorite = routeService.isFavorite(route.id, userId)
+                route.isFavoriteByUser = routeService.isFavorite(route.id, userId)
             }
         }
 
@@ -53,19 +53,20 @@ class RouteApplicationService(
                 name = it.name,
                 description = it.description,
                 regionId = null,
-                region = null,                distance = it.distance?.toDouble(),
-                duration = it.duration,
-                elevationGain = it.elevationGain?.toDouble(),
-                elevationLoss = it.elevationLoss?.toDouble(),
+                region = null,
+                distance = it.mapData?.distance?.toDouble(),
+                duration = it.mapData?.duration,
+                elevationGain = it.mapData?.elevationGain?.toDouble(),
+                elevationLoss = it.mapData?.elevationLoss?.toDouble(),
                 difficulty = it.difficulty,
                 routeType = it.routeType,
-                routeDirection = it.routeDirection,
+                routeDirection = null,
                 coverUrl = it.coverUrl,
                 defaultMapId = it.defaultMapId,
                 popularity = it.popularity,
                 usageCount = it.usageCount,
                 isLoop = it.isLoop,
-                isFavorite = it.isFavorite ?: false,
+                isFavorite = it.isFavoriteByUser,
                 status = it.status,
                 createdAt = it.createdAt,
                 updatedAt = it.updatedAt,
@@ -98,7 +99,7 @@ class RouteApplicationService(
         // 如果提供了用户ID，检查每条路线是否被收藏
         if (userId != null) {
             routes.forEach { route ->
-                route.isFavorite = routeService.isFavorite(route.id, userId)
+                route.isFavoriteByUser = routeService.isFavorite(route.id, userId)
             }
         }
 
@@ -111,19 +112,19 @@ class RouteApplicationService(
                 description = it.description,
                 regionId = null,
                 region = null,
-                distance = it.distance?.toDouble(),
-                duration = it.duration,
-                elevationGain = it.elevationGain?.toDouble(),
-                elevationLoss = it.elevationLoss?.toDouble(),
+                distance = it.mapData?.distance?.toDouble(),
+                duration = it.mapData?.duration,
+                elevationGain = it.mapData?.elevationGain?.toDouble(),
+                elevationLoss = it.mapData?.elevationLoss?.toDouble(),
                 difficulty = it.difficulty,
                 routeType = it.routeType,
-                routeDirection = it.routeDirection,
+                routeDirection = null,
                 coverUrl = it.coverUrl,
                 defaultMapId = it.defaultMapId,
                 popularity = it.popularity,
                 usageCount = it.usageCount,
                 isLoop = it.isLoop,
-                isFavorite = it.isFavorite ?: false,
+                isFavorite = it.isFavoriteByUser,
                 status = it.status,
                 createdAt = it.createdAt,
                 updatedAt = it.updatedAt,

@@ -2,6 +2,7 @@ package org.example.route.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.persistence.*
+import org.example.user.model.User
 import java.time.Instant
 
 /**
@@ -56,8 +57,9 @@ data class Campsite(
     @Column(name = "last_verified_id", length = 64)
     val lastVerifiedId: String? = null,
 
-    @Column(name = "is_active", nullable = false)
-    var isActive: Boolean = true,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_verified_id", insertable = false, updatable = false)
+    var verifiedBy: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")

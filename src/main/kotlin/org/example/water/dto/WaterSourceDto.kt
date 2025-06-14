@@ -1,6 +1,7 @@
 package org.example.water.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.example.user.dto.UserBasicDto
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -11,25 +12,21 @@ data class WaterSourceDto(
     val id: String,
     val name: String,
     val description: String?,
-    @JsonProperty("route_id")
-    val routeId: String?,
-    val latitude: BigDecimal?,
-    val longitude: BigDecimal?,
-    val elevation: BigDecimal?,
+    val latitude: Double?,
+    val longitude: Double?,
+    val elevation: Double?,
     @JsonProperty("water_type")
-    val waterType: Int?, // 0: 泉水, 1: 河流, 2: 湖泊, 3: 井水, 4: 自来水, 5: 其他
+    val waterType: Int,
     @JsonProperty("water_quality")
-    val waterQuality: Int?, // 0: 未知, 1: 优秀, 2: 良好, 3: 一般, 4: 差
-    val reliability: Double?, // 可靠性评分 0.0-1.0
+    val waterQuality: Int,
     @JsonProperty("requires_treatment")
     val requiresTreatment: Boolean,
+    val reliability: Double?,
     val notes: String?,
     @JsonProperty("last_verified")
-    val lastVerified: Instant?,
+    val lastVerified: String?,
     @JsonProperty("verified_by")
-    val verifiedBy: String?,
-    @JsonProperty("is_active")
-    val isActive: Boolean,
+    val verifiedBy: UserBasicDto?,
     @JsonProperty("created_at")
     val createdAt: Instant,
     @JsonProperty("updated_at")

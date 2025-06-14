@@ -24,8 +24,9 @@ data class Segment(
     val elevationLoss: Double? = null,
     val estimatedTime: Double? = null,
     val difficulty: Int? = null,
-    val terrain: Int? = null, // 0: 石阶路, 1: 山路, 2: 岩石路, 3: 雪地, 4: 其他
-    val surfaceType: String? = null,
+
+    @Column(name = "route_type")
+    val routeType: Int? = null, // 路线类型
 
     @Column(columnDefinition = "TEXT")
     var notes: String? = null,

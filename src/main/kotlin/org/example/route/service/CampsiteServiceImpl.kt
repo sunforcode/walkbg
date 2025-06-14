@@ -54,25 +54,25 @@ class CampsiteServiceImpl(
     }
 
     override fun getCampsitesByRoute(routeId: String, pageable: Pageable): Page<Campsite> {
-        return campsiteRepository.findByRouteIdAndIsActiveTrue(routeId, pageable)
+        return campsiteRepository.findByRouteId(routeId, pageable)
     }
 
     override fun getCampsitesByRouteSorted(routeId: String): List<Campsite> {
-        return campsiteRepository.findByRouteIdAndIsActiveTrueOrderByElevationAsc(routeId)
+        return campsiteRepository.findByRouteIdOrderByElevationAsc(routeId)
     }
 
     override fun getCampsitesByType(campsiteType: Int, pageable: Pageable): Page<Campsite> {
-        return campsiteRepository.findByCampsiteTypeAndIsActiveTrue(campsiteType, pageable)
+        return campsiteRepository.findByCampsiteType(campsiteType, pageable)
     }
 
     override fun getCampsitesByRouteAndType(routeId: String, campsiteType: Int, pageable: Pageable): Page<Campsite> {
-        return campsiteRepository.findByRouteIdAndCampsiteTypeAndIsActiveTrue(routeId, campsiteType, pageable)
+        return campsiteRepository.findByRouteIdAndCampsiteType(routeId, campsiteType, pageable)
     }
 
     override fun getCampsitesByElevationRange(minElevation: BigDecimal?, maxElevation: BigDecimal?, pageable: Pageable): Page<Campsite> {
         return when {
             minElevation != null && maxElevation != null -> {
-                campsiteRepository.findByElevationBetweenAndIsActiveTrue(minElevation, maxElevation, pageable)
+                campsiteRepository.findByElevationBetween(minElevation, maxElevation, pageable)
             }
             else -> {
                 campsiteRepository.findAll(pageable)
@@ -81,7 +81,7 @@ class CampsiteServiceImpl(
     }
 
     override fun searchCampsitesByName(name: String, pageable: Pageable): Page<Campsite> {
-        return campsiteRepository.findByNameContainingIgnoreCaseAndIsActiveTrue(name, pageable)
+        return campsiteRepository.findByNameContainingIgnoreCase(name, pageable)
     }
 
     override fun searchCampsitesWithFilters(
@@ -96,7 +96,7 @@ class CampsiteServiceImpl(
     }
 
     override fun countCampsitesByRoute(routeId: String): Long {
-        return campsiteRepository.countByRouteIdAndIsActiveTrue(routeId)
+        return campsiteRepository.countByRouteId(routeId)
     }
 
     override fun verifyCampsite(id: String, verifiedBy: String): Campsite? {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import java.math.BigDecimal
 import java.time.Instant
 import org.example.route.model.Route
+import org.example.user.dto.UserBasicDto
 
 /**
  * 路线详细信息DTO - 包含所有关联数据
@@ -16,6 +17,11 @@ data class RouteWithDetailsDto(
     val region: String?,
     @JsonProperty("region_id")
     val regionId: String?,
+    val difficulty: Int?,
+    @JsonProperty("route_type")
+    val routeType: Int?,
+
+    // 从关联的 mapData 获取的地理信息
     val distance: BigDecimal?,
     val duration: Int?,
     val latitude: BigDecimal?,
@@ -25,21 +31,20 @@ data class RouteWithDetailsDto(
     val elevationGain: BigDecimal?,
     @JsonProperty("elevation_loss")
     val elevationLoss: BigDecimal?,
-    val difficulty: Int?,
-    @JsonProperty("route_type")
-    val routeType: Int?,
-    @JsonProperty("route_direction")
-    val routeDirection: Int?,
     val status: Int,
     @JsonProperty("cover_url")
     val coverUrl: String?,
-    @JsonProperty("map_data_id")
-    val mapDataId: String?,
     @JsonProperty("default_map_id")
     val defaultMapId: String?,
-    @JsonProperty("created_by")
-    val createdBy: String?,
     val popularity: Int,
+    @JsonProperty("usage_count")
+    val usageCount: Int,
+    @JsonProperty("is_loop")
+    val isLoop: Boolean,
+    @JsonProperty("image_urls")
+    val imageUrls: List<String> = emptyList(),
+    @JsonProperty("is_favorite")
+    val isFavorite: Boolean,
     @JsonProperty("created_at")
     val createdAt: Instant,
     @JsonProperty("updated_at")
@@ -47,12 +52,22 @@ data class RouteWithDetailsDto(
     
     // 关联数据
     val tags: List<String> = emptyList(),
-    val seasons: List<String> = emptyList(),
-    val images: List<RouteImageDto> = emptyList(),
     // waypoints字段已移除，waypoint数据现在通过segments返回
     val segments: List<SegmentDto> = emptyList(),
+    val campsites: List<CampsiteDto> = emptyList(),
+    @JsonProperty("marker_points")
+    val markerPoints: List<MarkerPointDto> = emptyList(),
+    val supplies: List<SupplyDto> = emptyList(),
+    @JsonProperty("water_sources")
+    val waterSources: List<org.example.water.dto.WaterSourceDto> = emptyList(),
+    @JsonProperty("daily_plans")
+    val dailyPlans: List<DailyPlanDto> = emptyList(),
+    @JsonProperty("weather_info")
+    val weatherInfo: RouteWeatherDto? = null,
+    @JsonProperty("hitchhike_contacts")
+    val hitchhikeContacts: List<ContactDto> = emptyList(),
     
-    // 统计数据
+    // 统计数据（从 mapData 获取）
     @JsonProperty("favorite_count")
     val favoriteCount: Long = 0,
     @JsonProperty("completion_count")
@@ -60,14 +75,11 @@ data class RouteWithDetailsDto(
     @JsonProperty("trip_count")
     val tripCount: Long = 0,
     
-    // 创建者信息
-    @JsonProperty("creator_name")
-    val creatorName: String? = null,
-    @JsonProperty("creator_avatar_url")
-    val creatorAvatarUrl: String? = null,
+    // 创建者信息（从关联的 creator 获取）
+    val creator: UserBasicDto? = null,
     
     // 评分信息
-    val rating: RouteRatingDto? = null
+    val ratings: RouteRatingDto? = null
 )
 
 /**

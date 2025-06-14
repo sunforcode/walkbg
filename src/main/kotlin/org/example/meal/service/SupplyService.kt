@@ -45,12 +45,12 @@ interface SupplyService {
     /**
      * 根据补给类型获取补给点
      */
-    fun getSuppliesByType(supplyType: String, pageable: Pageable): Page<Supply>
+    fun getSuppliesByType(supplyType: Int, pageable: Pageable): Page<Supply>
     
     /**
      * 根据路线ID和补给类型获取补给点
      */
-    fun getSuppliesByRouteAndType(routeId: String, supplyType: String, pageable: Pageable): Page<Supply>
+    fun getSuppliesByRouteAndType(routeId: String, supplyType: Int, pageable: Pageable): Page<Supply>
     
     /**
      * 根据海拔范围获取补给点
@@ -72,7 +72,7 @@ interface SupplyService {
      */
     fun searchSuppliesWithFilters(
         routeId: String?,
-        supplyType: String?,
+        supplyType: Int?,
         priceRange: String?,
         minElevation: BigDecimal?,
         maxElevation: BigDecimal?,

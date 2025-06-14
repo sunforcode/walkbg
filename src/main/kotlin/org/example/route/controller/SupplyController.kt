@@ -116,7 +116,7 @@ class SupplyController(
         @Valid @ModelAttribute request: BaseQueryRequest
     ): ResponseEntity<ApiResponse<Page<Supply>>> {
         val supplies = supplyService.searchSuppliesWithFilters(
-            routeId, supplyType?.toString(), null, minElevation, maxElevation, name, request.toPageable()
+            routeId, supplyType, null, minElevation, maxElevation, name, request.toPageable()
         )
         return ResponseUtil.successPage(supplies, "搜索补给点成功")
     }

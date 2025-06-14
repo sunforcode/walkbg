@@ -32,17 +32,10 @@ data class Route(
     @Column(name = "region_id")
     var regionId: String? = null,
 
-    var distance: BigDecimal? = null,
-    var duration: Int? = null,
-    var elevationGain: BigDecimal? = null,
-    var elevationLoss: BigDecimal? = null,
     var difficulty: Int? = null,
 
     @Column(name = "route_type")
     var routeType: Int? = null, // 0: 往返, 1: 环线, 2: 单程, 3: 多日
-
-    @Column(name = "route_direction")
-    var routeDirection: Int? = null, // 0: 顺时针, 1: 逆时针, 2: 双向
 
     @Column(nullable = false)
     var status: Int = 0, // 0: 规划中, 1: 已发布, 2: 已关闭
@@ -64,6 +57,12 @@ data class Route(
     @Column(name = "is_loop", nullable = false)
     var isLoop: Boolean = false,
 
+    @Column(name = "image_urls", columnDefinition = "TEXT")
+    var imageUrls: String? = null, // JSON 字符串存储图片URL数组
+
+    @Column(name = "is_favorite", nullable = false)
+    var isFavorite: Boolean = false, // 是否收藏
+
     @JsonProperty("created_at")
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
@@ -75,10 +74,13 @@ data class Route(
     @Column(name = "created_by", length = 64)
     var createdBy: String? = null,
 
-    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", insertable = false, updatable = false)
     var creator: User? = null,
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_map_id", insertable = false, updatable = false)
+    var mapData: RouteMapData? = null,
 
     @JsonIgnore
     @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
@@ -152,7 +154,7 @@ data class Route(
      * 需要在查询时设置
      */
     @Transient
-    var isFavorite: Boolean = false
+    var isFavoriteByUser: Boolean = false
 
     fun incrementPopularity() {
         popularity += 1
@@ -185,11 +187,6 @@ data class Route(
             sequenceNumber = sequenceNumber,
             route = this
         ))
-    }
-
-    fun addHitchhikeContact(contact: HitchhikeContact) {
-        hitchhikeContacts.add(contact)
-        contact.route = this
     }
 
     fun addMarkerPoint(markerPoint: MarkerPoint) {

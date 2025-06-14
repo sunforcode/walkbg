@@ -15,41 +15,40 @@ interface CampsiteRepository : JpaRepository<Campsite, String> {
     /**
      * 根据路线ID查找营地
      */
-    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId AND c.isActive = true")
-    fun findByRouteIdAndIsActiveTrue(@Param("routeId") routeId: String, pageable: Pageable): Page<Campsite>
+    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId")
+    fun findByRouteId(@Param("routeId") routeId: String, pageable: Pageable): Page<Campsite>
     
     /**
      * 根据营地类型查找
      */
-    fun findByCampsiteTypeAndIsActiveTrue(campsiteType: Int, pageable: Pageable): Page<Campsite>
+    fun findByCampsiteType(campsiteType: Int, pageable: Pageable): Page<Campsite>
     
     /**
      * 根据路线ID和营地类型查找
      */
-    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId AND c.campsiteType = :campsiteType AND c.isActive = true")
-    fun findByRouteIdAndCampsiteTypeAndIsActiveTrue(@Param("routeId") routeId: String, @Param("campsiteType") campsiteType: Int, pageable: Pageable): Page<Campsite>
+    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId AND c.campsiteType = :campsiteType")
+    fun findByRouteIdAndCampsiteType(@Param("routeId") routeId: String, @Param("campsiteType") campsiteType: Int, pageable: Pageable): Page<Campsite>
     
     /**
      * 根据海拔范围查找营地
      */
-    fun findByElevationBetweenAndIsActiveTrue(minElevation: BigDecimal, maxElevation: BigDecimal, pageable: Pageable): Page<Campsite>
+    fun findByElevationBetween(minElevation: BigDecimal, maxElevation: BigDecimal, pageable: Pageable): Page<Campsite>
     
     /**
      * 根据名称模糊查询营地
      */
-    fun findByNameContainingIgnoreCaseAndIsActiveTrue(name: String, pageable: Pageable): Page<Campsite>
+    fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Campsite>
     
     /**
      * 根据路线ID查找营地，按海拔排序
      */
-    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId AND c.isActive = true ORDER BY c.elevation ASC")
-    fun findByRouteIdAndIsActiveTrueOrderByElevationAsc(@Param("routeId") routeId: String): List<Campsite>
+    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId ORDER BY c.elevation ASC")
+    fun findByRouteIdOrderByElevationAsc(@Param("routeId") routeId: String): List<Campsite>
     
     /**
      * 复合查询：根据多个条件查找营地
      */
     @Query("SELECT c FROM Campsite c LEFT JOIN c.route r WHERE " +
-           "c.isActive = true AND " +
            "(:routeId IS NULL OR r.id = :routeId) AND " +
            "(:campsiteType IS NULL OR c.campsiteType = :campsiteType) AND " +
            "(:minElevation IS NULL OR c.elevation >= :minElevation) AND " +
@@ -67,6 +66,6 @@ interface CampsiteRepository : JpaRepository<Campsite, String> {
     /**
      * 统计路线的营地数量
      */
-    @Query("SELECT COUNT(c) FROM Campsite c JOIN c.route r WHERE r.id = :routeId AND c.isActive = true")
-    fun countByRouteIdAndIsActiveTrue(@Param("routeId") routeId: String): Long
+    @Query("SELECT COUNT(c) FROM Campsite c JOIN c.route r WHERE r.id = :routeId")
+    fun countByRouteId(@Param("routeId") routeId: String): Long
 }

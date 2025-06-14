@@ -158,9 +158,6 @@ data class SegmentClosure(
     @Column(name = "closure_type", length = 50)
     val closureType: String? = null, // temporary, permanent, seasonal
 
-    @Column(name = "is_active", nullable = false)
-    var isActive: Boolean = true,
-
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 
@@ -185,6 +182,6 @@ data class SegmentClosure(
     }
 
     override fun toString(): String {
-        return "SegmentClosure(id='$id', reason='$reason', isActive=$isActive)"
+        return "SegmentClosure(id='$id', reason='$reason')"
     }
 }

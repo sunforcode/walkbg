@@ -39,10 +39,7 @@ interface UserRepository : JpaRepository<User, String> {
      */
     fun findByUsernameOrEmail(username: String, email: String): User?
 
-    /**
-     * 查找活跃用户
-     */
-    fun findByIsActiveTrue(pageable: Pageable): Page<User>
+
 
     /**
      * 根据昵称模糊查询
@@ -71,11 +68,9 @@ interface UserRepository : JpaRepository<User, String> {
                LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
                LOWER(u.nickname) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
                LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')))
-        AND (:isActive IS NULL OR u.isActive = :isActive)
     """)
     fun searchUsers(
         @Param("keyword") keyword: String?,
-        @Param("isActive") isActive: Boolean?,
         pageable: Pageable
     ): Page<User>
 
@@ -84,8 +79,7 @@ interface UserRepository : JpaRepository<User, String> {
      */
     @Query("""
         SELECT new map(
-            COUNT(u) as totalUsers,
-            COUNT(CASE WHEN u.isActive = true THEN 1 END) as activeUsers
+            COUNT(u) as totalUsers
         )
         FROM User u
     """)
@@ -135,7 +129,6 @@ interface UserRepository : JpaRepository<User, String> {
         SELECT u, COUNT(ucr) as completedCount
         FROM User u
         LEFT JOIN UserCompletedRoute ucr ON ucr.userId = u.id
-        WHERE u.isActive = true
         GROUP BY u.id
         ORDER BY completedCount DESC
     """)

@@ -14,32 +14,27 @@ interface SegmentRepository : JpaRepository<Segment, String> {
     /**
      * 根据路线ID查找路段
      */
-    fun findByRouteId(routeId: String): List<Segment>
+    @Query("SELECT s FROM Segment s JOIN s.route r WHERE r.id = :routeId")
+    fun findByRouteId(@Param("routeId") routeId: String): List<Segment>
 
     /**
      * 根据路线ID查找路段（分页）
      */
-    fun findByRouteId(routeId: String, pageable: Pageable): Page<Segment>
+    @Query("SELECT s FROM Segment s JOIN s.route r WHERE r.id = :routeId")
+    fun findByRouteId(@Param("routeId") routeId: String, pageable: Pageable): Page<Segment>
 
     /**
      * 根据难度查找路段
      */
     fun findByDifficulty(difficulty: Int): List<Segment>
 
-    /**
-     * 根据地形类型查找路段
-     */
-    fun findByTerrain(terrain: Int): List<Segment>
 
-    /**
-     * 根据路面类型查找路段
-     */
-    fun findBySurfaceType(surfaceType: String): List<Segment>
 
     /**
      * 统计路线的路段数量
      */
-    fun countByRouteId(routeId: String): Long
+    @Query("SELECT COUNT(s) FROM Segment s JOIN s.route r WHERE r.id = :routeId")
+    fun countByRouteId(@Param("routeId") routeId: String): Long
 
     /**
      * 根据距离范围查找路段
@@ -62,7 +57,8 @@ interface SegmentRepository : JpaRepository<Segment, String> {
     /**
      * 删除路线的所有路段
      */
-    fun deleteByRouteId(routeId: String): Int
+    @Query("DELETE FROM Segment s WHERE s.route.id = :routeId")
+    fun deleteByRouteId(@Param("routeId") routeId: String): Int
 
     /**
      * 统计路线的总距离

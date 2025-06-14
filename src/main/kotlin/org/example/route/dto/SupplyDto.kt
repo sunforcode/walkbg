@@ -29,7 +29,39 @@ data class SupplyDto(
     val createdAt: Instant,
     @JsonProperty("updated_at")
     val updatedAt: Instant
-)
+) {
+    companion object {
+        /**
+         * 从Supply实体创建DTO
+         */
+        fun fromSupply(supply: org.example.route.model.Supply): SupplyDto {
+            return SupplyDto(
+                id = supply.id,
+                name = supply.name,
+                description = supply.description,
+                routeId = supply.route?.id,
+                latitude = supply.latitude?.let { BigDecimal(it.toString()) },
+                longitude = supply.longitude?.let { BigDecimal(it.toString()) },
+                elevation = supply.elevation?.let { BigDecimal(it.toString()) },
+                supplyType = supply.supplyType,
+                lastVerified = supply.lastVerified,
+                lastVerifiedAt = supply.lastVerifiedAt,
+                updatedBy = supply.updatedByUser?.let { user ->
+                    UserBasicDto(
+                        id = user.id,
+                        username = user.username,
+                        nickname = user.nickname,
+                        email = user.email,
+                        avatarUrl = user.avatarUrl,
+                        createdAt = user.createdAt
+                    )
+                },
+                createdAt = supply.createdAt,
+                updatedAt = supply.updatedAt
+            )
+        }
+    }
+}
 
 data class WaypointDto(
     val id: String,

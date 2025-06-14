@@ -30,7 +30,32 @@ data class DailyPlanDto(
     @JsonProperty("updated_at")
     val updatedAt: Instant,
     val segments: List<DailyPlanSegmentDto> = emptyList()
-)
+) {
+    companion object {
+        /**
+         * 从DailyPlan实体创建DTO
+         */
+        fun fromDailyPlan(plan: org.example.route.model.DailyPlan): DailyPlanDto {
+            return DailyPlanDto(
+                id = plan.id,
+                dayNumber = plan.dayNumber,
+                title = plan.title,
+                description = plan.description,
+                distance = plan.distance,
+                estimatedTime = plan.estimatedTime,
+                elevationGain = plan.elevationGain?.toInt(),
+                elevationLoss = plan.elevationLoss,
+                maxElevation = plan.maxElevation,
+                minElevation = plan.minElevation,
+                accommodation = plan.accommodation,
+                notes = plan.notes,
+                createdAt = plan.createdAt,
+                updatedAt = plan.updatedAt,
+                segments = emptyList() // 简化处理，避免循环引用
+            )
+        }
+    }
+}
 
 /**
  * 每日计划路段DTO

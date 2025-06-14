@@ -22,4 +22,26 @@ data class RouteBasicResponse(
     val createdAt: Instant,
     @JsonProperty("created_by")
     val createdBy: String?
-)
+) {
+    companion object {
+        /**
+         * 从Route实体创建基础响应DTO
+         */
+        fun fromRoute(route: org.example.route.model.Route): RouteBasicResponse {
+            return RouteBasicResponse(
+                id = route.id,
+                name = route.name,
+                description = route.description,
+                region = route.region,
+                distance = route.mapData?.distance,
+                duration = route.mapData?.duration,
+                difficulty = route.difficulty,
+                coverUrl = route.coverUrl,
+                popularity = route.popularity,
+                createdAt = route.createdAt,
+                createdBy = route.createdBy
+            )
+
+        }
+    }
+}

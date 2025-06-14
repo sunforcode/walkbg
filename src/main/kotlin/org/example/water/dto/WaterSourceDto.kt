@@ -31,7 +31,41 @@ data class WaterSourceDto(
     val createdAt: Instant,
     @JsonProperty("updated_at")
     val updatedAt: Instant
-)
+) {
+    companion object {
+        /**
+         * 从WaterSource实体创建DTO
+         */
+        fun fromWaterSource(water: org.example.water.model.WaterSource): WaterSourceDto {
+            return WaterSourceDto(
+                id = water.id,
+                name = water.name,
+                description = water.description,
+                latitude = water.latitude,
+                longitude = water.longitude,
+                elevation = water.elevation,
+                waterType = water.waterType,
+                waterQuality = water.waterQuality,
+                requiresTreatment = water.requiresTreatment,
+                reliability = water.reliability,
+                notes = water.notes,
+                lastVerified = water.lastVerified,
+                verifiedBy = water.verifiedBy?.let { user ->
+                    UserBasicDto(
+                        id = user.id,
+                        username = user.username,
+                        nickname = user.nickname,
+                        email = user.email,
+                        avatarUrl = user.avatarUrl,
+                        createdAt = user.createdAt
+                    )
+                },
+                createdAt = water.createdAt,
+                updatedAt = water.updatedAt
+            )
+        }
+    }
+}
 
 /**
  * 水源创建请求DTO

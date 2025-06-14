@@ -91,3 +91,22 @@ data class RouteImageCreateRequest(
     val isCover: Boolean = false,
     val sequenceNumber: Int
 )
+
+/**
+ * 扩展方法：将RouteCreateRequest转换为Route实体
+ */
+fun RouteCreateRequest.toRoute(): org.example.route.model.Route {
+    return org.example.route.model.Route(
+        id = this.id ?: java.util.UUID.randomUUID().toString(),
+        name = this.name,
+        description = this.description,
+        region = this.region,
+        regionId = this.regionId,
+        difficulty = this.difficulty,
+        routeType = this.routeType,
+        status = this.status,
+        coverUrl = this.coverUrl,
+        defaultMapId = this.defaultMapId?.takeIf { it.isNotBlank() } ?: "",
+        createdBy = this.createdBy
+    )
+}

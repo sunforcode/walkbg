@@ -23,4 +23,34 @@ data class CampsiteDto(
     val createdAt: Instant,
     @JsonProperty("updated_at")
     val updatedAt: Instant
-)
+) {
+    companion object {
+        /**
+         * 从Campsite实体创建DTO
+         */
+        fun fromCampsite(campsite: org.example.route.model.Campsite): CampsiteDto {
+            return CampsiteDto(
+                id = campsite.id,
+                name = campsite.name,
+                description = campsite.description,
+                latitude = campsite.latitude,
+                longitude = campsite.longitude,
+                elevation = campsite.elevation,
+                campsiteType = campsite.campsiteType,
+                notes = campsite.notes,
+                createdAt = campsite.createdAt,
+                updatedAt = campsite.updatedAt,
+                verifiedBy = campsite.verifiedBy?.let { user ->
+                    UserBasicDto(
+                        id = user.id,
+                        username = user.username,
+                        nickname = user.nickname,
+                        email = user.email,
+                        avatarUrl = user.avatarUrl,
+                        createdAt = user.createdAt
+                    )
+                }
+            )
+        }
+    }
+}

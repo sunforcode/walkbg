@@ -22,4 +22,25 @@ data class MarkerPointDto(
     val createdAt: Instant,
     @JsonProperty("updated_at")
     val updatedAt: Instant
-)
+) {
+    companion object {
+        /**
+         * 从MarkerPoint实体创建DTO
+         */
+        fun fromMarkerPoint(marker: org.example.route.model.MarkerPoint): MarkerPointDto {
+            return MarkerPointDto(
+                id = marker.id,
+                name = marker.name,
+                description = marker.description,
+                markerType = marker.markerType,
+                iconUrl = marker.iconUrl,
+                latitude = marker.latitude,
+                longitude = marker.longitude,
+                elevation = marker.elevation,
+                color = marker.color,
+                createdAt = marker.createdAt,
+                updatedAt = marker.updatedAt
+            )
+        }
+    }
+}

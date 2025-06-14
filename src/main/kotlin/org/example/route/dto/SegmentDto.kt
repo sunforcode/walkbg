@@ -27,6 +27,29 @@ data class SegmentDto(
     @JsonProperty("end_point")
     val endPoint: WaypointDto?,
     val keypoints: List<WaypointDto> = emptyList()
-)
+) {
+    companion object {
+        /**
+         * 从Segment实体创建DTO
+         */
+        fun fromSegment(segment: org.example.route.model.Segment): SegmentDto {
+            return SegmentDto(
+                id = segment.id,
+                name = segment.name,
+                description = segment.description,
+                distance = segment.distance,
+                elevationGain = segment.elevationGain,
+                elevationLoss = segment.elevationLoss,
+                estimatedTime = segment.estimatedTime,
+                difficulty = segment.difficulty,
+                routeType = segment.routeType,
+                notes = segment.notes,
+                startPoint = null, // 简化处理，避免循环引用
+                endPoint = null,   // 简化处理，避免循环引用
+                keypoints = emptyList() // 简化处理，避免循环引用
+            )
+        }
+    }
+}
 
 

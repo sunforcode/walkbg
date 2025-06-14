@@ -4,7 +4,9 @@ import org.example.user.repository.UserRepository
 import org.example.user.repository.UserFavoriteRouteRepository
 import org.example.user.model.UserFavoriteRoute
 import org.example.route.model.Route
+import org.example.route.model.Waypoint
 import org.example.route.repository.RouteRepository
+import org.example.route.repository.WaypointRepository
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -21,7 +23,8 @@ import java.util.*
 class RouteServiceImpl(
     private val routeRepository: RouteRepository,
     private val userRepository: UserRepository,
-    private val userFavoriteRouteRepository: UserFavoriteRouteRepository
+    private val userFavoriteRouteRepository: UserFavoriteRouteRepository,
+    private val waypointRepository: WaypointRepository
 ) : RouteService {
 
     // ========== 基础查询操作 ==========
@@ -214,5 +217,13 @@ class RouteServiceImpl(
         // 2. 创建完成记录
         // 3. 更新统计数据
         return true
+    }
+
+    /**
+     * 创建路点
+     */
+    @Transactional
+    override fun createWaypoint(waypoint: Waypoint): Waypoint {
+        return waypointRepository.save(waypoint)
     }
 }

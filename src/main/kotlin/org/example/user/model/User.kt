@@ -77,6 +77,10 @@ data class User(
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
     val equipmentItems: MutableList<UserEquipmentItem> = mutableListOf()
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "creator", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
+    val createdContacts: MutableList<org.example.route.model.Contact> = mutableListOf()
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

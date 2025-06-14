@@ -1,6 +1,7 @@
 package org.example.route.model
 
 import jakarta.persistence.*
+import org.example.user.model.User
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -13,7 +14,10 @@ import java.time.Instant
     indexes = [
         Index(name = "idx_contacts_location", columnList = "location"),
         Index(name = "idx_contacts_is_verified", columnList = "is_verified"),
-        Index(name = "idx_contacts_price", columnList = "price")
+        Index(name = "idx_contacts_price", columnList = "price"),
+        Index(name = "idx_contacts_created_by", columnList = "created_by"),
+        Index(name = "idx_contacts_verified_by", columnList = "verified_by"),
+        Index(name = "idx_contacts_route_id", columnList = "route_id")
     ]
 )
 data class Contact(
@@ -39,15 +43,37 @@ data class Contact(
     @Column(name = "is_verified", nullable = false)
     var isVerified: Boolean = false,
 
+    @Column(name = "created_by", length = 64)
+    var createdBy: String? = null,
+
+    @Column(name = "verified_by", length = 64)
+    var verifiedBy: String? = null,
+
+    @Column(name = "updated_by", length = 64)
+    var updatedBy: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
 
+    // 关联关系
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")
-    var route: Route? = null
+    var route: Route? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", insertable = false, updatable = false)
+    var creator: User? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "verified_by", insertable = false, updatable = false)
+    var verifier: User? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by", insertable = false, updatable = false)
+    var updater: User? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

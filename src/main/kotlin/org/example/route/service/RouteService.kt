@@ -89,4 +89,10 @@ interface RouteService {
      * 用户完成某条路线时调用
      */
     fun recordRouteCompletion(routeId: String, userId: String): Boolean
+
+    // ========== 路点管理 ==========
+    /**
+     * 创建路点
+     */
+    fun createWaypoint(waypoint: org.example.route.model.Waypoint): org.example.route.model.Waypoint
 }

@@ -1,0 +1,221 @@
+{
+  "name": "华山西峰登山路线",
+  "description": "华山西峰经典登山路线，适合有一定登山经验的徒步者。路线包含多个观景点和休息站，沿途风景优美，挑战性适中。",
+  "region": "陕西省华阴市",
+  "region_id": "shaanxi_huayin_001",
+  "difficulty": 4,
+  "route_type": 0,
+  "status": 1,
+  "cover_url": "https://example.com/images/huashan-cover.jpg",
+  "default_map_id": "huashan_west_peak_map_001",
+  "created_by": "user_12345",
+
+  "tags": [
+    "登山",
+    "观景",
+    "挑战",
+    "华山",
+    "西峰"
+  ],
+
+  "seasons": [
+    "春季",
+    "秋季"
+  ],
+
+  "images": [
+    {
+      "image_url": "https://example.com/images/huashan-1.jpg",
+      "is_cover": true,
+      "sequence_number": 1
+    },
+    {
+      "image_url": "https://example.com/images/huashan-2.jpg",
+      "is_cover": false,
+      "sequence_number": 2
+    },
+    {
+      "image_url": "https://example.com/images/huashan-3.jpg",
+      "is_cover": false,
+      "sequence_number": 3
+    }
+  ],
+
+  "waypoints": [
+    {
+      "name": "登山起点",
+      "description": "华山西峰登山路线起始点，有停车场和基础设施",
+      "latitude": 34.4789,
+      "longitude": 110.0892,
+      "elevation": 450.0,
+      "type": 0,
+      "icon_url": "https://example.com/icons/start-point.png",
+      "sequence_number": 1
+    },
+    {
+      "name": "第一休息站",
+      "description": "登山途中第一个休息点，可以补充水分",
+      "latitude": 34.4801,
+      "longitude": 110.0905,
+      "elevation": 680.0,
+      "type": 1,
+      "icon_url": "https://example.com/icons/rest-point.png",
+      "sequence_number": 2
+    },
+    {
+      "name": "观景台",
+      "description": "可以俯瞰山下美景的观景台",
+      "latitude": 34.4815,
+      "longitude": 110.0918,
+      "elevation": 920.0,
+      "type": 2,
+      "icon_url": "https://example.com/icons/viewpoint.png",
+      "sequence_number": 3
+    },
+    {
+      "name": "西峰顶",
+      "description": "华山西峰最高点，海拔2082米",
+      "latitude": 34.4832,
+      "longitude": 110.0935,
+      "elevation": 2082.0,
+      "type": 3,
+      "icon_url": "https://example.com/icons/summit.png",
+      "sequence_number": 4
+    }
+  ],
+
+  "segments": [
+    {
+      "distance": 2.5,
+      "elevation_gain": 230.0,
+      "elevation_loss": 0.0,
+      "estimated_time": 45,
+      "difficulty": 2,
+      "terrain": "mountain"
+    },
+    {
+      "distance": 3.2,
+      "elevation_gain": 240.0,
+      "elevation_loss": 0.0,
+      "estimated_time": 60,
+      "difficulty": 3,
+      "terrain": "mountain"
+    },
+    {
+      "distance": 4.8,
+      "elevation_gain": 1162.0,
+      "elevation_loss": 0.0,
+      "estimated_time": 120,
+      "difficulty": 4,
+      "terrain": "mountain"
+    }
+  ],
+
+  "supplies": [
+    {
+      "name": "山脚小卖部",
+      "description": "提供基本的食物和饮水补给",
+      "latitude": 34.4785,
+      "longitude": 110.0888,
+      "elevation": 440.0,
+      "supply_type": 0,
+      "last_verified": "user_67890",
+      "updated_by": "user_67890"
+    },
+    {
+      "name": "半山腰餐厅",
+      "description": "提供简单餐食和热水",
+      "latitude": 34.4808,
+      "longitude": 110.0912,
+      "elevation": 750.0,
+      "supply_type": 1,
+      "last_verified": "user_11111",
+      "updated_by": "user_11111"
+    }
+  ],
+
+  "campsites": [
+    {
+      "name": "半山营地",
+      "description": "位于半山腰的露营地，有基本设施",
+      "latitude": 34.4812,
+      "longitude": 110.0915,
+      "elevation": 800.0,
+      "campsite_type": 2,
+      "notes": "需要自带帐篷，有公共厕所和水源",
+      "verified_by": "user_22222"
+    },
+    {
+      "name": "西峰避难所",
+      "description": "西峰附近的简易避难所",
+      "latitude": 34.4828,
+      "longitude": 110.0932,
+      "elevation": 1950.0,
+      "campsite_type": 3,
+      "notes": "紧急情况下可使用，空间有限",
+      "verified_by": "user_33333"
+    }
+  ],
+
+  "marker_points": [
+    {
+      "name": "危险路段警示",
+      "description": "此处路段较为陡峭，请注意安全",
+      "latitude": 34.4820,
+      "longitude": 110.0925,
+      "elevation": 1200.0,
+      "marker_type": 1,
+      "icon_url": "https://example.com/icons/warning.png",
+      "sequence_number": 1
+    },
+    {
+      "name": "最佳拍照点",
+      "description": "这里是拍摄日出的最佳位置",
+      "latitude": 34.4825,
+      "longitude": 110.0928,
+      "elevation": 1500.0,
+      "marker_type": 2,
+      "icon_url": "https://example.com/icons/photo.png",
+      "sequence_number": 2
+    },
+    {
+      "name": "路线分岔口",
+      "description": "左侧通往西峰，右侧通往南峰",
+      "latitude": 34.4830,
+      "longitude": 110.0930,
+      "elevation": 1800.0,
+      "marker_type": 4,
+      "icon_url": "https://example.com/icons/fork.png",
+      "sequence_number": 3
+    }
+  ],
+
+  "daily_plans": [
+    {
+      "title": "第一天：登山起点到半山营地",
+      "description": "从登山起点出发，经过第一休息站，到达半山营地过夜",
+      "day_number": 1,
+      "distance": 5.7,
+      "elevation_gain": 470.0,
+      "elevation_loss": 0.0,
+      "estimated_time": 6,
+      "difficulty": 3,
+      "notes": "建议早上7点出发，下午3点前到达营地",
+      "start_campsite_id": null,
+      "end_campsite_id": "campsite_001"
+    },
+    {
+      "title": "第二天：半山营地到西峰顶",
+      "description": "从半山营地出发，经过观景台，最终到达西峰顶",
+      "day_number": 2,
+      "distance": 4.8,
+      "elevation_gain": 1282.0,
+      "elevation_loss": 0.0,
+      "estimated_time": 5,
+      "difficulty": 4,
+      "notes": "建议凌晨4点出发观看日出，注意保暖",
+      "start_campsite_id": "campsite_001",
+      "end_campsite_id": null
+    }
+  ]
+}

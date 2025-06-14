@@ -99,30 +99,18 @@ class RouteController(
     }
 
     /**
-     * 创建路线
+     * 创建完整路线
      */
     @PostMapping
-    @Operation(summary = "创建路线", description = "创建新的路线")
+    @Operation(summary = "创建完整路线", description = "创建包含路段、路点、标签等关联对象的完整路线")
     fun createRoute(
-        @Parameter(description = "路线名称") @RequestParam @NotBlank name: String,
-        @Parameter(description = "路线描述") @RequestParam(required = false) description: String?,
-        @Parameter(description = "所在区域") @RequestParam(required = false) region: String?,
-        @Parameter(description = "难度等级") @RequestParam(required = false) difficulty: Int?,
-        @Parameter(description = "路线类型") @RequestParam(required = false) routeType: Int?,
-        @Parameter(description = "创建者ID") @RequestParam @NotBlank creatorId: String
+        @RequestBody @Valid request: org.example.route.dto.RouteCreateRequest
     ): ResponseEntity<ApiResponse<RouteBasicResponse>> {
         return try {
-            val route = routeApplicationService.createRoute(
-                name = name,
-                description = description,
-                region = region,
-                difficulty = difficulty,
-                routeType = routeType,
-                creatorId = creatorId
-            )
+            val route = routeApplicationService.createCompleteRoute(request)
             ResponseUtil.success(route)
         } catch (e: Exception) {
-            ResponseUtil.error("创建路线失败: ${e.message}")
+            ResponseUtil.error("创建完整路线失败: ${e.message}")
         }
     }
 }

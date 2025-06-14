@@ -88,6 +88,10 @@ data class Route(
 
     @JsonIgnore
     @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
+    val waypoints: MutableList<Waypoint> = mutableListOf(),
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     val tags: MutableList<RouteTag> = mutableListOf(),
 
     @JsonIgnore
@@ -105,6 +109,10 @@ data class Route(
     @JsonIgnore
     @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
     val supplies: MutableList<Supply> = mutableListOf(),
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
+    val contacts: MutableList<Contact> = mutableListOf(),
 
     @JsonIgnore
     @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
@@ -129,6 +137,11 @@ data class Route(
     @JsonIgnore
     @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
     val userCompletedRoutes: MutableList<UserCompletedRoute> = mutableListOf(),
+
+    // 路线联系人关联
+    @JsonIgnore
+    @OneToMany(mappedBy = "route", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
+    val routeContacts: MutableList<RouteContact> = mutableListOf(),
 
     // 评分关联
     @JsonIgnore

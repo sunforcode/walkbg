@@ -57,9 +57,16 @@ data class Campsite(
     @Column(name = "last_verified_id", length = 64)
     val lastVerifiedId: String? = null,
 
+    @Column(name = "created_by", length = 64)
+    var createdBy: String? = null,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "last_verified_id", insertable = false, updatable = false)
     var verifiedBy: User? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", insertable = false, updatable = false)
+    var creator: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")

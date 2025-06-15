@@ -36,9 +36,16 @@ data class HitchhikeContact(
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
 
+    @Column(name = "created_by", length = 64)
+    var createdBy: String? = null,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")
-    var route: Route? = null
+    var route: Route? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", insertable = false, updatable = false)
+    var creator: org.example.user.model.User? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

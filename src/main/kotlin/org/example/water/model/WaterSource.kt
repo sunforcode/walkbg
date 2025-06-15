@@ -85,9 +85,16 @@ data class WaterSource(
     @Column(name = "verified_by_id", length = 64)
     val verifiedById: String? = null,
 
+    @Column(name = "created_by", length = 64)
+    var createdBy: String? = null,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "verified_by_id", insertable = false, updatable = false)
     var verifiedBy: User? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", insertable = false, updatable = false)
+    var creator: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")

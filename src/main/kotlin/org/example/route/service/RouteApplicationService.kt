@@ -123,30 +123,37 @@ class RouteApplicationService(
     /**
      * 创建完整路线（包含关联对象）
      * 支持创建路线及其关联的路段、路点、标签、图片等
+     * 使用分步保存策略确保外键约束正确
      */
     @Transactional
     fun createCompleteRoute(request: org.example.route.dto.RouteCreateRequest): RouteBasicResponse {
-        // 1. 创建主路线实体
+        // 步骤1: 创建并保存Route主实体
         val route = request.toRoute()
-
-        // 2. 保存路线（先保存主实体）
         val savedRoute = routeService.createRoute(route)
 
-        // 3. 创建并保存关联对象
-        createRouteAssociations(savedRoute, request)
+        // 步骤2: 创建简单关联对象（无外键依赖）
+        createSimpleAssociations(savedRoute, request)
 
-        // 4. 重新加载完整的路线数据
-        val completeRoute = routeService.getRouteWithDetails(savedRoute.id)
+        // 步骤3: 保存Route和简单关联对象（包括Waypoint）
+        val routeWithSimpleAssociations = routeService.updateRoute(savedRoute)
+
+        // 步骤4: 创建复杂关联对象（依赖已持久化的Waypoint）
+        createComplexAssociations(routeWithSimpleAssociations, request)
+
+        // 步骤5: 最终保存所有关联对象
+        val completeRoute = routeService.updateRoute(routeWithSimpleAssociations)
+
+        // 步骤6: 重新加载完整数据并返回
+        val finalRoute = routeService.getRouteWithDetails(completeRoute.id)
             ?: throw RuntimeException("创建路线后无法加载完整数据")
 
-        // 5. 转换为响应DTO
-        return RouteBasicResponse.fromRoute(completeRoute)
+        return RouteBasicResponse.fromRoute(finalRoute)
     }
 
     /**
-     * 创建路线关联对象
+     * 创建简单关联对象（无外键依赖）
      */
-    private fun createRouteAssociations(route: Route, request: org.example.route.dto.RouteCreateRequest) {
+    private fun createSimpleAssociations(route: Route, request: org.example.route.dto.RouteCreateRequest) {
         // 创建标签
         request.tags.forEach { tagName ->
             route.addTag(tagName)
@@ -161,8 +168,7 @@ class RouteApplicationService(
             )
         }
 
-        // 创建路点
-        val waypointMap = mutableMapOf<Int, org.example.route.model.Waypoint>()
+        // 创建路点（无外键依赖，只依赖Route）
         request.waypoints.forEach { waypointRequest ->
             val waypoint = org.example.route.model.Waypoint(
                 id = waypointRequest.id ?: UUID.randomUUID().toString(),
@@ -179,36 +185,6 @@ class RouteApplicationService(
             // 设置关联关系
             waypoint.route = route
             route.waypoints.add(waypoint)
-
-            // 保存路点并记录映射关系
-            val savedWaypoint = routeService.createWaypoint(waypoint)
-            waypointMap[waypointRequest.sequenceNumber] = savedWaypoint
-        }
-
-        // 创建路段
-        request.segments.forEachIndexed { index, segmentRequest ->
-            val segment = org.example.route.model.Segment(
-                id = segmentRequest.id ?: UUID.randomUUID().toString(),
-                name = "路段${index + 1}",
-                description = "路段${index + 1}描述",
-                distance = segmentRequest.distance,
-                elevationGain = segmentRequest.elevationGain,
-                elevationLoss = segmentRequest.elevationLoss,
-                estimatedTime = segmentRequest.estimatedTime,
-                difficulty = segmentRequest.difficulty,
-                routeType = segmentRequest.terrain?.let {
-                    when(it) {
-                        "mountain" -> 1
-                        "forest" -> 2
-                        "desert" -> 3
-                        else -> 0
-                    }
-                },
-                // 设置起点和终点（如果有对应的路点）
-                startPointId = waypointMap[index]?.id,
-                endPointId = waypointMap[index + 1]?.id
-            )
-            route.addSegment(segment)
         }
 
         // 创建补给点
@@ -222,7 +198,8 @@ class RouteApplicationService(
                 elevation = supplyRequest.elevation,
                 supplyType = supplyRequest.supplyType,
                 lastVerified = supplyRequest.lastVerified,
-                updatedBy = supplyRequest.updatedBy
+                updatedBy = supplyRequest.updatedBy,
+                createdBy = route.createdBy
             )
             route.supplies.add(supply)
             supply.route = route
@@ -238,7 +215,8 @@ class RouteApplicationService(
                 longitude = campsiteRequest.longitude,
                 elevation = campsiteRequest.elevation,
                 campsiteType = campsiteRequest.campsiteType,
-                notes = campsiteRequest.notes
+                notes = campsiteRequest.notes,
+                createdBy = route.createdBy
             )
             route.campsites.add(campsite)
             campsite.route = route
@@ -275,7 +253,73 @@ class RouteApplicationService(
             route.addDailyPlan(dailyPlan)
         }
 
-        // 保存更新后的路线（包含所有关联对象）
-        routeService.updateRoute(route)
+        // 创建水源
+        request.waterSources.forEach { waterSourceRequest ->
+            val waterSource = org.example.water.model.WaterSource(
+                id = waterSourceRequest.id ?: UUID.randomUUID().toString(),
+                name = waterSourceRequest.name,
+                description = waterSourceRequest.description,
+                latitude = waterSourceRequest.latitude?.toDouble(),
+                longitude = waterSourceRequest.longitude?.toDouble(),
+                elevation = waterSourceRequest.elevation?.toDouble(),
+                waterType = waterSourceRequest.waterType ?: 0,
+                waterQuality = waterSourceRequest.waterQuality ?: 4,
+                requiresTreatment = waterSourceRequest.requiresTreatment ?: false,
+                reliability = waterSourceRequest.reliability,
+                createdBy = route.createdBy
+            )
+            route.waterSources.add(waterSource)
+            waterSource.route = route
+        }
+
+        // 创建搭车联系人
+        request.hitchhikeContacts.forEach { hitchhikeRequest ->
+            val hitchhikeContact = org.example.route.model.HitchhikeContact(
+                id = hitchhikeRequest.id ?: UUID.randomUUID().toString(),
+                name = hitchhikeRequest.name,
+                phone = hitchhikeRequest.phone,
+                description = hitchhikeRequest.description,
+                location = hitchhikeRequest.location,
+                price = hitchhikeRequest.price,
+                lastVerified = hitchhikeRequest.verified ?: false,
+                createdBy = route.createdBy
+            )
+            route.hitchhikeContacts.add(hitchhikeContact)
+            hitchhikeContact.route = route
+        }
+    }
+
+    /**
+     * 创建复杂关联对象（依赖已持久化的Waypoint）
+     */
+    private fun createComplexAssociations(route: Route, request: org.example.route.dto.RouteCreateRequest) {
+        // 此时Waypoint已经被持久化，可以安全地使用它们的ID
+        val waypointMap = route.waypoints.associateBy { it.sequenceNumber }
+
+        // 创建路段，使用已持久化的Waypoint ID
+        request.segments.forEachIndexed { index, segmentRequest ->
+            val segment = org.example.route.model.Segment(
+                id = segmentRequest.id ?: UUID.randomUUID().toString(),
+                name = "路段${index + 1}",
+                description = "路段${index + 1}描述",
+                distance = segmentRequest.distance,
+                elevationGain = segmentRequest.elevationGain,
+                elevationLoss = segmentRequest.elevationLoss,
+                estimatedTime = segmentRequest.estimatedTime,
+                difficulty = segmentRequest.difficulty,
+                routeType = segmentRequest.terrain?.let {
+                    when(it) {
+                        "mountain" -> 1
+                        "forest" -> 2
+                        "desert" -> 3
+                        else -> 0
+                    }
+                },
+                // 使用对象引用而不是ID，让JPA自动管理外键关系
+                startPoint = waypointMap[index + 1],
+                endPoint = waypointMap[index + 2]
+            )
+            route.addSegment(segment)
+        }
     }
 }

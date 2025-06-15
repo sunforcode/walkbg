@@ -25,6 +25,7 @@ data class SupplyDto(
     val lastVerifiedAt: Instant?, // 最后验证时间
     @JsonProperty("updated_by")
     val updatedBy: UserBasicDto?,
+    val creator: UserBasicDto?,
     @JsonProperty("created_at")
     val createdAt: Instant,
     @JsonProperty("updated_at")
@@ -47,6 +48,16 @@ data class SupplyDto(
                 lastVerified = supply.lastVerified,
                 lastVerifiedAt = supply.lastVerifiedAt,
                 updatedBy = supply.updatedByUser?.let { user ->
+                    UserBasicDto(
+                        id = user.id,
+                        username = user.username,
+                        nickname = user.nickname,
+                        email = user.email,
+                        avatarUrl = user.avatarUrl,
+                        createdAt = user.createdAt
+                    )
+                },
+                creator = supply.creator?.let { user ->
                     UserBasicDto(
                         id = user.id,
                         username = user.username,

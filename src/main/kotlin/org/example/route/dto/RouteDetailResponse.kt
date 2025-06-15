@@ -45,8 +45,7 @@ data class RouteDetailResponse(
     val updatedAt: Instant,
     @JsonProperty("created_by")
     val createdBy: String?,
-    @JsonProperty("create_user")
-    val createUser: UserBasicDto?,
+    val creator: UserBasicDto?,
 
     // 关联对象信息
     val segments: List<SegmentDto> = emptyList(),
@@ -93,7 +92,7 @@ data class RouteDetailResponse(
                 // 媒体信息
                 coverUrl = route.coverUrl,
                 defaultMapId = route.defaultMapId,
-                imageUrls = route.imageUrls?.split(",")?.filter { it.isNotBlank() } ?: emptyList(),
+                imageUrls = route.images.map { it.imageUrl },
 
                 // 统计信息
                 popularity = route.popularity,
@@ -107,7 +106,7 @@ data class RouteDetailResponse(
                 createdBy = route.createdBy,
 
                 // 创建者信息
-                createUser = route.creator?.let { user ->
+                creator = route.creator?.let { user ->
                     UserBasicDto(
                         id = user.id,
                         username = user.username,
@@ -130,7 +129,7 @@ data class RouteDetailResponse(
                 // 暂时使用默认值，后续可以根据实际需求调整
                 ratings = null,
                 weatherInfo = null,
-                hitchhikeContacts = emptyList()
+                hitchhikeContacts = route.hitchhikeContacts.map { HitchhikeContactDto.fromHitchhikeContact(it) }
             )
         }
     }

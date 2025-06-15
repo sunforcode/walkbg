@@ -27,6 +27,7 @@ data class WaterSourceDto(
     val lastVerified: String?,
     @JsonProperty("verified_by")
     val verifiedBy: UserBasicDto?,
+    val creator: UserBasicDto?,
     @JsonProperty("created_at")
     val createdAt: Instant,
     @JsonProperty("updated_at")
@@ -51,6 +52,16 @@ data class WaterSourceDto(
                 notes = water.notes,
                 lastVerified = water.lastVerified,
                 verifiedBy = water.verifiedBy?.let { user ->
+                    UserBasicDto(
+                        id = user.id,
+                        username = user.username,
+                        nickname = user.nickname,
+                        email = user.email,
+                        avatarUrl = user.avatarUrl,
+                        createdAt = user.createdAt
+                    )
+                },
+                creator = water.creator?.let { user ->
                     UserBasicDto(
                         id = user.id,
                         username = user.username,

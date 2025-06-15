@@ -85,7 +85,7 @@ data class RouteCreateRequest(
 
     @JsonProperty("default_map_id")
     @field:Size(max = 64, message = "默认地图ID长度不能超过64个字符")
-    val defaultMapId: String = "",
+    val defaultMapId: String? = null,
 
     @JsonProperty("created_by")
     @field:NotBlank(message = "创建者ID不能为空")
@@ -129,7 +129,17 @@ data class RouteCreateRequest(
     // 日程计划
     @field:Valid
     @field:Size(max = 30, message = "日程计划数量不能超过30个")
-    val dailyPlans: List<DailyPlanCreateRequest> = emptyList()
+    val dailyPlans: List<DailyPlanCreateRequest> = emptyList(),
+
+    // 水源
+    @field:Valid
+    @field:Size(max = 50, message = "水源数量不能超过50个")
+    val waterSources: List<org.example.water.dto.WaterSourceCreateRequest> = emptyList(),
+
+    // 搭车联系人
+    @field:Valid
+    @field:Size(max = 20, message = "搭车联系人数量不能超过20个")
+    val hitchhikeContacts: List<HitchhikeContactCreateRequest> = emptyList()
 )
 
 

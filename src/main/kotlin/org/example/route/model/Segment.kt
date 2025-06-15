@@ -41,18 +41,12 @@ data class Segment(
     @JoinColumn(name = "route_id")
     var route: Route? = null,
 
-    @Column(name = "start_point_id", length = 64)
-    var startPointId: String? = null,
-
-    @Column(name = "end_point_id", length = 64)
-    var endPointId: String? = null,
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "start_point_id", insertable = false, updatable = false)
+    @JoinColumn(name = "start_point_id")
     var startPoint: Waypoint? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "end_point_id", insertable = false, updatable = false)
+    @JoinColumn(name = "end_point_id")
     var endPoint: Waypoint? = null,
 
     @OneToMany(mappedBy = "segment", cascade = [CascadeType.ALL], orphanRemoval = true)

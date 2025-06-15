@@ -50,9 +50,16 @@ data class Supply(
     @Column(name = "updated_by", length = 64)
     var updatedBy: String? = null,
 
+    @Column(name = "created_by", length = 64)
+    var createdBy: String? = null,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "updated_by", insertable = false, updatable = false)
     var updatedByUser: User? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", insertable = false, updatable = false)
+    var creator: User? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),

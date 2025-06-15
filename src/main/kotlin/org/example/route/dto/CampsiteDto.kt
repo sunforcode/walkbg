@@ -19,6 +19,7 @@ data class CampsiteDto(
     val notes: String?,
     @JsonProperty("verified_by")
     val verifiedBy: UserBasicDto?,
+    val creator: UserBasicDto?,
     @JsonProperty("created_at")
     val createdAt: Instant,
     @JsonProperty("updated_at")
@@ -41,6 +42,16 @@ data class CampsiteDto(
                 createdAt = campsite.createdAt,
                 updatedAt = campsite.updatedAt,
                 verifiedBy = campsite.verifiedBy?.let { user ->
+                    UserBasicDto(
+                        id = user.id,
+                        username = user.username,
+                        nickname = user.nickname,
+                        email = user.email,
+                        avatarUrl = user.avatarUrl,
+                        createdAt = user.createdAt
+                    )
+                },
+                creator = campsite.creator?.let { user ->
                     UserBasicDto(
                         id = user.id,
                         username = user.username,

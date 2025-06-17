@@ -2,7 +2,6 @@ package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.example.user.dto.UserBasicDto
-import java.time.Instant
 
 /**
  * 搭车联系人DTO
@@ -18,9 +17,9 @@ data class HitchhikeContactDto(
     val lastVerified: Boolean,
     val creator: UserBasicDto?,
     @JsonProperty("created_at")
-    val createdAt: Instant,
+    val createdAt: Long, // 改为时间戳（秒）
     @JsonProperty("updated_at")
-    val updatedAt: Instant
+    val updatedAt: Long // 改为时间戳（秒）
 ) {
     companion object {
         /**
@@ -42,11 +41,11 @@ data class HitchhikeContactDto(
                         nickname = user.nickname,
                         email = user.email,
                         avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt
+                        createdAt = user.createdAt.epochSecond // 转换为时间戳
                     )
                 },
-                createdAt = contact.createdAt,
-                updatedAt = contact.updatedAt
+                createdAt = contact.createdAt.epochSecond, // 转换为时间戳
+                updatedAt = contact.updatedAt.epochSecond // 转换为时间戳
             )
         }
     }

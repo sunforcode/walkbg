@@ -4,6 +4,7 @@ import org.example.route.dto.RouteDetailResponse
 import org.example.route.dto.RouteBasicResponse
 import org.example.route.dto.toRoute
 import org.example.route.model.Route
+import org.example.common.util.IdGenerator
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -100,9 +101,9 @@ class RouteApplicationService(
         routeType: Int? = null,
         creatorId: String
     ): RouteBasicResponse {
-        // 1. 创建路线实体
+        // 1. 创建路线实体（自动生成ID）
         val route = Route(
-            id = UUID.randomUUID().toString(),
+            id = IdGenerator.generateIdWithPrefix("route"),
             name = name,
             description = description,
             region = region,
@@ -124,11 +125,12 @@ class RouteApplicationService(
      * 创建完整路线（包含关联对象）
      * 支持创建路线及其关联的路段、路点、标签、图片等
      * 使用分步保存策略确保外键约束正确
+     * 内部实体ID自动生成，外部引用ID可手动指定
      */
     @Transactional
     fun createCompleteRoute(request: org.example.route.dto.RouteCreateRequest): RouteBasicResponse {
-        // 步骤1: 创建并保存Route主实体
-        val route = request.toRoute()
+        // 步骤1: 创建并保存Route主实体（自动生成ID）
+        val route = request.toRoute().copy(id = IdGenerator.generateIdWithPrefix("route"))
         val savedRoute = routeService.createRoute(route)
 
         // 步骤2: 创建简单关联对象（无外键依赖）
@@ -152,14 +154,15 @@ class RouteApplicationService(
 
     /**
      * 创建简单关联对象（无外键依赖）
+     * 内部实体ID自动生成
      */
     private fun createSimpleAssociations(route: Route, request: org.example.route.dto.RouteCreateRequest) {
-        // 创建标签
+        // 创建标签（自动生成ID）
         request.tags.forEach { tagName ->
             route.addTag(tagName)
         }
 
-        // 创建图片
+        // 创建图片（自动生成ID）
         request.images.forEach { imageRequest ->
             route.addImage(
                 imageUrl = imageRequest.imageUrl,
@@ -168,10 +171,10 @@ class RouteApplicationService(
             )
         }
 
-        // 创建路点（无外键依赖，只依赖Route）
+        // 创建路点（自动生成ID）
         request.waypoints.forEach { waypointRequest ->
             val waypoint = org.example.route.model.Waypoint(
-                id = waypointRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("waypoint"),
                 name = waypointRequest.name,
                 description = waypointRequest.description,
                 latitude = waypointRequest.latitude,
@@ -187,10 +190,10 @@ class RouteApplicationService(
             route.waypoints.add(waypoint)
         }
 
-        // 创建补给点
+        // 创建补给点（自动生成ID）
         request.supplies.forEach { supplyRequest ->
             val supply = org.example.route.model.Supply(
-                id = supplyRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("supply"),
                 name = supplyRequest.name,
                 description = supplyRequest.description,
                 latitude = supplyRequest.latitude,
@@ -205,10 +208,10 @@ class RouteApplicationService(
             supply.route = route
         }
 
-        // 创建营地
+        // 创建营地（自动生成ID）
         request.campsites.forEach { campsiteRequest ->
             val campsite = org.example.route.model.Campsite(
-                id = campsiteRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("campsite"),
                 name = campsiteRequest.name,
                 description = campsiteRequest.description,
                 latitude = campsiteRequest.latitude,
@@ -222,10 +225,10 @@ class RouteApplicationService(
             campsite.route = route
         }
 
-        // 创建标记点
+        // 创建标记点（自动生成ID）
         request.markerPoints.forEach { markerRequest ->
             val markerPoint = org.example.route.model.MarkerPoint(
-                id = markerRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("marker"),
                 name = markerRequest.name,
                 description = markerRequest.description,
                 latitude = markerRequest.latitude,
@@ -237,10 +240,10 @@ class RouteApplicationService(
             route.addMarkerPoint(markerPoint)
         }
 
-        // 创建日程计划
+        // 创建日程计划（自动生成ID）
         request.dailyPlans.forEach { planRequest ->
             val dailyPlan = org.example.route.model.DailyPlan(
-                id = planRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("plan"),
                 title = planRequest.title,
                 description = planRequest.description,
                 dayNumber = planRequest.dayNumber,
@@ -253,10 +256,10 @@ class RouteApplicationService(
             route.addDailyPlan(dailyPlan)
         }
 
-        // 创建水源
+        // 创建水源（自动生成ID）
         request.waterSources.forEach { waterSourceRequest ->
             val waterSource = org.example.water.model.WaterSource(
-                id = waterSourceRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("water"),
                 name = waterSourceRequest.name,
                 description = waterSourceRequest.description,
                 latitude = waterSourceRequest.latitude?.toDouble(),
@@ -272,10 +275,10 @@ class RouteApplicationService(
             waterSource.route = route
         }
 
-        // 创建搭车联系人
+        // 创建搭车联系人（自动生成ID）
         request.hitchhikeContacts.forEach { hitchhikeRequest ->
             val hitchhikeContact = org.example.route.model.HitchhikeContact(
-                id = hitchhikeRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("contact"),
                 name = hitchhikeRequest.name,
                 phone = hitchhikeRequest.phone,
                 description = hitchhikeRequest.description,
@@ -296,10 +299,10 @@ class RouteApplicationService(
         // 此时Waypoint已经被持久化，可以安全地使用它们的ID
         val waypointMap = route.waypoints.associateBy { it.sequenceNumber }
 
-        // 创建路段，使用已持久化的Waypoint ID
+        // 创建路段，使用已持久化的Waypoint ID（自动生成路段ID）
         request.segments.forEachIndexed { index, segmentRequest ->
             val segment = org.example.route.model.Segment(
-                id = segmentRequest.id ?: UUID.randomUUID().toString(),
+                id = IdGenerator.generateIdWithPrefix("segment"),
                 name = "路段${index + 1}",
                 description = "路段${index + 1}描述",
                 distance = segmentRequest.distance,

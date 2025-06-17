@@ -1,7 +1,6 @@
 package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.Instant
 import org.example.user.dto.UserBasicDto
 import org.example.water.dto.WaterSourceDto
 
@@ -40,9 +39,9 @@ data class RouteDetailResponse(
     val isFavorite: Boolean,
     val status: Int,
     @JsonProperty("created_at")
-    val createdAt: Instant,
+    val createdAt: Long, // 改为时间戳（秒）
     @JsonProperty("updated_at")
-    val updatedAt: Instant,
+    val updatedAt: Long, // 改为时间戳（秒）
     @JsonProperty("created_by")
     val createdBy: String?,
     val creator: UserBasicDto?,
@@ -70,42 +69,30 @@ data class RouteDetailResponse(
         /**
          * 从Route实体创建详细响应DTO
          */
-        fun fromRoute(route: org.example.route.model.Route, isFavorited: Boolean = false): RouteDetailResponse {
+        fun fromRoute(route: org.example.route.model.Route, isFavorite: Boolean = false): RouteDetailResponse {
             return RouteDetailResponse(
-                // 基础信息
                 id = route.id,
                 name = route.name,
                 description = route.description,
-                region = route.region,
                 regionId = route.regionId,
-                difficulty = route.difficulty,
-                routeType = route.routeType,
-                routeDirection = 0, // 默认值，需要根据实际业务调整
-                status = route.status,
-
-                // 地理信息（来自mapData）
+                region = route.region,
                 distance = route.mapData?.distance?.toDouble(),
                 duration = route.mapData?.duration,
                 elevationGain = route.mapData?.elevationGain?.toDouble(),
                 elevationLoss = route.mapData?.elevationLoss?.toDouble(),
-
-                // 媒体信息
+                difficulty = route.difficulty,
+                routeType = route.routeType,
+                routeDirection = null, // 暂时设为null，后续可以根据实际需求调整
                 coverUrl = route.coverUrl,
                 defaultMapId = route.defaultMapId,
-                imageUrls = route.images.map { it.imageUrl },
-
-                // 统计信息
                 popularity = route.popularity,
                 usageCount = route.usageCount,
                 isLoop = route.isLoop,
-                isFavorite = isFavorited,
-
-                // 时间信息
-                createdAt = route.createdAt,
-                updatedAt = route.updatedAt,
+                isFavorite = isFavorite,
+                status = route.status,
+                createdAt = route.createdAt.epochSecond, // 转换为时间戳
+                updatedAt = route.updatedAt.epochSecond, // 转换为时间戳
                 createdBy = route.createdBy,
-
-                // 创建者信息
                 creator = route.creator?.let { user ->
                     UserBasicDto(
                         id = user.id,
@@ -113,11 +100,11 @@ data class RouteDetailResponse(
                         nickname = user.nickname,
                         email = user.email,
                         avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt
+                        createdAt = user.createdAt.epochSecond // 转换为时间戳
                     )
                 },
 
-                // 关联对象信息 - 使用各DTO的工厂方法
+                // 关联对象映射
                 tags = route.tags.map { it.tag },
                 segments = route.segments.map { SegmentDto.fromSegment(it) },
                 campsites = route.campsites.map { CampsiteDto.fromCampsite(it) },

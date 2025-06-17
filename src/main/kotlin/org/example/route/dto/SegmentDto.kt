@@ -44,9 +44,11 @@ data class SegmentDto(
                 difficulty = segment.difficulty,
                 routeType = segment.routeType,
                 notes = segment.notes,
-                startPoint = null, // 简化处理，避免循环引用
-                endPoint = null,   // 简化处理，避免循环引用
-                keypoints = emptyList() // 简化处理，避免循环引用
+                startPoint = segment.startPoint?.let { WaypointDto.fromWaypoint(it) },
+                endPoint = segment.endPoint?.let { WaypointDto.fromWaypoint(it) },
+                keypoints = segment.keypoints.mapNotNull { segmentKeypoint ->
+                    segmentKeypoint.waypoint?.let { WaypointDto.fromWaypoint(it) }
+                }
             )
         }
     }

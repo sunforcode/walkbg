@@ -2,7 +2,6 @@ package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.math.BigDecimal
-import java.time.Instant
 
 /**
  * 路线基础信息响应DTO - 用于列表、搜索等轻量场景
@@ -19,7 +18,7 @@ data class RouteBasicResponse(
     val coverUrl: String?,
     val popularity: Int,
     @JsonProperty("created_at")
-    val createdAt: Instant,
+    val createdAt: Long, // 改为时间戳（秒）
     @JsonProperty("created_by")
     val createdBy: String?
 ) {
@@ -38,10 +37,9 @@ data class RouteBasicResponse(
                 difficulty = route.difficulty,
                 coverUrl = route.coverUrl,
                 popularity = route.popularity,
-                createdAt = route.createdAt,
+                createdAt = route.createdAt.epochSecond, // 转换为时间戳
                 createdBy = route.createdBy
             )
-
         }
     }
 }

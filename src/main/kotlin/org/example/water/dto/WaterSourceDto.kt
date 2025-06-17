@@ -29,9 +29,9 @@ data class WaterSourceDto(
     val verifiedBy: UserBasicDto?,
     val creator: UserBasicDto?,
     @JsonProperty("created_at")
-    val createdAt: Instant,
+    val createdAt: Long, // 改为时间戳（秒）
     @JsonProperty("updated_at")
-    val updatedAt: Instant
+    val updatedAt: Long // 改为时间戳（秒）
 ) {
     companion object {
         /**
@@ -58,7 +58,7 @@ data class WaterSourceDto(
                         nickname = user.nickname,
                         email = user.email,
                         avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt
+                        createdAt = user.createdAt.epochSecond // 转换为时间戳
                     )
                 },
                 creator = water.creator?.let { user ->
@@ -68,11 +68,11 @@ data class WaterSourceDto(
                         nickname = user.nickname,
                         email = user.email,
                         avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt
+                        createdAt = user.createdAt.epochSecond // 转换为时间戳
                     )
                 },
-                createdAt = water.createdAt,
-                updatedAt = water.updatedAt
+                createdAt = water.createdAt.epochSecond, // 转换为时间戳
+                updatedAt = water.updatedAt.epochSecond // 转换为时间戳
             )
         }
     }

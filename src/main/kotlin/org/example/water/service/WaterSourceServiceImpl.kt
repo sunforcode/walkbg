@@ -118,7 +118,7 @@ class WaterSourceServiceImpl(
     override fun verifyWaterSource(id: String, verifiedBy: String): WaterSource? {
         return waterSourceRepository.findById(id).map { waterSource ->
             val verifiedWaterSource = waterSource.copy(
-                lastVerified = verifiedBy, // lastVerified字段是String类型，存储验证者ID
+                lastVerified = Instant.now(), // lastVerified字段现在是Instant类型，存储验证时间
                 updatedAt = Instant.now()
             )
             waterSourceRepository.save(verifiedWaterSource)

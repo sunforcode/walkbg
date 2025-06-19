@@ -1,216 +1,103 @@
 package org.example.user.service
 
+import org.example.common.exception.BusinessException
 import org.example.user.model.User
-import org.example.user.model.UserFavoriteRoute
-import org.example.user.model.UserCompletedRoute
-import org.example.user.model.UserEquipmentItem
-import org.example.user.model.UserEquipmentItemId
 import org.example.user.repository.UserRepository
-import org.example.user.repository.UserFavoriteRouteRepository
-import org.example.user.repository.UserCompletedRouteRepository
-import org.example.user.repository.UserEquipmentItemRepository
-import org.example.route.repository.RouteRepository
-import org.example.trip.repository.TripParticipantRepository
-import org.example.trip.model.TripParticipant
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
-import java.util.UUID
 
 /**
- * 用户服务实现类
+ * 用户领域服务实现
+ * 职责：实现领域业务逻辑、业务规则验证、协调数据访问
  */
 @Service
-@Transactional
 class UserServiceImpl(
-    private val userRepository: UserRepository,
-    private val userFavoriteRouteRepository: UserFavoriteRouteRepository,
-    private val userCompletedRouteRepository: UserCompletedRouteRepository,
-    private val userEquipmentItemRepository: UserEquipmentItemRepository,
-    private val tripParticipantRepository: TripParticipantRepository,
-    private val routeRepository: RouteRepository
+    private val userRepository: UserRepository
 ) : UserService {
 
-    // 基础CRUD操作
-    override fun getAllUsers(pageable: Pageable): Page<User> {
-        return userRepository.findAll(pageable)
+    // ========== 业务规则验证 ==========
+
+    override fun validateUserCreation(user: User) {
+        // 验证用户名唯一性
+        if (!isUsernameAvailable(user.username)) {
+            throw BusinessException.conflict("用户名已存在")
+        }
+
+        // 验证邮箱唯一性
+        if (!isEmailAvailable(user.email)) {
+            throw BusinessException.conflict("邮箱已存在")
+        }
+
+        // 其他业务规则验证可以在这里添加
+        validateUserBusinessRules(user)
     }
 
-    override fun getUserById(id: String): User? {
-        return userRepository.findById(id).orElse(null)
+    override fun isUsernameAvailable(username: String): Boolean {
+        return !userRepository.existsByUsername(username)
     }
 
-    override fun getUserByEmail(email: String): User? {
-        return userRepository.findByEmail(email)
+    override fun isEmailAvailable(email: String): Boolean {
+        return !userRepository.existsByEmail(email)
     }
 
+    /**
+     * 验证用户业务规则
+     */
+    private fun validateUserBusinessRules(user: User) {
+        // 用户名长度和格式验证（这里可以添加更复杂的业务规则）
+        if (user.username.length < 3) {
+            throw BusinessException.badRequest("用户名长度不能少于3个字符")
+        }
+
+        // 邮箱格式验证（基本验证，更复杂的验证在DTO层）
+        if (!user.email.contains("@")) {
+            throw BusinessException.badRequest("邮箱格式不正确")
+        }
+    }
+
+    // ========== 用户生命周期管理 ==========
+
+    @Transactional
+    override fun createUserWithValidation(user: User): User {
+        // 1. 业务规则验证
+        validateUserCreation(user)
+
+        // 2. 数据持久化
+        return userRepository.save(user)
+    }
+
+    @Transactional
+    override fun activateUser(userId: String): Boolean {
+        val user = userRepository.findById(userId).orElse(null) ?: return false
+
+        val updatedUser = user.copy()
+        userRepository.save(updatedUser)
+        return true
+    }
+
+    @Transactional
+    override fun deactivateUser(userId: String): Boolean {
+        val user = userRepository.findById(userId).orElse(null) ?: return false
+
+        val updatedUser = user.copy()
+        userRepository.save(updatedUser)
+        return true
+    }
+
+    // ========== 数据访问方法 ==========
+
+    @Transactional(readOnly = true)
+    override fun getUserById(userId: String): User? {
+        return userRepository.findById(userId).orElse(null)
+    }
+
+    @Transactional(readOnly = true)
     override fun getUserByUsername(username: String): User? {
         return userRepository.findByUsername(username)
     }
 
-    override fun createUser(user: User): User {
-        return userRepository.save(user)
-    }
-
-    override fun updateUser(id: String, user: User): User? {
-        return if (userRepository.existsById(id)) {
-            userRepository.save(user.copy(id = id, updatedAt = Instant.now()))
-        } else {
-            null
-        }
-    }
-
-    override fun deleteUser(id: String): Boolean {
-        return if (userRepository.existsById(id)) {
-            userRepository.deleteById(id)
-            true
-        } else {
-            false
-        }
-    }
-
-    // 用户统计信息
-    override fun getUserStatistics(): Map<String, Any> {
-        return userRepository.getUserStatistics()
-    }
-
-    override fun getUserStats(userId: String): Map<String, Any> {
-        val completedRoutes = userRepository.countUserCompletedRoutes(userId)
-        val favoriteRoutes = userRepository.countUserFavoriteRoutes(userId)
-        val equipmentLists = userRepository.countUserEquipmentLists(userId)
-        val tripParticipations = userRepository.countUserTripParticipations(userId)
-
-        return mapOf(
-            "completedRoutes" to completedRoutes,
-            "favoriteRoutes" to favoriteRoutes,
-            "equipmentLists" to equipmentLists,
-            "tripParticipations" to tripParticipations
-        )
-    }
-
-    override fun getMostActiveUsers(pageable: Pageable): Page<User> {
-        return userRepository.findTop10MostActiveUsers(pageable)
-    }
-
-    // 用户收藏路线管理
-    override fun addFavoriteRoute(userId: String, routeId: String): UserFavoriteRoute {
-        val favoriteRoute = UserFavoriteRoute(
-            id = UUID.randomUUID().toString(),
-            createdAt = Instant.now()
-        )
-        // 设置关联实体
-        val user = userRepository.findById(userId).orElseThrow {
-            IllegalArgumentException("用户不存在: $userId")
-        }
-        val route = routeRepository.findById(routeId).orElseThrow {
-            IllegalArgumentException("路线不存在: $routeId")
-        }
-        favoriteRoute.user = user
-        favoriteRoute.route = route
-
-        return userFavoriteRouteRepository.save(favoriteRoute)
-    }
-
-    override fun removeFavoriteRoute(userId: String, routeId: String): Boolean {
-        return userFavoriteRouteRepository.deleteByUserIdAndRouteId(userId, routeId) > 0
-    }
-
-    override fun getUserFavoriteRoutes(userId: String, pageable: Pageable): Page<UserFavoriteRoute> {
-        // TODO: 临时实现，需要重新实现分页查询
-        val allFavorites = userFavoriteRouteRepository.findByUserId(userId)
-        return org.springframework.data.domain.PageImpl(allFavorites, pageable, allFavorites.size.toLong())
-    }
-
-    override fun isRouteFavorited(userId: String, routeId: String): Boolean {
-        return userFavoriteRouteRepository.existsByUserIdAndRouteId(userId, routeId)
-    }
-
-    override fun countUserFavoriteRoutes(userId: String): Long {
-        return userFavoriteRouteRepository.countByUserId(userId)
-    }
-
-    // 用户完成路线管理
-    override fun markRouteAsCompleted(userId: String, routeId: String): UserCompletedRoute {
-        val completedRoute = UserCompletedRoute(
-            userId = userId,
-            routeId = routeId,
-            completedAt = Instant.now()
-        )
-        return userCompletedRouteRepository.save(completedRoute)
-    }
-
-    override fun getUserCompletedRoutes(userId: String, pageable: Pageable): Page<UserCompletedRoute> {
-        return userCompletedRouteRepository.findByUserId(userId, pageable)
-    }
-
-    override fun countUserCompletedRoutes(userId: String): Long {
-        return userCompletedRouteRepository.countByUserId(userId)
-    }
-
-    override fun getUserCompletionStats(userId: String): Map<String, Any> {
-        val yearlyStats = userCompletedRouteRepository.getUserYearlyCompletionStats(userId)
-        val totalCompleted = userCompletedRouteRepository.countByUserId(userId)
-        
-        return mapOf(
-            "totalCompleted" to totalCompleted,
-            "yearlyStats" to yearlyStats
-        )
-    }
-
-    // 用户装备库存管理
-    override fun getUserEquipmentItems(userId: String, pageable: Pageable): Page<UserEquipmentItem> {
-        return userEquipmentItemRepository.findByUserId(userId, pageable)
-    }
-
-    override fun addEquipmentToUser(userId: String, equipmentItemId: String, quantity: Int, notes: String?): UserEquipmentItem {
-        val userEquipment = UserEquipmentItem(
-            userId = userId,
-            equipmentItemId = equipmentItemId,
-            quantity = quantity,
-            notes = notes
-        )
-        return userEquipmentItemRepository.save(userEquipment)
-    }
-
-    override fun updateUserEquipment(userId: String, equipmentItemId: String, quantity: Int, notes: String?): UserEquipmentItem? {
-        val existing = userEquipmentItemRepository.findById(UserEquipmentItemId(userId, equipmentItemId)).orElse(null)
-        return if (existing != null) {
-            val updated = existing.copy(quantity = quantity, notes = notes)
-            userEquipmentItemRepository.save(updated)
-        } else {
-            null
-        }
-    }
-
-    override fun removeEquipmentFromUser(userId: String, equipmentItemId: String): Boolean {
-        return userEquipmentItemRepository.deleteByUserIdAndEquipmentItemId(userId, equipmentItemId) > 0
-    }
-
-    override fun getUserEquipmentStats(userId: String): Map<String, Any> {
-        return userEquipmentItemRepository.getUserEquipmentStats(userId)
-    }
-
-    // 用户参与行程管理
-    override fun getUserTripParticipations(userId: String, pageable: Pageable): Page<TripParticipant> {
-        return tripParticipantRepository.findByUserId(userId, pageable)
-    }
-
-    override fun countUserTripParticipations(userId: String): Long {
-        return tripParticipantRepository.countByUserId(userId)
-    }
-
-    // 用户验证
-    override fun existsByEmail(email: String): Boolean {
-        return userRepository.existsByEmail(email)
-    }
-
-    override fun existsByUsername(username: String): Boolean {
-        return userRepository.existsByUsername(username)
-    }
-
-    override fun validateUser(username: String, email: String): Boolean {
-        return !existsByUsername(username) && !existsByEmail(email)
+    @Transactional(readOnly = true)
+    override fun getUserByEmail(email: String): User? {
+        return userRepository.findByEmail(email)
     }
 }

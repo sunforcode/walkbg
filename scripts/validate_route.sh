@@ -493,8 +493,17 @@ validate_associated_objects() {
         for ((i=0; i<count; i++)); do
             local source=$(jq ".waterSources[$i]" "$json_file")
 
-            # 字符串字段
-            local string_fields=("name" "description")
+            # 必需字段验证
+            local name_val=$(echo "$source" | jq -r '.name // null')
+            if [[ "$name_val" == "null" ]] || [[ "$name_val" == "" ]]; then
+                print_error "waterSources[$i].name 是必需字段且不能为空"
+                ((errors++))
+            else
+                validate_string "\"$name_val\"" "waterSources[$i].name" || ((errors++))
+            fi
+
+            # 可选字符串字段
+            local string_fields=("id" "description" "notes")
             for field in "${string_fields[@]}"; do
                 if echo "$source" | jq -e ".$field" >/dev/null 2>&1; then
                     local val=$(echo "$source" | jq ".$field")
@@ -516,6 +525,7 @@ validate_associated_objects() {
                 local val=$(echo "$source" | jq '.water_type')
                 validate_integer "$val" "waterSources[$i].water_type" || ((errors++))
                 if [[ "$val" != "null" ]]; then
+                    # 水源类型: 0=天然水源, 1=处理过的水源, 2=瓶装水, 3=其他
                     validate_enum "$val" "waterSources[$i].water_type" 0 3 || ((errors++))
                 fi
             fi
@@ -524,6 +534,7 @@ validate_associated_objects() {
                 local val=$(echo "$source" | jq '.water_quality')
                 validate_integer "$val" "waterSources[$i].water_quality" || ((errors++))
                 if [[ "$val" != "null" ]]; then
+                    # 水质等级: 0=优质, 1=良好, 2=一般, 3=较差, 4=未知
                     validate_enum "$val" "waterSources[$i].water_quality" 0 4 || ((errors++))
                 fi
             fi
@@ -533,6 +544,31 @@ validate_associated_objects() {
                 local val=$(echo "$source" | jq '.requires_treatment')
                 validate_boolean "$val" "waterSources[$i].requires_treatment" || ((errors++))
             fi
+
+            # 时间戳字段验证
+            local timestamp_fields=("created_at" "updated_at" "last_verified")
+            for field in "${timestamp_fields[@]}"; do
+                if echo "$source" | jq -e ".$field" >/dev/null 2>&1; then
+                    local val=$(echo "$source" | jq ".$field")
+                    # 时间戳可以是数字（Unix时间戳）或字符串（ISO格式）
+                    if [[ "$val" != "null" ]]; then
+                        local val_type=$(echo "$val" | jq -r 'type')
+                        if [[ "$val_type" != "number" ]] && [[ "$val_type" != "string" ]]; then
+                            print_error "waterSources[$i].$field 必须是数字（时间戳）或字符串（ISO格式），当前类型: $val_type"
+                            ((errors++))
+                        fi
+                    fi
+                fi
+            done
+
+            # 关联对象ID字段
+            local id_fields=("route_id" "verified_by_id" "created_by")
+            for field in "${id_fields[@]}"; do
+                if echo "$source" | jq -e ".$field" >/dev/null 2>&1; then
+                    local val=$(echo "$source" | jq ".$field")
+                    validate_string "$val" "waterSources[$i].$field" || ((errors++))
+                fi
+            done
         done
     fi
 

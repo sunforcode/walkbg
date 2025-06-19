@@ -24,7 +24,7 @@ data class WaterSourceDto(
     val reliability: Double?,
     val notes: String?,
     @JsonProperty("last_verified")
-    val lastVerified: String?,
+    val lastVerified: Long?, // 改为时间戳（秒）
     @JsonProperty("verified_by")
     val verifiedBy: UserBasicDto?,
     val creator: UserBasicDto?,
@@ -50,7 +50,7 @@ data class WaterSourceDto(
                 requiresTreatment = water.requiresTreatment,
                 reliability = water.reliability,
                 notes = water.notes,
-                lastVerified = water.lastVerified,
+                lastVerified = water.lastVerified?.epochSecond, // 转换为时间戳
                 verifiedBy = water.verifiedBy?.let { user ->
                     UserBasicDto(
                         id = user.id,

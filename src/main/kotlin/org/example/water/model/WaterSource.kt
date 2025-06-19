@@ -80,20 +80,14 @@ data class WaterSource(
     var updatedAt: Instant = Instant.now(),
     
     @Column(name = "last_verified")
-    val lastVerified: String? = null,
-
-    @Column(name = "verified_by_id", length = 64)
-    val verifiedById: String? = null,
-
-    @Column(name = "created_by", length = 64)
-    var createdBy: String? = null,
+    val lastVerified: Instant? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "verified_by_id", insertable = false, updatable = false)
+    @JoinColumn(name = "verified_by_id")
     var verifiedBy: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", insertable = false, updatable = false)
+    @JoinColumn(name = "created_by")
     var creator: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)

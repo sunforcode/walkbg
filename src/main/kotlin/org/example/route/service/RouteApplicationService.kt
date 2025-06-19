@@ -10,11 +10,11 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
-import java.util.*
 
 /**
  * 路线应用服务
- * 协调多个领域服务，处理完整的业务用例
+ * 职责：业务用例编排、跨领域协调、DTO转换
+ * 严格遵循分层架构，所有数据访问都通过DomainService
  */
 @Service
 class RouteApplicationService(
@@ -22,29 +22,25 @@ class RouteApplicationService(
 ) {
 
     /**
-     * 读取路线详情
-     * 简单的读取操作，包含基本的业务逻辑
+     * 业务用例：获取路线基础详情
+     * 通过领域服务协调业务逻辑和数据访问
      */
     @Transactional(readOnly = true)
     fun getRouteDetails(routeId: String, userId: String? = null): RouteBasicResponse? {
-        // 1. 获取路线详情
-        val route = routeService.getRouteWithDetails(routeId) ?: return null
+        // 1. 通过领域服务获取路线详情（包含业务规则检查）
+        val route = routeService.getRouteWithAccessCheck(routeId, userId) ?: return null
 
-        // 2. 检查用户收藏状态（如果提供了用户ID）
-        val isFavorited = userId?.let {
-            routeService.isRouteFavorited(routeId, it)
-        } ?: false
+        // 2. 业务逻辑协调：检查收藏状态和记录访问
+        val isFavorited = userId?.let { routeService.isRouteFavorited(routeId, it) } ?: false
+        routeService.recordRouteVisitIfNeeded(route, userId)
 
-        // 3. 记录访问
-        routeService.recordRouteVisit(routeId)
-
-        // 4. 转换为DTO
+        // 3. DTO转换（应用层职责）
         return RouteBasicResponse.fromRoute(route)
     }
 
     /**
-     * 分页查询路线列表
-     * 简单的搜索功能
+     * 业务用例：分页搜索路线
+     * 通过领域服务进行搜索，遵循分层架构
      */
     @Transactional(readOnly = true)
     fun searchRoutes(
@@ -57,40 +53,42 @@ class RouteApplicationService(
         userId: String? = null,
         pageable: Pageable
     ): Page<RouteBasicResponse> {
-        // 1. 搜索路线
+        // 1. 通过领域服务进行搜索（包含业务规则）
         val routes = routeService.searchRoutes(
-            keyword, regionId, difficulty, routeType,
-            minDistance, maxDistance, null, userId, pageable
+            keyword = keyword,
+            regionId = regionId,
+            difficulty = difficulty,
+            routeType = routeType,
+            minDistance = minDistance,
+            maxDistance = maxDistance,
+            userId = userId,
+            pageable = pageable
         )
 
-        // 2. 转换为DTO
+        // 2. DTO转换（应用层职责）
         return routes.map { RouteBasicResponse.fromRoute(it) }
     }
 
     /**
-     * 获取路线完整详情
-     * 包含所有关联对象信息
+     * 业务用例：获取路线完整详情
+     * 复杂业务用例，通过领域服务协调多个操作
      */
     @Transactional(readOnly = true)
     fun getRouteWithFullDetails(routeId: String, userId: String? = null): RouteDetailResponse? {
-        // 1. 获取路线详情（包含关联对象）
-        val route = routeService.getRouteWithDetails(routeId) ?: return null
+        // 1. 通过领域服务获取路线详情（包含关联对象和业务规则检查）
+        val route = routeService.getRouteWithFullDetailsAndAccessCheck(routeId, userId) ?: return null
 
-        // 2. 检查用户收藏状态
-        val isFavorited = userId?.let {
-            routeService.isRouteFavorited(routeId, it)
-        } ?: false
+        // 2. 业务逻辑协调（通过领域服务）
+        val isFavorited = userId?.let { routeService.isRouteFavorited(routeId, it) } ?: false
+        routeService.recordRouteVisitIfNeeded(route, userId)
 
-        // 3. 记录访问
-        routeService.recordRouteVisit(routeId)
-
-        // 4. 转换为详细DTO
+        // 3. DTO转换（应用层职责）
         return RouteDetailResponse.fromRoute(route, isFavorited)
     }
 
     /**
-     * 写入路线
-     * 简单的创建功能
+     * 业务用例：创建简单路线
+     * 简单创建操作，基本业务逻辑委托给DomainService
      */
     @Transactional
     fun createRoute(
@@ -101,7 +99,7 @@ class RouteApplicationService(
         routeType: Int? = null,
         creatorId: String
     ): RouteBasicResponse {
-        // 1. 创建路线实体（自动生成ID）
+        // 1. 构建路线实体
         val route = Route(
             id = IdGenerator.generateIdWithPrefix("route"),
             name = name,
@@ -114,42 +112,47 @@ class RouteApplicationService(
             updatedAt = Instant.now()
         )
 
-        // 2. 保存路线
-        val savedRoute = routeService.createRoute(route)
+        // 2. 业务规则验证和创建（通过领域服务）
+        val savedRoute = routeService.createRouteWithValidation(route)
 
-        // 3. 转换为响应DTO
+        // 3. DTO转换（应用层职责）
         return RouteBasicResponse.fromRoute(savedRoute)
     }
 
     /**
-     * 创建完整路线（包含关联对象）
-     * 支持创建路线及其关联的路段、路点、标签、图片等
-     * 使用分步保存策略确保外键约束正确
-     * 内部实体ID自动生成，外部引用ID可手动指定
+     * 业务用例：创建完整路线
+     * 复杂业务用例，通过领域服务协调多个步骤和业务规则
      */
     @Transactional
     fun createCompleteRoute(request: org.example.route.dto.RouteCreateRequest): RouteBasicResponse {
-        // 步骤1: 创建并保存Route主实体（自动生成ID）
+        // 1. 业务规则验证（通过领域服务）
+        routeService.validateCompleteRouteCreation(request)
+
+        // 2. 构建完整路线实体（包含所有关联对象）
+        val route = buildCompleteRoute(request)
+
+        // 3. 通过领域服务创建完整路线（包含所有业务规则和数据持久化）
+        val savedRoute = routeService.createRouteWithValidation(route)
+
+        // 4. DTO转换（应用层职责）
+        return RouteBasicResponse.fromRoute(savedRoute)
+    }
+
+    /**
+     * 构建完整路线实体（包含所有关联对象）
+     * 应用层职责：实体构建和组装
+     */
+    private fun buildCompleteRoute(request: org.example.route.dto.RouteCreateRequest): Route {
+        // 1. 构建路线主体
         val route = request.toRoute().copy(id = IdGenerator.generateIdWithPrefix("route"))
-        val savedRoute = routeService.createRoute(route)
 
-        // 步骤2: 创建简单关联对象（无外键依赖）
-        createSimpleAssociations(savedRoute, request)
+        // 2. 创建简单关联对象（无外键依赖）
+        createSimpleAssociations(route, request)
 
-        // 步骤3: 保存Route和简单关联对象（包括Waypoint）
-        val routeWithSimpleAssociations = routeService.updateRoute(savedRoute)
+        // 3. 创建复杂关联对象（依赖已构建的关联对象）
+        createComplexAssociations(route, request)
 
-        // 步骤4: 创建复杂关联对象（依赖已持久化的Waypoint）
-        createComplexAssociations(routeWithSimpleAssociations, request)
-
-        // 步骤5: 最终保存所有关联对象
-        val completeRoute = routeService.updateRoute(routeWithSimpleAssociations)
-
-        // 步骤6: 重新加载完整数据并返回
-        val finalRoute = routeService.getRouteWithDetails(completeRoute.id)
-            ?: throw RuntimeException("创建路线后无法加载完整数据")
-
-        return RouteBasicResponse.fromRoute(finalRoute)
+        return route
     }
 
     /**
@@ -257,7 +260,7 @@ class RouteApplicationService(
         }
 
         // 创建水源（自动生成ID）
-        request.waterSources.forEach { waterSourceRequest ->
+        request.waterSources.forEach{ waterSourceRequest ->
             val waterSource = org.example.water.model.WaterSource(
                 id = IdGenerator.generateIdWithPrefix("water"),
                 name = waterSourceRequest.name,
@@ -267,12 +270,13 @@ class RouteApplicationService(
                 elevation = waterSourceRequest.elevation?.toDouble(),
                 waterType = waterSourceRequest.waterType ?: 0,
                 waterQuality = waterSourceRequest.waterQuality ?: 4,
-                requiresTreatment = waterSourceRequest.requiresTreatment ?: false,
-                reliability = waterSourceRequest.reliability,
-                createdBy = route.createdBy
+                requiresTreatment = waterSourceRequest.requiresTreatment,
+                reliability = waterSourceRequest.reliability
             )
             route.waterSources.add(waterSource)
             waterSource.route = route
+            // 通过关联对象设置创建者（如果需要的话，可以在这里设置）
+            waterSource.creator = route.creator
         }
 
         // 创建搭车联系人（自动生成ID）
@@ -292,14 +296,16 @@ class RouteApplicationService(
         }
     }
 
+
+
     /**
-     * 创建复杂关联对象（依赖已持久化的Waypoint）
+     * 创建复杂关联对象（依赖已构建的关联对象）
      */
     private fun createComplexAssociations(route: Route, request: org.example.route.dto.RouteCreateRequest) {
-        // 此时Waypoint已经被持久化，可以安全地使用它们的ID
+        // 此时Waypoint已经被构建，可以安全地使用它们的序号
         val waypointMap = route.waypoints.associateBy { it.sequenceNumber }
 
-        // 创建路段，使用已持久化的Waypoint ID（自动生成路段ID）
+        // 创建路段，使用已构建的Waypoint（自动生成路段ID）
         request.segments.forEachIndexed { index, segmentRequest ->
             val segment = org.example.route.model.Segment(
                 id = IdGenerator.generateIdWithPrefix("segment"),
@@ -310,14 +316,8 @@ class RouteApplicationService(
                 elevationLoss = segmentRequest.elevationLoss,
                 estimatedTime = segmentRequest.estimatedTime,
                 difficulty = segmentRequest.difficulty,
-                routeType = segmentRequest.terrain?.let {
-                    when(it) {
-                        "mountain" -> 1
-                        "forest" -> 2
-                        "desert" -> 3
-                        else -> 0
-                    }
-                },
+                routeType = null,
+                notes = null,
                 // 使用对象引用而不是ID，让JPA自动管理外键关系
                 startPoint = waypointMap[index + 1],
                 endPoint = waypointMap[index + 2]

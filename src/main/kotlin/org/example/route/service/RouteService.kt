@@ -81,11 +81,7 @@ interface RouteService {
      */
     fun getRouteWithAccessCheck(routeId: String, userId: String?): Route?
 
-    /**
-     * 获取路线完整详情（包含访问权限检查）
-     * 结合数据访问和业务规则
-     */
-    fun getRouteWithFullDetailsAndAccessCheck(routeId: String, userId: String?): Route?
+
 
     /**
      * 搜索路线（包含业务规则）

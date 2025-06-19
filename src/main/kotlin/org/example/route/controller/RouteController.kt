@@ -77,26 +77,7 @@ class RouteController(
         }
     }
 
-    /**
-     * 获取路线完整详情
-     */
-    @GetMapping("/{id}/details")
-    @Operation(summary = "获取路线完整详情", description = "获取包含所有关联对象的路线详细信息")
-    fun getRouteFullDetails(
-        @Parameter(description = "路线ID") @PathVariable id: String,
-        @Parameter(description = "用户ID") @RequestParam(required = false) userId: String?
-    ): ResponseEntity<ApiResponse<RouteDetailResponse?>> {
-        return try {
-            val route = routeApplicationService.getRouteWithFullDetails(id, userId)
-            if (route == null) {
-                ResponseUtil.error("路线不存在")
-            } else {
-                ResponseUtil.success(route)
-            }
-        } catch (e: Exception) {
-            ResponseUtil.error("查询路线详情失败: ${e.message}")
-        }
-    }
+
 
     /**
      * 创建完整路线

@@ -43,6 +43,22 @@ class UserController(
     }
 
     /**
+     * 根据用户名获取用户
+     */
+    @GetMapping("/username/{username}")
+    @Operation(summary = "根据用户名获取用户", description = "根据用户名获取用户信息")
+    fun getUserByUsername(
+        @Parameter(description = "用户名") @PathVariable username: String
+    ): ResponseEntity<ApiResponse<UserBasicResponse>> {
+        val user = userApplicationService.getUserByUsername(username)
+        return ResponseUtil.conditional(
+            data = user,
+            successMessage = "获取用户信息成功",
+            notFoundMessage = "用户不存在"
+        )
+    }
+
+    /**
      * 创建用户
      */
     @PostMapping

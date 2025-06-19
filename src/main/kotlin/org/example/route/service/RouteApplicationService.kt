@@ -1,6 +1,6 @@
 package org.example.route.service
 
-import org.example.route.dto.RouteDetailResponse
+
 import org.example.route.dto.RouteBasicResponse
 import org.example.route.dto.toRoute
 import org.example.route.model.Route
@@ -30,8 +30,7 @@ class RouteApplicationService(
         // 1. 通过领域服务获取路线详情（包含业务规则检查）
         val route = routeService.getRouteWithAccessCheck(routeId, userId) ?: return null
 
-        // 2. 业务逻辑协调：检查收藏状态和记录访问
-        val isFavorited = userId?.let { routeService.isRouteFavorited(routeId, it) } ?: false
+        // 2. 业务逻辑协调：记录访问
         routeService.recordRouteVisitIfNeeded(route, userId)
 
         // 3. DTO转换（应用层职责）
@@ -69,55 +68,9 @@ class RouteApplicationService(
         return routes.map { RouteBasicResponse.fromRoute(it) }
     }
 
-    /**
-     * 业务用例：获取路线完整详情
-     * 复杂业务用例，通过领域服务协调多个操作
-     */
-    @Transactional(readOnly = true)
-    fun getRouteWithFullDetails(routeId: String, userId: String? = null): RouteDetailResponse? {
-        // 1. 通过领域服务获取路线详情（包含关联对象和业务规则检查）
-        val route = routeService.getRouteWithFullDetailsAndAccessCheck(routeId, userId) ?: return null
 
-        // 2. 业务逻辑协调（通过领域服务）
-        val isFavorited = userId?.let { routeService.isRouteFavorited(routeId, it) } ?: false
-        routeService.recordRouteVisitIfNeeded(route, userId)
 
-        // 3. DTO转换（应用层职责）
-        return RouteDetailResponse.fromRoute(route, isFavorited)
-    }
 
-    /**
-     * 业务用例：创建简单路线
-     * 简单创建操作，基本业务逻辑委托给DomainService
-     */
-    @Transactional
-    fun createRoute(
-        name: String,
-        description: String? = null,
-        region: String? = null,
-        difficulty: Int? = null,
-        routeType: Int? = null,
-        creatorId: String
-    ): RouteBasicResponse {
-        // 1. 构建路线实体
-        val route = Route(
-            id = IdGenerator.generateIdWithPrefix("route"),
-            name = name,
-            description = description,
-            region = region,
-            difficulty = difficulty,
-            routeType = routeType,
-            createdBy = creatorId,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
-
-        // 2. 业务规则验证和创建（通过领域服务）
-        val savedRoute = routeService.createRouteWithValidation(route)
-
-        // 3. DTO转换（应用层职责）
-        return RouteBasicResponse.fromRoute(savedRoute)
-    }
 
     /**
      * 业务用例：创建完整路线
@@ -128,29 +81,32 @@ class RouteApplicationService(
         // 1. 业务规则验证（通过领域服务）
         routeService.validateCompleteRouteCreation(request)
 
-        // 2. 构建完整路线实体（包含所有关联对象）
-        val route = buildCompleteRoute(request)
+        // 2. 构建路线主体和简单关联对象
+        val route = buildRouteWithSimpleAssociations(request)
 
-        // 3. 通过领域服务创建完整路线（包含所有业务规则和数据持久化）
+        // 3. 先保存路线和简单关联对象（包括Waypoint）
         val savedRoute = routeService.createRouteWithValidation(route)
 
-        // 4. DTO转换（应用层职责）
-        return RouteBasicResponse.fromRoute(savedRoute)
+        // 4. 创建复杂关联对象（依赖已保存的Waypoint）
+        createComplexAssociationsAfterSave(savedRoute, request)
+
+        // 5. 再次保存以包含复杂关联对象
+        val finalRoute = routeService.updateRoute(savedRoute)
+
+        // 6. DTO转换（应用层职责）
+        return RouteBasicResponse.fromRoute(finalRoute)
     }
 
     /**
-     * 构建完整路线实体（包含所有关联对象）
+     * 构建路线主体和简单关联对象（无外键依赖）
      * 应用层职责：实体构建和组装
      */
-    private fun buildCompleteRoute(request: org.example.route.dto.RouteCreateRequest): Route {
+    private fun buildRouteWithSimpleAssociations(request: org.example.route.dto.RouteCreateRequest): Route {
         // 1. 构建路线主体
         val route = request.toRoute().copy(id = IdGenerator.generateIdWithPrefix("route"))
 
         // 2. 创建简单关联对象（无外键依赖）
         createSimpleAssociations(route, request)
-
-        // 3. 创建复杂关联对象（依赖已构建的关联对象）
-        createComplexAssociations(route, request)
 
         return route
     }
@@ -299,13 +255,13 @@ class RouteApplicationService(
 
 
     /**
-     * 创建复杂关联对象（依赖已构建的关联对象）
+     * 创建复杂关联对象（依赖已保存的关联对象）
      */
-    private fun createComplexAssociations(route: Route, request: org.example.route.dto.RouteCreateRequest) {
-        // 此时Waypoint已经被构建，可以安全地使用它们的序号
+    private fun createComplexAssociationsAfterSave(route: Route, request: org.example.route.dto.RouteCreateRequest) {
+        // 此时Waypoint已经被保存到数据库，可以安全地使用它们的序号
         val waypointMap = route.waypoints.associateBy { it.sequenceNumber }
 
-        // 创建路段，使用已构建的Waypoint（自动生成路段ID）
+        // 创建路段，使用已保存的Waypoint（自动生成路段ID）
         request.segments.forEachIndexed { index, segmentRequest ->
             val segment = org.example.route.model.Segment(
                 id = IdGenerator.generateIdWithPrefix("segment"),

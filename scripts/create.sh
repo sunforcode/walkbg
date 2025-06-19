@@ -62,10 +62,10 @@ check_scripts() {
 # 查询用户是否存在
 query_user_exists() {
     local username="$1"
-    print_info "查询用户: $username"
+    print_info "查询用户: $username" >&2
 
-    local response=$(curl -s "http://localhost:8080/walkbg/api/users?username=$username")
-    local user_id=$(echo "$response" | jq -r '.data.content[]? | select(.username == "'$username'") | .id')
+    local response=$(curl -s "http://localhost:8080/walkbg/api/user/username/$username")
+    local user_id=$(echo "$response" | jq -r '.data.id // empty')
 
     if [ -n "$user_id" ] && [ "$user_id" != "null" ]; then
         echo "$user_id"
@@ -120,18 +120,12 @@ if ! echo "$JSON_DATA" | jq . >/dev/null 2>&1; then
     exit 1
 fi
 
-# 获取用户名（从参数或JSON文件）
-if [ -z "$USERNAME" ]; then
-    USERNAME=$(echo "$JSON_DATA" | jq -r '.created_by // empty')
-    if [ -z "$USERNAME" ] || [ "$USERNAME" = "null" ]; then
-        print_error "错误: 无法获取用户名，请在参数中指定或在JSON中设置created_by字段"
-        exit 1
-    fi
-fi
+# 固定使用用户名 marthon
+USERNAME="marthon"
 
 # 设置默认邮箱
 if [ -z "$EMAIL" ]; then
-    EMAIL="${USERNAME}@walkbg.com"
+    EMAIL="marthon@walkbg.com"
 fi
 
 print_info "用户名: $USERNAME"

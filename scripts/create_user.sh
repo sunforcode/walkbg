@@ -6,6 +6,7 @@
 # 设置默认值
 BASE_URL="http://localhost:8080/walkbg"
 API_ENDPOINT="/api/user"
+QUERY_ENDPOINT="/api/user/username"
 
 # 颜色定义
 RED='\033[0;31m'
@@ -100,7 +101,39 @@ fi
 # 生成用户ID
 USER_ID=$(generate_uuid)
 
-print_info "准备创建用户..."
+# 首先尝试通过用户名查询用户
+print_info "查询用户是否存在: $USERNAME" >&2
+
+QUERY_RESPONSE=$(curl -s -w "\n%{http_code}" \
+  -X GET \
+  -H "Accept: application/json" \
+  "$BASE_URL$QUERY_ENDPOINT/$USERNAME")
+
+QUERY_HTTP_CODE=$(echo "$QUERY_RESPONSE" | tail -n 1)
+QUERY_HTTP_BODY=$(echo "$QUERY_RESPONSE" | sed '$d')
+
+if [ "$QUERY_HTTP_CODE" = "200" ]; then
+    print_success "用户已存在!" >&2
+    echo "" >&2
+    print_info "用户信息:" >&2
+    echo "$QUERY_HTTP_BODY" | jq . 2>/dev/null >&2 || echo "$QUERY_HTTP_BODY" >&2
+
+    # 提取用户ID并输出
+    if command -v jq &> /dev/null; then
+        EXISTING_USER_ID=$(echo "$QUERY_HTTP_BODY" | jq -r '.data.id // empty')
+        if [ -n "$EXISTING_USER_ID" ] && [ "$EXISTING_USER_ID" != "null" ]; then
+            echo "$EXISTING_USER_ID"  # 只输出ID到stdout
+            exit 0
+        fi
+    fi
+    exit 0
+fi
+
+print_info "用户不存在，准备创建新用户..."
+
+# 生成用户ID
+USER_ID=$(generate_uuid)
+
 print_info "用户ID: $USER_ID"
 print_info "用户名: $USERNAME"
 print_info "邮箱: $EMAIL"
@@ -145,13 +178,15 @@ case $HTTP_CODE in
         print_info "响应数据:"
         echo "$HTTP_BODY" | jq . 2>/dev/null || echo "$HTTP_BODY"
 
-        # 尝试提取用户信息
+        # 提取用户ID并输出
         if command -v jq &> /dev/null; then
-            CREATED_USER=$(echo "$HTTP_BODY" | jq -r '.data // empty')
-            if [ -n "$CREATED_USER" ] && [ "$CREATED_USER" != "null" ]; then
-                echo ""
-                print_success "创建的用户信息:"
-                echo "$CREATED_USER" | jq .
+            CREATED_USER_ID=$(echo "$HTTP_BODY" | jq -r '.data.id // empty')
+            if [ -n "$CREATED_USER_ID" ] && [ "$CREATED_USER_ID" != "null" ]; then
+                echo "" >&2
+                print_success "创建的用户信息:" >&2
+                echo "$HTTP_BODY" | jq '.data' 2>/dev/null >&2 || echo "$HTTP_BODY" >&2
+                echo "$CREATED_USER_ID"  # 只输出ID到stdout
+                exit 0
             fi
         fi
         ;;

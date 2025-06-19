@@ -290,20 +290,7 @@ class RouteServiceImpl(
         }
     }
 
-    /**
-     * 获取路线完整详情（包含访问权限检查）
-     * 结合数据访问和业务规则
-     */
-    override fun getRouteWithFullDetailsAndAccessCheck(routeId: String, userId: String?): Route? {
-        val route = routeRepository.findById(routeId).orElse(null) ?: return null
 
-        // 应用业务规则检查
-        return if (isRouteAccessible(route, userId)) {
-            route
-        } else {
-            null
-        }
-    }
 
     /**
      * 搜索路线（包含业务规则）
@@ -330,7 +317,7 @@ class RouteServiceImpl(
             region = regionId,
             difficulty = difficulty,
             routeType = routeType,
-            status = 1, // 只查询已发布的路线（业务规则）
+            status = null, // 只查询已发布的路线（业务规则）
             tag = null,
             pageable = pageable
         )

@@ -1,0 +1,45 @@
+{
+  "name": "测试路线",
+  "description": "这是一个测试路线",
+  "region": "测试区域",
+  "difficulty": 3,
+  "routeType": 1,
+  "createdBy": "test_user_001",
+  "tags": ["测试", "简单"],
+  "waypoints": [
+    {
+      "name": "起点",agentToolSupplier
+      "description": "测试起点",
+      "latitude": 39.9042,
+      "longitude": 116.4074,
+      "elevation": 100.0,
+      "type": "start",
+      "sequenceNumber": 1
+    },
+    {
+      "name": "终点",
+      "description": "测试终点",
+      "latitude": 39.9142,
+      "longitude": 116.4174,
+      "elevation": 150.0,
+      "type": "end",
+      "sequenceNumber": 2
+    }
+  ],
+  "segments": [
+    {
+      "distance": 1.5,
+      "elevationGain": 50.0,
+      "elevationLoss": 0.0,
+      "estimatedTime": 1.0,
+      "difficulty": 2
+    }
+  ],
+  "images": [],
+  "supplies": [],
+  "campsites": [],
+  "markerPoints": [],
+  "dailyPlans": [],
+  "waterSources": [],
+  "hitchhikeContacts": []
+}

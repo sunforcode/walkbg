@@ -1,5 +1,5 @@
 {
-  "name": "贡嘎二层山徒步路线",
+  "name": "贡嘎二层山徒步路线1",
   "description": "贡嘎二层山是贡嘎山群峰中的重要山峰，海拔约6000米，是技术性登山和高海拔徒步的经典路线。路线从子梅垭口出发，经过贡嘎寺，最终到达二层山大本营。沿途可欣赏贡嘎主峰壮丽景色，体验高原徒步的挑战与魅力。",
   "region": "四川甘孜州康定市",
   "region_id": "region_gongga_001",
@@ -7,8 +7,8 @@
   "route_type": 2,
   "status": 1,
   "cover_url": "https://example.com/images/gongga_cover.jpg",
-  "default_map_id": "6784BCBF-0C9B-48C6-9C7A-B171063DCA9C",
-  "created_by": "bfa8bf97-9243-49b0-be84-919396520258",
+  "default_map_id": "FFCB6F84-7EDD-4795-B35D-2BE781A474C0",
+  "created_by": "user_1750354562470_xAmPuJBl",
   "tags": ["高海拔", "技术登山", "贡嘎山", "多日徒步", "雪山", "挑战级"],
   "waypoints": [
     {
@@ -137,8 +137,8 @@
       "elevation": 3750.0,
       "supply_type": 0,
       "price": 80.0,
-      "last_verified": "bfa8bf97-9243-49b0-be84-919396520258",
-      "updated_by": "bfa8bf97-9243-49b0-be84-919396520258"
+      "last_verified": "user_1750354562470_xAmPuJBl",
+      "updated_by": "user_1750354562470_xAmPuJBl"
     },
     {
       "name": "子梅村补给站",
@@ -148,8 +148,8 @@
       "elevation": 4200.0,
       "supply_type": 0,
       "price": 60.0,
-      "last_verified": "bfa8bf97-9243-49b0-be84-919396520258",
-      "updated_by": "bfa8bf97-9243-49b0-be84-919396520258"
+      "last_verified": "user_1750354562470_xAmPuJBl",
+      "updated_by": "user_1750354562470_xAmPuJBl"
     }
   ],
   "campsites": [

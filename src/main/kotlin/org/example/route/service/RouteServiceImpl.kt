@@ -283,11 +283,7 @@ class RouteServiceImpl(
         val route = routeRepository.findById(routeId).orElse(null) ?: return null
 
         // 应用业务规则检查
-        return if (isRouteAccessible(route, userId)) {
-            route
-        } else {
-            null
-        }
+        return route
     }
 
 

@@ -22,19 +22,22 @@ class RouteApplicationService(
 ) {
 
     /**
-     * 业务用例：获取路线基础详情
+     * 业务用例：获取路线完整详情（包含所有关联信息）
      * 通过领域服务协调业务逻辑和数据访问
      */
     @Transactional(readOnly = true)
-    fun getRouteDetails(routeId: String, userId: String? = null): RouteBasicResponse? {
+    fun getRouteFullDetails(routeId: String, userId: String? = null): org.example.route.dto.RouteDetailResponse? {
         // 1. 通过领域服务获取路线详情（包含业务规则检查）
         val route = routeService.getRouteWithAccessCheck(routeId, userId) ?: return null
 
         // 2. 业务逻辑协调：记录访问
         routeService.recordRouteVisitIfNeeded(route, userId)
 
-        // 3. DTO转换（应用层职责）
-        return RouteBasicResponse.fromRoute(route)
+        // 3. 检查用户收藏状态
+        val isFavorite = userId?.let { routeService.isRouteFavorited(routeId, it) } ?: false
+
+        // 4. DTO转换（应用层职责）
+        return org.example.route.dto.RouteDetailResponse.fromRoute(route, isFavorite)
     }
 
     /**
@@ -67,11 +70,7 @@ class RouteApplicationService(
         // 2. DTO转换（应用层职责）
         return routes.map { RouteBasicResponse.fromRoute(it) }
     }
-
-
-
-
-
+    
     /**
      * 业务用例：创建完整路线
      * 复杂业务用例，通过领域服务协调多个步骤和业务规则

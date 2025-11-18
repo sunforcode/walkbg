@@ -3,6 +3,8 @@ package org.example.user.service
 import org.example.common.exception.BusinessException
 import org.example.user.model.User
 import org.example.user.repository.UserRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -85,6 +87,13 @@ class UserServiceImpl(
     }
 
     // ========== 数据访问方法 ==========
+
+    @Transactional(readOnly = true)
+    override fun searchUsers(keyword: String?, status: Int?, pageable: Pageable): Page<User> {
+        // 注意：当前UserRepository的searchUsers方法不支持status参数
+        // TODO: 如果需要按状态筛选，需要在UserRepository中添加相应的查询方法
+        return userRepository.searchUsers(keyword, pageable)
+    }
 
     @Transactional(readOnly = true)
     override fun getUserById(userId: String): User? {

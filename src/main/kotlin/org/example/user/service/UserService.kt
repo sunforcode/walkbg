@@ -1,6 +1,8 @@
 package org.example.user.service
 
 import org.example.user.model.User
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 
 /**
  * 用户领域服务接口
@@ -48,6 +50,12 @@ interface UserService {
     fun deactivateUser(userId: String): Boolean
     
     // ========== 数据访问方法（遵循分层架构） ==========
+    /**
+     * 分页搜索用户
+     * 支持关键词和状态筛选
+     */
+    fun searchUsers(keyword: String?, status: Int?, pageable: Pageable): Page<User>
+
     /**
      * 根据ID获取用户
      * 简单的数据访问

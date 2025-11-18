@@ -62,9 +62,17 @@
         </dependency>
 
         <!-- 数据库 -->
+        <!-- H2数据库 - 开发环境 -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- MySQL数据库 - 生产环境 -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
 

@@ -4,6 +4,8 @@ import org.example.user.dto.UserBasicResponse
 import org.example.user.dto.UserCreateRequest
 import org.example.user.model.User
 import org.example.common.util.IdGenerator
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -17,6 +19,23 @@ import java.time.Instant
 class UserApplicationService(
     private val userService: UserService
 ) {
+
+    /**
+     * 业务用例：分页搜索用户
+     * 通过领域服务进行搜索，遵循分层架构
+     */
+    @Transactional(readOnly = true)
+    fun searchUsers(
+        keyword: String? = null,
+        status: Int? = null,
+        pageable: Pageable
+    ): Page<UserBasicResponse> {
+        // 1. 通过领域服务进行搜索
+        val users = userService.searchUsers(keyword, status, pageable)
+
+        // 2. DTO转换（应用层职责）
+        return users.map { UserBasicResponse.fromUser(it) }
+    }
 
     /**
      * 业务用例：根据ID获取用户

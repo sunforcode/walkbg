@@ -23,16 +23,26 @@ enum class CampsiteType(val value: Int) {
 }
 
 /**
- * 营地实体
+ * 营地实体（单向关联）
  */
 @Entity
-@Table(name = "campsites")
+@Table(
+    name = "campsites",
+    indexes = [
+        Index(name = "idx_campsites_route_id", columnList = "route_id"),
+        Index(name = "idx_campsites_type", columnList = "campsite_type"),
+        Index(name = "idx_campsites_created_by", columnList = "created_by")
+    ]
+)
 data class Campsite(
     @Id
     @Column(length = 64)
     val id: String,
 
-    @Column(nullable = false)
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
+
+    @Column(nullable = false, length = 200)
     val name: String,
 
     @Column(columnDefinition = "TEXT")
@@ -48,29 +58,17 @@ data class Campsite(
     @Column(columnDefinition = "TEXT")
     val notes: String? = null,
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: Instant = Instant.now(),
-
-    @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
     @Column(name = "last_verified_id", length = 64)
     val lastVerifiedId: String? = null,
 
     @Column(name = "created_by", length = 64)
     var createdBy: String? = null,
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "last_verified_id", insertable = false, updatable = false)
-    var verifiedBy: User? = null,
+    @Column(name = "created_at", nullable = false, updatable = false)
+    val createdAt: Instant = Instant.now(),
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", insertable = false, updatable = false)
-    var creator: User? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now()
 ) {
     /**
      * 获取营地类型枚举

@@ -39,6 +39,6 @@ interface RouteImageRepository : JpaRepository<RouteImage, Long> {
     /**
      * 查找路线的封面图片
      */
-    @Query("SELECT ri FROM RouteImage ri WHERE ri.route.id = :routeId AND ri.isCover = true")
+    @Query("SELECT ri FROM RouteImage ri WHERE ri.routeId = :routeId AND ri.isCover = true")
     fun findCoverImageByRouteId(@Param("routeId") routeId: String): RouteImage?
 }

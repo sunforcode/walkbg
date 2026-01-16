@@ -6,7 +6,7 @@ import java.math.BigDecimal
 import java.time.Instant
 
 /**
- * 补给实体
+ * 补给实体（单向关联）
  */
 @Entity
 @Table(
@@ -15,13 +15,17 @@ import java.time.Instant
         Index(name = "idx_supplies_route_id", columnList = "route_id"),
         Index(name = "idx_supplies_supply_type", columnList = "supply_type"),
         Index(name = "idx_supplies_elevation", columnList = "elevation"),
-        Index(name = "idx_supplies_last_verified", columnList = "last_verified")
+        Index(name = "idx_supplies_last_verified", columnList = "last_verified"),
+        Index(name = "idx_supplies_created_by", columnList = "created_by")
     ]
 )
 data class Supply(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
 
     @Column(nullable = false, length = 200)
     var name: String,
@@ -53,24 +57,11 @@ data class Supply(
     @Column(name = "created_by", length = 64)
     var createdBy: String? = null,
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by", insertable = false, updatable = false)
-    var updatedByUser: User? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", insertable = false, updatable = false)
-    var creator: User? = null,
-
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    // 关联关系
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

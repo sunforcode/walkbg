@@ -15,7 +15,6 @@ interface CampsiteRepository : JpaRepository<Campsite, String> {
     /**
      * 根据路线ID查找营地
      */
-    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId")
     fun findByRouteId(@Param("routeId") routeId: String, pageable: Pageable): Page<Campsite>
     
     /**
@@ -26,7 +25,6 @@ interface CampsiteRepository : JpaRepository<Campsite, String> {
     /**
      * 根据路线ID和营地类型查找
      */
-    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId AND c.campsiteType = :campsiteType")
     fun findByRouteIdAndCampsiteType(@Param("routeId") routeId: String, @Param("campsiteType") campsiteType: Int, pageable: Pageable): Page<Campsite>
     
     /**
@@ -42,14 +40,14 @@ interface CampsiteRepository : JpaRepository<Campsite, String> {
     /**
      * 根据路线ID查找营地，按海拔排序
      */
-    @Query("SELECT c FROM Campsite c JOIN c.route r WHERE r.id = :routeId ORDER BY c.elevation ASC")
+    @Query("SELECT c FROM Campsite c WHERE c.routeId = :routeId ORDER BY COALESCE(c.elevation, 0) ASC")
     fun findByRouteIdOrderByElevationAsc(@Param("routeId") routeId: String): List<Campsite>
     
     /**
      * 复合查询：根据多个条件查找营地
      */
-    @Query("SELECT c FROM Campsite c LEFT JOIN c.route r WHERE " +
-           "(:routeId IS NULL OR r.id = :routeId) AND " +
+    @Query("SELECT c FROM Campsite c WHERE " +
+           "(:routeId IS NULL OR c.routeId = :routeId) AND " +
            "(:campsiteType IS NULL OR c.campsiteType = :campsiteType) AND " +
            "(:minElevation IS NULL OR c.elevation >= :minElevation) AND " +
            "(:maxElevation IS NULL OR c.elevation <= :maxElevation) AND " +
@@ -66,6 +64,5 @@ interface CampsiteRepository : JpaRepository<Campsite, String> {
     /**
      * 统计路线的营地数量
      */
-    @Query("SELECT COUNT(c) FROM Campsite c JOIN c.route r WHERE r.id = :routeId")
     fun countByRouteId(@Param("routeId") routeId: String): Long
 }

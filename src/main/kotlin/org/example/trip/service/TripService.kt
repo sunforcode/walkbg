@@ -98,4 +98,9 @@ interface TripService {
      * 更新行程状态
      */
     fun updateTripStatus(id: String, status: Int): Trip?
+
+    /**
+     * 获取计划中的行程
+     */
+    fun getPlannedTrips(pageable: Pageable): Page<Trip>
 }

@@ -27,15 +27,7 @@ data class EquipmentListItem(
     var quantity: Int = 1,
 
     @Column(columnDefinition = "TEXT")
-    var notes: String? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "equipment_list_id", insertable = false, updatable = false)
-    var equipmentList: EquipmentList? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "equipment_item_id", insertable = false, updatable = false)
-    var equipmentItem: EquipmentItem? = null
+    var notes: String? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

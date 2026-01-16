@@ -5,14 +5,23 @@ import java.time.Instant
 import org.example.route.model.Waypoint
 
 /**
- * 行程安排实体
+ * 行程安排实体（单向关联）
  */
 @Entity
-@Table(name = "trip_itinerary")
+@Table(
+    name = "trip_itinerary",
+    indexes = [
+        Index(name = "idx_trip_itinerary_trip_id", columnList = "trip_id"),
+        Index(name = "idx_trip_itinerary_day_number", columnList = "day_number")
+    ]
+)
 data class TripItinerary(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "trip_id", length = 64, nullable = false)
+    val tripId: String,
     
     @Column(name = "day_number", nullable = false)
     val dayNumber: Int,
@@ -37,24 +46,18 @@ data class TripItinerary(
     
     @Column(length = 200)
     val accommodation: String? = null,
+
+    @Column(name = "start_waypoint_id", length = 64)
+    val startWaypointId: String? = null,
+
+    @Column(name = "end_waypoint_id", length = 64)
+    val endWaypointId: String? = null,
     
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
     
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", nullable = false)
-    var trip: Trip? = null,
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "start_waypoint_id")
-    var startWaypoint: Waypoint? = null,
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "end_waypoint_id")
-    var endWaypoint: Waypoint? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

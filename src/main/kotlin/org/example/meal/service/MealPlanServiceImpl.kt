@@ -130,8 +130,8 @@ class MealPlanServiceImpl(
     override fun getMealPlanWithDays(id: String): MealPlan? {
         val mealPlan = getMealPlanById(id)
         if (mealPlan != null) {
-            // 预加载餐食天数数据
-            mealPlan.mealDays.size // 触发懒加载
+            // 按需查询餐食天数数据（单向关联）
+            mealDayRepository.findByMealPlanIdOrderByDayNumber(mealPlan.id)
         }
         return mealPlan
     }

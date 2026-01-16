@@ -20,11 +20,11 @@ import org.example.route.model.Route
 @IdClass(UserCompletedRouteId::class)
 data class UserCompletedRoute(
     @Id
-    @Column(name = "user_id", length = 64)
+    @Column(name = "user_id", length = 64, nullable = false)
     val userId: String,
 
     @Id
-    @Column(name = "route_id", length = 64)
+    @Column(name = "route_id", length = 64, nullable = false)
     val routeId: String,
 
     @Column(name = "completed_at", nullable = false)
@@ -32,12 +32,12 @@ data class UserCompletedRoute(
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_completed_routes_user_id"))
     var user: User? = null,
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id", insertable = false, updatable = false)
+    @JoinColumn(name = "route_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_completed_routes_route_id"))
     var route: Route? = null
 ) {
     override fun equals(other: Any?): Boolean {

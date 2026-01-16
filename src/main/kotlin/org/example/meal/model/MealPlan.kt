@@ -37,33 +37,13 @@ data class MealPlan(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-    
-    // 关联关系
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", insertable = false, updatable = false)
-    var trip: Trip? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", insertable = false, updatable = false)
-    var creator: User? = null,
-
-    @OneToMany(mappedBy = "mealPlan", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val mealDays: MutableList<MealDay> = mutableListOf(),
-
-    @OneToMany(mappedBy = "mealPlan", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val tags: MutableList<MealPlanTag> = mutableListOf()
+    var updatedAt: Instant = Instant.now()
 ) {
-    fun addMealDay(mealDay: MealDay) {
-        mealDays.add(mealDay)
-        mealDay.mealPlan = this
-        updatedAt = Instant.now()
-    }
-    
-    fun addTag(tag: String) {
-        tags.add(MealPlanTag(tag = tag, mealPlan = this))
-        updatedAt = Instant.now()
-    }
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - mealDays: 通过 MealDayRepository.findByMealPlanId(mealPlanId) 查询
+     * - tags: 通过 MealPlanTagRepository.findByMealPlanId(mealPlanId) 查询
+     */
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

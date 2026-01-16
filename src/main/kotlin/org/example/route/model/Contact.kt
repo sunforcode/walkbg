@@ -6,24 +6,27 @@ import java.math.BigDecimal
 import java.time.Instant
 
 /**
- * 联系人实体
+ * 联系人实体（单向关联）
  */
 @Entity
 @Table(
     name = "contacts",
     indexes = [
+        Index(name = "idx_contacts_route_id", columnList = "route_id"),
         Index(name = "idx_contacts_location", columnList = "location"),
         Index(name = "idx_contacts_is_verified", columnList = "is_verified"),
         Index(name = "idx_contacts_price", columnList = "price"),
         Index(name = "idx_contacts_created_by", columnList = "created_by"),
-        Index(name = "idx_contacts_verified_by", columnList = "verified_by"),
-        Index(name = "idx_contacts_route_id", columnList = "route_id")
+        Index(name = "idx_contacts_verified_by", columnList = "verified_by")
     ]
 )
 data class Contact(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
 
     @Column(nullable = false, length = 100)
     var name: String,
@@ -56,24 +59,7 @@ data class Contact(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    // 关联关系
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", insertable = false, updatable = false)
-    var creator: User? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "verified_by", insertable = false, updatable = false)
-    var verifier: User? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by", insertable = false, updatable = false)
-    var updater: User? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

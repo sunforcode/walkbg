@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.example.common.dto.ApiResponse
+import org.example.common.exception.BusinessException
 import org.example.common.util.ResponseUtil
 import org.example.route.service.RouteApplicationService
 import org.example.route.dto.RouteDetailResponse
@@ -43,17 +44,12 @@ class RouteController(
         @Parameter(description = "最大距离") @RequestParam(required = false) maxDistance: Double?,
         @Parameter(description = "用户ID") @RequestParam(required = false) userId: String?
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        return try {
-            val pageable = org.springframework.data.domain.PageRequest.of(page, size)
-            val routes = routeApplicationService.searchRoutes(
-                keyword, regionId, difficulty, routeType,
-                minDistance, maxDistance, userId, pageable
-            )
-
-            ResponseUtil.successPage(routes)
-        } catch (e: Exception) {
-            ResponseUtil.error("查询路线列表失败: ${e.message}")
-        }
+        val pageable = org.springframework.data.domain.PageRequest.of(page, size)
+        val routes = routeApplicationService.searchRoutes(
+            keyword, regionId, difficulty, routeType,
+            minDistance, maxDistance, userId, pageable
+        )
+        return ResponseUtil.successPage(routes)
     }
 
     /**
@@ -64,20 +60,11 @@ class RouteController(
     fun getRouteById(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @Parameter(description = "用户ID") @RequestParam(required = false) userId: String?
-    ): ResponseEntity<ApiResponse<org.example.route.dto.RouteDetailResponse?>> {
-        return try {
-            val route = routeApplicationService.getRouteFullDetails(id, userId)
-            if (route == null) {
-                ResponseUtil.error("路线不存在")
-            } else {
-                ResponseUtil.success(route)
-            }
-        } catch (e: Exception) {
-            ResponseUtil.error("查询路线详情失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<RouteDetailResponse>> {
+        val route = routeApplicationService.getRouteFullDetails(id, userId)
+            ?: throw BusinessException.notFound("路线不存在")
+        return ResponseUtil.success(route)
     }
-
-
 
     /**
      * 创建路线
@@ -87,12 +74,8 @@ class RouteController(
     fun createRoute(
         @RequestBody @Valid request: org.example.route.dto.RouteCreateRequest
     ): ResponseEntity<ApiResponse<RouteBasicResponse>> {
-        return try {
-            val route = routeApplicationService.createCompleteRoute(request)
-            ResponseUtil.success(route, "路线创建成功")
-        } catch (e: Exception) {
-            ResponseUtil.error("创建路线失败: ${e.message}")
-        }
+        val route = routeApplicationService.createCompleteRoute(request)
+        return ResponseUtil.created(route, "路线创建成功")
     }
 
     /**
@@ -104,12 +87,8 @@ class RouteController(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @RequestBody @Valid request: org.example.route.dto.RouteCreateRequest
     ): ResponseEntity<ApiResponse<RouteBasicResponse>> {
-        return try {
-            // TODO: 实现更新逻辑
-            ResponseUtil.error("更新功能暂未实现")
-        } catch (e: Exception) {
-            ResponseUtil.error("更新路线失败: ${e.message}")
-        }
+        // TODO: 实现更新逻辑
+        throw BusinessException.badRequest("更新功能暂未实现")
     }
 
     /**
@@ -119,13 +98,9 @@ class RouteController(
     @Operation(summary = "删除路线", description = "删除指定ID的路线")
     fun deleteRoute(
         @Parameter(description = "路线ID") @PathVariable id: String
-    ): ResponseEntity<ApiResponse<String>> {
-        return try {
-            // TODO: 实现删除逻辑
-            ResponseUtil.error("删除功能暂未实现")
-        } catch (e: Exception) {
-            ResponseUtil.error("删除路线失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        // TODO: 实现删除逻辑
+        throw BusinessException.badRequest("删除功能暂未实现")
     }
 
     /**
@@ -136,13 +111,9 @@ class RouteController(
     fun favoriteRoute(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @Parameter(description = "用户ID") @RequestParam userId: String
-    ): ResponseEntity<ApiResponse<String>> {
-        return try {
-            // TODO: 实现收藏逻辑
-            ResponseUtil.success("收藏成功")
-        } catch (e: Exception) {
-            ResponseUtil.error("收藏路线失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        // TODO: 实现收藏逻辑
+        return ResponseUtil.success(null, "收藏成功")
     }
 
     /**
@@ -153,13 +124,9 @@ class RouteController(
     fun unfavoriteRoute(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @Parameter(description = "用户ID") @RequestParam userId: String
-    ): ResponseEntity<ApiResponse<String>> {
-        return try {
-            // TODO: 实现取消收藏逻辑
-            ResponseUtil.success("取消收藏成功")
-        } catch (e: Exception) {
-            ResponseUtil.error("取消收藏失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        // TODO: 实现取消收藏逻辑
+        return ResponseUtil.success(null, "取消收藏成功")
     }
 
     /**
@@ -170,13 +137,9 @@ class RouteController(
     fun completeRoute(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @Parameter(description = "用户ID") @RequestParam userId: String
-    ): ResponseEntity<ApiResponse<String>> {
-        return try {
-            // TODO: 实现完成路线逻辑
-            ResponseUtil.success("路线完成记录成功")
-        } catch (e: Exception) {
-            ResponseUtil.error("记录路线完成失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        // TODO: 实现完成路线逻辑
+        return ResponseUtil.success(null, "路线完成记录成功")
     }
 
     /**
@@ -189,17 +152,13 @@ class RouteController(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        return try {
-            // TODO: 实现查询我创建的路线逻辑
-            val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-                emptyList(),
-                org.springframework.data.domain.PageRequest.of(page, size),
-                0
-            )
-            ResponseUtil.successPage(emptyPage)
-        } catch (e: Exception) {
-            ResponseUtil.error("查询我的路线失败: ${e.message}")
-        }
+        // TODO: 实现查询我创建的路线逻辑
+        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
+            emptyList(),
+            org.springframework.data.domain.PageRequest.of(page, size),
+            0
+        )
+        return ResponseUtil.successPage(emptyPage)
     }
 
     /**
@@ -212,17 +171,13 @@ class RouteController(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        return try {
-            // TODO: 实现查询收藏路线逻辑
-            val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-                emptyList(),
-                org.springframework.data.domain.PageRequest.of(page, size),
-                0
-            )
-            ResponseUtil.successPage(emptyPage)
-        } catch (e: Exception) {
-            ResponseUtil.error("查询收藏路线失败: ${e.message}")
-        }
+        // TODO: 实现查询收藏路线逻辑
+        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
+            emptyList(),
+            org.springframework.data.domain.PageRequest.of(page, size),
+            0
+        )
+        return ResponseUtil.successPage(emptyPage)
     }
 
     /**
@@ -235,17 +190,13 @@ class RouteController(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        return try {
-            // TODO: 实现查询完成路线逻辑
-            val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-                emptyList(),
-                org.springframework.data.domain.PageRequest.of(page, size),
-                0
-            )
-            ResponseUtil.successPage(emptyPage)
-        } catch (e: Exception) {
-            ResponseUtil.error("查询完成路线失败: ${e.message}")
-        }
+        // TODO: 实现查询完成路线逻辑
+        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
+            emptyList(),
+            org.springframework.data.domain.PageRequest.of(page, size),
+            0
+        )
+        return ResponseUtil.successPage(emptyPage)
     }
 
     /**
@@ -259,17 +210,13 @@ class RouteController(
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int,
         @Parameter(description = "推荐类型") @RequestParam(required = false) type: String?
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        return try {
-            // TODO: 实现路线推荐逻辑
-            val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-                emptyList(),
-                org.springframework.data.domain.PageRequest.of(page, size),
-                0
-            )
-            ResponseUtil.successPage(emptyPage)
-        } catch (e: Exception) {
-            ResponseUtil.error("获取推荐路线失败: ${e.message}")
-        }
+        // TODO: 实现路线推荐逻辑
+        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
+            emptyList(),
+            org.springframework.data.domain.PageRequest.of(page, size),
+            0
+        )
+        return ResponseUtil.successPage(emptyPage)
     }
 
     /**
@@ -284,16 +231,24 @@ class RouteController(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        return try {
-            // TODO: 实现附近路线查询逻辑
-            val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-                emptyList(),
-                org.springframework.data.domain.PageRequest.of(page, size),
-                0
-            )
-            ResponseUtil.successPage(emptyPage)
-        } catch (e: Exception) {
-            ResponseUtil.error("获取附近路线失败: ${e.message}")
-        }
+        // TODO: 实现附近路线查询逻辑
+        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
+            emptyList(),
+            org.springframework.data.domain.PageRequest.of(page, size),
+            0
+        )
+        return ResponseUtil.successPage(emptyPage)
+    }
+
+    /**
+     * 获取热门路线
+     */
+    @GetMapping("/popular")
+    @Operation(summary = "获取热门路线", description = "按热度排序返回热门路线列表")
+    fun getPopularRoutes(
+        @Parameter(description = "返回数量限制") @RequestParam(defaultValue = "10") limit: Int
+    ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
+        val routes = routeApplicationService.getPopularRoutes(limit)
+        return ResponseUtil.successPage(routes)
     }
 }

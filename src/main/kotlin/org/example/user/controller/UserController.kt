@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.example.common.dto.ApiResponse
+import org.example.common.exception.BusinessException
 import org.example.common.util.ResponseUtil
 import org.example.user.dto.UserBasicResponse
 import org.example.user.dto.UserCreateRequest
@@ -37,13 +38,9 @@ class UserController(
         @Parameter(description = "关键词搜索") @RequestParam(required = false) keyword: String?,
         @Parameter(description = "用户状态") @RequestParam(required = false) status: Int?
     ): ResponseEntity<ApiResponse<org.springframework.data.domain.Page<UserBasicResponse>>> {
-        return try {
-            val pageable = org.springframework.data.domain.PageRequest.of(page, size)
-            val users = userApplicationService.searchUsers(keyword, status, pageable)
-            ResponseUtil.successPage(users)
-        } catch (e: Exception) {
-            ResponseUtil.error("查询用户列表失败: ${e.message}")
-        }
+        val pageable = org.springframework.data.domain.PageRequest.of(page, size)
+        val users = userApplicationService.searchUsers(keyword, status, pageable)
+        return ResponseUtil.successPage(users)
     }
 
     /**
@@ -53,17 +50,10 @@ class UserController(
     @Operation(summary = "查询用户详情", description = "根据用户ID获取详细信息")
     fun getUserById(
         @Parameter(description = "用户ID") @PathVariable id: String
-    ): ResponseEntity<ApiResponse<UserBasicResponse?>> {
-        return try {
-            val user = userApplicationService.getUserById(id)
-            if (user == null) {
-                ResponseUtil.error("用户不存在")
-            } else {
-                ResponseUtil.success(user)
-            }
-        } catch (e: Exception) {
-            ResponseUtil.error("查询用户详情失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<UserBasicResponse>> {
+        val user = userApplicationService.getUserById(id)
+            ?: throw BusinessException.notFound("用户不存在")
+        return ResponseUtil.success(user)
     }
 
     /**
@@ -73,17 +63,10 @@ class UserController(
     @Operation(summary = "根据用户名获取用户", description = "根据用户名获取用户信息")
     fun getUserByUsername(
         @Parameter(description = "用户名") @PathVariable username: String
-    ): ResponseEntity<ApiResponse<UserBasicResponse?>> {
-        return try {
-            val user = userApplicationService.getUserByUsername(username)
-            if (user == null) {
-                ResponseUtil.error("用户不存在")
-            } else {
-                ResponseUtil.success(user)
-            }
-        } catch (e: Exception) {
-            ResponseUtil.error("根据用户名查询用户失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<UserBasicResponse>> {
+        val user = userApplicationService.getUserByUsername(username)
+            ?: throw BusinessException.notFound("用户不存在")
+        return ResponseUtil.success(user)
     }
 
     /**
@@ -94,12 +77,8 @@ class UserController(
     fun createUser(
         @RequestBody @Valid request: UserCreateRequest
     ): ResponseEntity<ApiResponse<UserBasicResponse>> {
-        return try {
-            val user = userApplicationService.createUser(request)
-            ResponseUtil.success(user, "用户创建成功")
-        } catch (e: Exception) {
-            ResponseUtil.error("创建用户失败: ${e.message}")
-        }
+        val user = userApplicationService.createUser(request)
+        return ResponseUtil.created(user, "用户创建成功")
     }
 
     /**
@@ -111,12 +90,8 @@ class UserController(
         @Parameter(description = "用户ID") @PathVariable id: String,
         @RequestBody @Valid request: UserCreateRequest
     ): ResponseEntity<ApiResponse<UserBasicResponse>> {
-        return try {
-            // TODO: 实现更新逻辑
-            ResponseUtil.error("更新功能暂未实现")
-        } catch (e: Exception) {
-            ResponseUtil.error("更新用户失败: ${e.message}")
-        }
+        val user = userApplicationService.updateUser(id, request)
+        return ResponseUtil.success(user, "用户更新成功")
     }
 
     /**
@@ -126,13 +101,9 @@ class UserController(
     @Operation(summary = "删除用户", description = "删除指定ID的用户")
     fun deleteUser(
         @Parameter(description = "用户ID") @PathVariable id: String
-    ): ResponseEntity<ApiResponse<String>> {
-        return try {
-            // TODO: 实现删除逻辑
-            ResponseUtil.error("删除功能暂未实现")
-        } catch (e: Exception) {
-            ResponseUtil.error("删除用户失败: ${e.message}")
-        }
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        // TODO: 实现删除逻辑
+        throw BusinessException.badRequest("删除功能暂未实现")
     }
 
     /**
@@ -143,17 +114,7 @@ class UserController(
     fun getUserStats(
         @Parameter(description = "用户ID") @PathVariable id: String
     ): ResponseEntity<ApiResponse<Map<String, Any>>> {
-        return try {
-            // TODO: 实现用户统计逻辑
-            val stats = mapOf(
-                "routeCount" to 0,
-                "tripCount" to 0,
-                "favoriteCount" to 0,
-                "completedCount" to 0
-            )
-            ResponseUtil.success(stats)
-        } catch (e: Exception) {
-            ResponseUtil.error("获取用户统计失败: ${e.message}")
-        }
+        val stats = userApplicationService.getUserStats(id)
+        return ResponseUtil.success(stats)
     }
 }

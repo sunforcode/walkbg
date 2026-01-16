@@ -15,7 +15,6 @@ interface WaterSourceRepository : JpaRepository<WaterSource, String> {
     /**
      * 根据路线ID查找水源
      */
-    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId")
     fun findByRouteId(@Param("routeId") routeId: String, pageable: Pageable): Page<WaterSource>
     
     /**
@@ -31,7 +30,6 @@ interface WaterSourceRepository : JpaRepository<WaterSource, String> {
     /**
      * 根据路线ID和水源类型查找
      */
-    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId AND ws.waterType = :waterType")
     fun findByRouteIdAndWaterType(@Param("routeId") routeId: String, @Param("waterType") waterType: Int, pageable: Pageable): Page<WaterSource>
     
     /**
@@ -47,7 +45,7 @@ interface WaterSourceRepository : JpaRepository<WaterSource, String> {
     /**
      * 根据路线ID查找水源，按海拔排序
      */
-    @Query("SELECT ws FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId ORDER BY ws.elevation ASC")
+    @Query("SELECT ws FROM WaterSource ws WHERE ws.routeId = :routeId ORDER BY COALESCE(ws.elevation, 0) ASC")
     fun findByRouteIdOrderByElevationAsc(@Param("routeId") routeId: String): List<WaterSource>
     
     /**
@@ -58,8 +56,8 @@ interface WaterSourceRepository : JpaRepository<WaterSource, String> {
     /**
      * 复合查询：根据多个条件查找水源
      */
-    @Query("SELECT ws FROM WaterSource ws LEFT JOIN ws.route r WHERE " +
-           "(:routeId IS NULL OR r.id = :routeId) AND " +
+    @Query("SELECT ws FROM WaterSource ws WHERE " +
+           "(:routeId IS NULL OR ws.routeId = :routeId) AND " +
            "(:waterType IS NULL OR ws.waterType = :waterType) AND " +
            "(:waterQuality IS NULL OR ws.waterQuality = :waterQuality) AND " +
            "(:minElevation IS NULL OR ws.elevation >= :minElevation) AND " +
@@ -80,6 +78,5 @@ interface WaterSourceRepository : JpaRepository<WaterSource, String> {
     /**
      * 统计路线的水源数量
      */
-    @Query("SELECT COUNT(ws) FROM WaterSource ws JOIN ws.route r WHERE r.id = :routeId")
     fun countByRouteId(@Param("routeId") routeId: String): Long
 }

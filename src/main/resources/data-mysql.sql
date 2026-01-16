@@ -14,7 +14,8 @@ INSERT INTO routes (
     difficulty, route_type, status, cover_url,
     default_map_id, created_by, popularity, usage_count, is_loop,
     created_at, updated_at
-) VALUES (
+) VALUES 
+(
     'route_huangshan_001',
     '黄山天都峰徒步路线',
     '黄山天都峰是黄山三大主峰之一，海拔1864米。这条路线从慈光阁出发，经过半山寺、玉屏楼，最终到达天都峰顶。路线风景秀丽，但难度较高，适合有经验的徒步爱好者。',
@@ -27,8 +28,170 @@ INSERT INTO routes (
     'default_map_001',
     'user_guide_001',
     156,
+    89,
     0,
+    NOW(),
+    NOW()
+),
+(
+    'route_jiuzhaigou_001',
+    '九寨沟原始森林徒步',
+    '九寨沟原始森林徒步路线，穿越翠海、瀑布群，风景绝美，适合家庭出游。',
+    '四川阿坝',
+    'region_sichuan_jiuzhai_001',
+    1,
     0,
+    1,
+    'https://example.com/images/jiuzhaigou_cover.jpg',
+    'default_map_002',
+    'user_guide_001',
+    320,
+    156,
+    0,
+    NOW(),
+    NOW()
+),
+(
+    'route_zhangjiajie_001',
+    '张家界国家森林公园循环',
+    '张家界阿凡达同款景点，石峰林立，云雾缭绕，中等难度环线。',
+    '湖南张家界',
+    'region_hunan_zhangjiajie_001',
+    2,
+    1,
+    1,
+    'https://example.com/images/zhangjiajie_cover.jpg',
+    'default_map_003',
+    'user_guide_001',
+    280,
+    132,
+    1,
+    NOW(),
+    NOW()
+),
+(
+    'route_changbaishan_001',
+    '长白山天池穿越',
+    '长白山天池穿越路线，高山火山湖景观，难度较高，需要良好体能。',
+    '吉林长白山',
+    'region_jilin_changbai_001',
+    3,
+    2,
+    1,
+    'https://example.com/images/changbaishan_cover.jpg',
+    'default_map_004',
+    'user_guide_001',
+    198,
+    98,
+    0,
+    NOW(),
+    NOW()
+),
+(
+    'route_emeishan_001',
+    '峨眉山金顶朝圣',
+    '峨眉山金顶朝圣之路，佛教圣地，路途险峻，风景庄严。',
+    '四川乐山',
+    'region_sichuan_emei_001',
+    3,
+    0,
+    1,
+    'https://example.com/images/emeishan_cover.jpg',
+    'default_map_005',
+    'user_guide_001',
+    245,
+    118,
+    0,
+    NOW(),
+    NOW()
+),
+(
+    'route_huashan_001',
+    '华山长空栈道挑战',
+    '华山长空栈道，天下第一险，高难度极限挑战，需签订安全协议。',
+    '陕西华阴',
+    'region_shaanxi_huashan_001',
+    4,
+    0,
+    1,
+    'https://example.com/images/huashan_cover.jpg',
+    'default_map_006',
+    'user_guide_001',
+    412,
+    208,
+    0,
+    NOW(),
+    NOW()
+),
+(
+    'route_taishan_001',
+    '泰山日出之路',
+    '泰山日出观景路线，五岳之首，文化底蕴深厚，难度适中。',
+    '山东泰安',
+    'region_shandong_taishan_001',
+    2,
+    0,
+    1,
+    'https://example.com/images/taishan_cover.jpg',
+    'default_map_007',
+    'user_guide_001',
+    385,
+    192,
+    0,
+    NOW(),
+    NOW()
+),
+(
+    'route_wuyi_001',
+    '武夷山九曲溪漂流',
+    '武夷山九曲溪漂流+徒步组合，丹霞地貌，轻松休闲。',
+    '福建武夷山',
+    'region_fujian_wuyishan_001',
+    1,
+    1,
+    1,
+    'https://example.com/images/wuyishan_cover.jpg',
+    'default_map_008',
+    'user_guide_001',
+    167,
+    78,
+    1,
+    NOW(),
+    NOW()
+),
+(
+    'route_guilin_001',
+    '桂林漓江竹箏漂流',
+    '桂林山水甲天下，漓江竹箏漂流+岸上徒步，风景如画。',
+    '广西桂林',
+    'region_guangxi_guilin_001',
+    1,
+    0,
+    1,
+    'https://example.com/images/guilin_cover.jpg',
+    'default_map_009',
+    'user_guide_001',
+    298,
+    145,
+    0,
+    NOW(),
+    NOW()
+),
+(
+    'route_xihu_001',
+    '西湖十景环湖漫步',
+    '杭州西湖十景环湖漫步，轻松休闲，适合全家出游。',
+    '浙江杭州',
+    'region_zhejiang_xihu_001',
+    1,
+    1,
+    1,
+    'https://example.com/images/xihu_cover.jpg',
+    'default_map_010',
+    'user_guide_001',
+    456,
+    256,
+    1,
     NOW(),
     NOW()
 );
@@ -150,8 +313,106 @@ INSERT INTO campsites (
     NOW()
 );
 
+-- 创建示例攻略数据
+INSERT INTO guides (
+    id, title, content, author_id, cover_url,
+    tags, view_count, like_count, status,
+    created_at, updated_at
+) VALUES
+(
+    'guide_huangshan_001',
+    '黄山徒步完全指南',
+    '黄山是中国著名的山峰，以奇松、怪石、云海、温泉闻名于世。本攻略详细介绍了黄山的各条徒步路线、最佳观赏季节、装备准备、注意事项等内容。适合初次到黄山的徒步爱好者阅读。',
+    'user_guide_001',
+    'https://example.com/images/guide_huangshan.jpg',
+    '登山技巧,装备指南,路线规划',
+    1250,
+    89,
+    1,
+    NOW(),
+    NOW()
+),
+(
+    'guide_jiuzhaigou_001',
+    '九寨沟摄影攻略',
+    '九寨沟是世界自然遗产，以翠海、叠瀑、彩林、雪峽闻名。本攻略介绍了九寨沟的最佳摄影点、拍摄时间、相机设置等内容，帮助您拍摄出令人惊艳的照片。',
+    'user_guide_001',
+    'https://example.com/images/guide_jiuzhaigou.jpg',
+    '摄影技巧,旅行攻略,景点推荐',
+    2340,
+    156,
+    1,
+    NOW(),
+    NOW()
+),
+(
+    'guide_camping_001',
+    '户外露营完全手册',
+    '露营是亲近大自然的最好方式。本手册详细介绍了露营装备选择、营地选择、帐篷搭建、野外烹饪、安全注意事项等内容，适合露营新手阅读。',
+    'user_guide_001',
+    'https://example.com/images/guide_camping.jpg',
+    '露营,户外装备,新手指南',
+    3560,
+    234,
+    1,
+    NOW(),
+    NOW()
+);
+
+-- 创建示例行程数据
+INSERT INTO trips (
+    id, name, description, organizer_id,
+    start_date, end_date, status, privacy_setting,
+    max_participants, current_participants,
+    created_at, updated_at
+) VALUES
+(
+    'trip_huangshan_001',
+    '黄山天都峰三日游',
+    '三天时间徒步黄山天都峰，体验奇松怪石云海的魅力。包含山上住宿和导游服务。',
+    'user_guide_001',
+    DATE_ADD(NOW(), INTERVAL 30 DAY),
+    DATE_ADD(NOW(), INTERVAL 32 DAY),
+    0,
+    0,
+    15,
+    5,
+    NOW(),
+    NOW()
+),
+(
+    'trip_jiuzhaigou_001',
+    '九寨沟摄影团',
+    '专业摄影师带队，深入九寨沟核心景区，捕捉最美的瞬间。',
+    'user_guide_001',
+    DATE_ADD(NOW(), INTERVAL 60 DAY),
+    DATE_ADD(NOW(), INTERVAL 64 DAY),
+    0,
+    0,
+    10,
+    3,
+    NOW(),
+    NOW()
+),
+(
+    'trip_camping_weekend_001',
+    '周末露营体验',
+    '周末两天一夜的露营体验，适合新手和家庭参与。提供全套装备租赁服务。',
+    'user_test_001',
+    DATE_ADD(NOW(), INTERVAL 7 DAY),
+    DATE_ADD(NOW(), INTERVAL 8 DAY),
+    0,
+    1,
+    20,
+    12,
+    NOW(),
+    NOW()
+);
+
 -- 提示信息
 SELECT '✅ MySQL 初始化数据插入完成！' AS message;
 SELECT CONCAT('共插入 ', COUNT(*), ' 条路线数据') AS routes_count FROM routes;
 SELECT CONCAT('共插入 ', COUNT(*), ' 条用户数据') AS users_count FROM users;
 SELECT CONCAT('共插入 ', COUNT(*), ' 条路径点数据') AS waypoints_count FROM waypoints;
+SELECT CONCAT('共插入 ', COUNT(*), ' 条攻略数据') AS guides_count FROM guides;
+SELECT CONCAT('共插入 ', COUNT(*), ' 条行程数据') AS trips_count FROM trips;

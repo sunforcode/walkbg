@@ -44,14 +44,11 @@ data class SegmentDto(
                 difficulty = segment.difficulty,
                 routeType = segment.routeType,
                 notes = segment.notes,
-                startPoint = segment.startPoint?.let { WaypointDto.fromWaypoint(it) },
-                endPoint = segment.endPoint?.let { WaypointDto.fromWaypoint(it) },
-                keypoints = segment.keypoints.mapNotNull { segmentKeypoint ->
-                    segmentKeypoint.waypoint?.let { WaypointDto.fromWaypoint(it) }
-                }
+                startPoint = null,  // 需要通过 WaypointRepository 查询
+                endPoint = null,  // 需要通过 WaypointRepository 查询
+                keypoints = emptyList()  // 需要通过 SegmentKeypointRepository 查询
             )
         }
     }
 }
-
 

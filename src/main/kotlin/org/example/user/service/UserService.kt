@@ -49,6 +49,12 @@ interface UserService {
      */
     fun deactivateUser(userId: String): Boolean
     
+    /**
+     * 更新用户信息
+     * 领域规则：验证更新的业务规则
+     */
+    fun updateUser(userId: String, user: User): User
+    
     // ========== 数据访问方法（遵循分层架构） ==========
     /**
      * 分页搜索用户
@@ -73,4 +79,25 @@ interface UserService {
      * 简单的数据访问
      */
     fun getUserByEmail(email: String): User?
+
+    // ========== 统计数据访问方法 ==========
+    /**
+     * 统计用户创建的路线数量
+     */
+    fun countUserCreatedRoutes(userId: String): Long
+
+    /**
+     * 统计用户完成的路线数量
+     */
+    fun countUserCompletedRoutes(userId: String): Long
+
+    /**
+     * 统计用户收藏的路线数量
+     */
+    fun countUserFavoriteRoutes(userId: String): Long
+
+    /**
+     * 统计用户参与的行程数量
+     */
+    fun countUserTripParticipations(userId: String): Long
 }

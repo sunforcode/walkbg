@@ -3,7 +3,7 @@ package org.example.route.model
 import jakarta.persistence.*
 
 /**
- * 路线标签实体
+ * 路线标签实体（单向关联）
  */
 @Entity
 @Table(
@@ -21,12 +21,11 @@ data class RouteTag(
     @Column(length = 64)
     val id: String,
 
-    @Column(nullable = false, length = 50)
-    val tag: String,
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null
+    @Column(nullable = false, length = 50)
+    val tag: String
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

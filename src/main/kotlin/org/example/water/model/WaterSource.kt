@@ -82,17 +82,16 @@ data class WaterSource(
     @Column(name = "last_verified")
     val lastVerified: Instant? = null,
 
+    @Column(name = "route_id")
+    val routeId: String? = null,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "verified_by_id")
     var verifiedBy: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
-    var creator: User? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null
+    var creator: User? = null
 ) {
     /**
      * 获取水源类型枚举

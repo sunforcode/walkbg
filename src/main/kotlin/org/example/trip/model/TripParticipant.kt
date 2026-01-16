@@ -33,17 +33,7 @@ data class TripParticipant(
     var status: Int = 0, // 0: 待确认, 1: 已确认, 2: 已拒绝, 3: 已退出
 
     @Column(name = "joined_at", nullable = false)
-    val joinedAt: Instant = Instant.now(),
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", insertable = false, updatable = false)
-    var trip: Trip? = null,
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", insertable = false, updatable = false)
-    var user: User? = null
+    val joinedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

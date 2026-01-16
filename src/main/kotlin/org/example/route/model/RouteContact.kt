@@ -39,16 +39,7 @@ data class RouteContact(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    // 关联关系
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id", insertable = false, updatable = false)
-    var route: Route? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "contact_id", insertable = false, updatable = false)
-    var contact: Contact? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -11,53 +11,70 @@ server:
     mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
     min-response-size: 1024
 
-# 数据库配置
+# MySQL 数据库配置
 spring:
   application:
     name: walkbg
   
-  # 数据源配置
+  # MySQL 数据源配置
   datasource:
-    url: jdbc:h2:file:./data/walkbgdb;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://localhost:3306/walkbg?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
     hikari:
-      maximum-pool-size: 10
+      maximum-pool-size: 20
       minimum-idle: 5
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+      auto-commit: true
 
-  # H2控制台配置
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-      settings:
-        web-allow-others: true
-
-  # JPA配置
+  # JPA 配置
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
     defer-datasource-initialization: true
 
-  # Web配置
+  # SQL 初始化配置
+  sql:
+    init:
+      # 改为never,避免每次启动都重新执行SQL脚本,数据会持久化保存在MySQL中
+      mode: never
+      data-locations: classpath:data-mysql.sql
+      continue-on-error: true
+
+  # Web 配置
   web:
     resources:
       add-mappings: true
       static-locations: classpath:/static/,classpath:/public/
 
-  # MVC配置 - 启用404异常抛出
+  # MVC 配置
   mvc:
     throw-exception-if-no-handler-found: true
     static-path-pattern: /static/**
+
+  # 缓存配置 (Caffeine)
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=5m
+    cache-names:
+      - users
+      - routes
+      - trips
 
 # 日志配置
 logging:
@@ -69,7 +86,7 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
-# SpringDoc配置
+# SpringDoc 配置
 springdoc:
   api-docs:
     path: /api-docs

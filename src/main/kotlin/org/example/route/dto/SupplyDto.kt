@@ -46,26 +46,8 @@ data class SupplyDto(
                 lastVerified = supply.lastVerified,
                 lastVerifiedAt = supply.lastVerifiedAt?.epochSecond, // 转换为时间戳
                 updatedBy = supply.updatedBy,
-                updatedByUser = supply.updatedByUser?.let { user ->
-                    UserBasicDto(
-                        id = user.id,
-                        username = user.username,
-                        nickname = user.nickname,
-                        email = user.email,
-                        avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt.epochSecond // 转换为时间戳
-                    )
-                },
-                creator = supply.creator?.let { user ->
-                    UserBasicDto(
-                        id = user.id,
-                        username = user.username,
-                        nickname = user.nickname,
-                        email = user.email,
-                        avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt.epochSecond // 转换为时间戳
-                    )
-                },
+                updatedByUser = null,  // 需要通过 UserRepository 查询
+                creator = null,  // 需要通过 UserRepository 查询
                 createdAt = supply.createdAt.epochSecond, // 转换为时间戳
                 updatedAt = supply.updatedAt.epochSecond // 转换为时间戳
             )

@@ -76,10 +76,10 @@ data class RouteDetailResponse(
                 description = route.description,
                 regionId = route.regionId,
                 region = route.region,
-                distance = route.mapData?.distance?.toDouble(),
-                duration = route.mapData?.duration,
-                elevationGain = route.mapData?.elevationGain?.toDouble(),
-                elevationLoss = route.mapData?.elevationLoss?.toDouble(),
+                distance = null,  // 需要通过 Repository 查询 MapData
+                duration = null,  // 需要通过 Repository 查询 MapData
+                elevationGain = null,  // 需要通过 Repository 查询 MapData
+                elevationLoss = null,  // 需要通过 Repository 查询 MapData
                 difficulty = route.difficulty,
                 routeType = route.routeType,
                 routeDirection = null, // 暂时设为null，后续可以根据实际需求调整
@@ -93,30 +93,21 @@ data class RouteDetailResponse(
                 createdAt = route.createdAt.epochSecond, // 转换为时间戳
                 updatedAt = route.updatedAt.epochSecond, // 转换为时间戳
                 createdBy = route.createdBy,
-                creator = route.creator?.let { user ->
-                    UserBasicDto(
-                        id = user.id,
-                        username = user.username,
-                        nickname = user.nickname,
-                        email = user.email,
-                        avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt.epochSecond // 转换为时间戳
-                    )
-                },
+                creator = null,  // 需要通过 Repository 查询 User
 
-                // 关联对象映射
-                tags = route.tags.map { it.tag },
-                segments = route.segments.map { SegmentDto.fromSegment(it) },
-                campsites = route.campsites.map { CampsiteDto.fromCampsite(it) },
-                supplies = route.supplies.map { SupplyDto.fromSupply(it) },
-                waterSources = route.waterSources.map { WaterSourceDto.fromWaterSource(it) },
-                markerPoints = route.markerPoints.map { MarkerPointDto.fromMarkerPoint(it) },
-                dailyPlans = route.dailyPlans.map { DailyPlanDto.fromDailyPlan(it) },
+                // 关联对象映射 - 需要通过 Repository 按需查询
+                tags = emptyList(),  // 需要通过 RouteTagRepository 查询
+                segments = emptyList(),  // 需要通过 SegmentRepository 查询
+                campsites = emptyList(),  // 需要通过 CampsiteRepository 查询
+                supplies = emptyList(),  // 需要通过 SupplyRepository 查询
+                waterSources = emptyList(),  // 需要通过 WaterSourceRepository 查询
+                markerPoints = emptyList(),  // 需要通过 MarkerPointRepository 查询
+                dailyPlans = emptyList(),  // 需要通过 DailyPlanRepository 查询
 
                 // 暂时使用默认值，后续可以根据实际需求调整
                 ratings = null,
                 weatherInfo = null,
-                hitchhikeContacts = route.hitchhikeContacts.map { HitchhikeContactDto.fromHitchhikeContact(it) }
+                hitchhikeContacts = emptyList()  // 需要通过 HitchhikeContactRepository 查询
             )
         }
     }

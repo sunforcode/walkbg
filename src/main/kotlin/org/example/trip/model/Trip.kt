@@ -70,90 +70,55 @@ data class Trip(
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now()
 ) {
-    
-    // 关联关系
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizer_id", insertable = false, updatable = false)
-    var organizer: User? = null
-    
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "primary_route_id", insertable = false, updatable = false)
-    var primaryRoute: Route? = null
-    
-    @JsonIgnore
-    @OneToMany(mappedBy = "trip", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val tripRoutes: MutableList<TripRouteAssociation> = mutableListOf()
-    
-    @JsonIgnore
-    @OneToMany(mappedBy = "trip", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val participants: MutableList<TripParticipant> = mutableListOf()
-    
-    @JsonIgnore
-    @OneToMany(mappedBy = "trip", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val equipmentLists: MutableList<EquipmentList> = mutableListOf()
-    
-    @JsonIgnore
-    @OneToMany(mappedBy = "trip", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val mealPlans: MutableList<MealPlan> = mutableListOf()
-    
-    @JsonIgnore
-    @OneToMany(mappedBy = "trip", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val waterPlans: MutableList<WaterPlan> = mutableListOf()
-    
-    @JsonIgnore
-    @OneToMany(mappedBy = "trip", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val itinerary: MutableList<TripItinerary> = mutableListOf()
-    
-    @JsonIgnore
-    @OneToMany(mappedBy = "trip", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val images: MutableList<TripImage> = mutableListOf()
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - tripRoutes: 通过 TripRouteAssociationRepository.findByTripId(tripId) 查询
+     * - participants: 通过 TripParticipantRepository.findByTripId(tripId) 查询
+     * - equipmentLists: 通过 EquipmentListRepository.findByTripId(tripId) 查询
+     * - mealPlans: 通过 MealPlanRepository.findByTripId(tripId) 查询
+     * - waterPlans: 通过 WaterPlanRepository.findByTripId(tripId) 查询
+     * - itinerary: 通过 TripItineraryRepository.findByTripId(tripId) 查询
+     * - images: 通过 TripImageRepository.findByTripId(tripId) 查询
+     * 
+     * 优势：
+     * 1. 避免 N+1 查询问题
+     * 2. 减少内存占用
+     * 3. 避免序列化死循环
+     * 4. 提高查询灵活性（按需加载）
+     */
 
-    // 业务方法
-    fun addRoute(route: Route, isPrimary: Boolean = false) {
-        val tripRoute = TripRouteAssociation(tripId = this.id, routeId = route.id, isPrimary = isPrimary)
-        tripRoutes.add(tripRoute)
-        tripRoute.trip = this
-        tripRoute.route = route
-        if (isPrimary) {
-            primaryRoute = route
-            primaryRouteId = route.id
-        }
+    /**
+     * 领域行为：更新行程状态
+     */
+    fun updateStatus(newStatus: Int) {
+        require(newStatus in 0..3) { "状态值必须在 0-3 之间" }
+        this.status = newStatus
+        this.updatedAt = Instant.now()
     }
-    
-    fun addParticipant(user: User, role: Int = 0, status: Int = 0) {
-        val participant = TripParticipant(tripId = this.id, userId = user.id, role = role, status = status)
-        participants.add(participant)
-        participant.trip = this
-        participant.user = user
+
+    /**
+     * 领域行为：设置主路线
+     */
+    fun setPrimaryRoute(routeId: String) {
+        this.primaryRouteId = routeId
+        this.updatedAt = Instant.now()
     }
-    
-    fun addItineraryItem(itineraryItem: TripItinerary) {
-        itinerary.add(itineraryItem)
-        itineraryItem.trip = this
+
+    /**
+     * 领域行为：更新预算
+     */
+    fun updateBudget(newBudget: java.math.BigDecimal) {
+        this.budget = newBudget
+        this.updatedAt = Instant.now()
     }
-    
-    fun addImage(url: String, isCover: Boolean = false, sequenceNumber: Int = images.size + 1) {
-        val image = TripImage(trip = this, imageUrl = url, isCover = isCover, sequenceNumber = sequenceNumber)
-        images.add(image)
-        if (isCover) {
-            coverUrl = url
-        }
+
+    /**
+     * 领域行为：记录实际花费
+     */
+    fun recordActualCost(cost: java.math.BigDecimal) {
+        this.actualCost = cost
+        this.updatedAt = Instant.now()
     }
-    
-    // 计算属性
-    val routeIds: List<String>
-        get() = tripRoutes.map { it.routeId }
-        
-    val imageUrls: List<String>
-        get() = images.map { it.imageUrl }
-        
-    fun hasEquipmentLists(): Boolean = equipmentLists.isNotEmpty()
-    
-    fun hasMealPlans(): Boolean = mealPlans.isNotEmpty()
-    
-    fun hasWaterPlans(): Boolean = waterPlans.isNotEmpty()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

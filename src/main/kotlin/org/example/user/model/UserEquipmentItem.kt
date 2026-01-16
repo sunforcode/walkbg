@@ -18,11 +18,11 @@ import org.example.equipment.model.EquipmentItem
 @IdClass(UserEquipmentItemId::class)
 data class UserEquipmentItem(
     @Id
-    @Column(name = "user_id", length = 64)
+    @Column(name = "user_id", length = 64, nullable = false)
     val userId: String,
 
     @Id
-    @Column(name = "equipment_item_id", length = 64)
+    @Column(name = "equipment_item_id", length = 64, nullable = false)
     val equipmentItemId: String,
 
     @Column(nullable = false)
@@ -32,11 +32,11 @@ data class UserEquipmentItem(
     var notes: String? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_equipment_items_user_id"))
     var user: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "equipment_item_id", insertable = false, updatable = false)
+    @JoinColumn(name = "equipment_item_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_equipment_items_equipment_item_id"))
     var equipmentItem: EquipmentItem? = null
 ) {
     override fun equals(other: Any?): Boolean {

@@ -25,19 +25,12 @@ data class MealDay(
     val dayNumber: Int,
 
     @Column(columnDefinition = "TEXT")
-    var notes: String? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "meal_plan_id", insertable = false, updatable = false)
-    var mealPlan: MealPlan? = null,
-
-    @OneToMany(mappedBy = "mealDay", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val mealItems: MutableList<MealItem> = mutableListOf()
+    var notes: String? = null
 ) {
-    fun addMealItem(mealItem: MealItem) {
-        mealItems.add(mealItem)
-        mealItem.mealDay = this
-    }
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - mealItems: 通过 MealItemRepository.findByMealDayId(mealDayId) 查询
+     */
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -38,24 +38,12 @@ data class WaterPlan(
     val createdAt: Instant = Instant.now(),
     
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-    
-    // 关联关系
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", insertable = false, updatable = false)
-    var trip: Trip? = null,
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", insertable = false, updatable = false)
-    var creator: User? = null,
-    
-    @OneToMany(mappedBy = "waterPlan", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val tags: MutableList<WaterPlanTag> = mutableListOf()
+    var updatedAt: Instant = Instant.now()
 ) {
-    fun addTag(tag: String) {
-        tags.add(WaterPlanTag(tag = tag, waterPlan = this))
-        updatedAt = Instant.now()
-    }
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - tags: 通过 WaterPlanTagRepository.findByWaterPlanId(waterPlanId) 查询
+     */
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

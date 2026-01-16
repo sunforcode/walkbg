@@ -9,11 +9,17 @@ import org.springframework.transaction.annotation.EnableTransactionManagement
 
 /**
  * 数据库配置类
+ * 
+ * 职责：
+ * - 启用 JPA Repository 自动扫描（递归扫描 org.example 下所有模块）
+ * - 启用 JPA 审计功能
+ * - 启用事务管理
+ * - 启用缓存功能（Caffeine）
  */
 @Configuration
 @EnableTransactionManagement
-@EnableJpaRepositories(basePackages = ["org.example.repository"])
-@EntityScan(basePackages = ["org.example.model"])
+@EnableJpaRepositories(basePackages = ["org.example"])
+@EntityScan(basePackages = ["org.example"])
 @EnableJpaAuditing
 @EnableCaching
 class DatabaseConfig {

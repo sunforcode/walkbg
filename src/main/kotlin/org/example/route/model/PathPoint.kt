@@ -4,7 +4,7 @@ import jakarta.persistence.*
 import java.time.Instant
 
 /**
- * 路径点实体
+ * 路径点实体（单向关联）
  */
 @Entity
 @Table(
@@ -19,6 +19,9 @@ data class PathPoint(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "segment_id", length = 64, nullable = false)
+    val segmentId: String,
     
     @Column(nullable = false)
     val latitude: Double,
@@ -53,11 +56,7 @@ data class PathPoint(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "segment_id")
-    var segment: Segment? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -78,20 +77,24 @@ data class PathPoint(
 }
 
 /**
- * 路段危险点实体
+ * 路段危险点实体（单向关联）
  */
 @Entity
 @Table(
     name = "segment_hazards",
     indexes = [
         Index(name = "idx_segment_hazards_segment_id", columnList = "segment_id"),
-        Index(name = "idx_segment_hazards_hazard", columnList = "hazard")
+        Index(name = "idx_segment_hazards_hazard", columnList = "hazard"),
+        Index(name = "idx_segment_hazards_severity", columnList = "severity_level")
     ]
 )
 data class SegmentHazard(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "segment_id", length = 64, nullable = false)
+    val segmentId: String,
     
     @Column(nullable = false, length = 100)
     val hazard: String,
@@ -106,11 +109,7 @@ data class SegmentHazard(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "segment_id")
-    var segment: Segment? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -131,20 +130,24 @@ data class SegmentHazard(
 }
 
 /**
- * 路段封闭信息实体
+ * 路段封闭信息实体（单向关联）
  */
 @Entity
 @Table(
     name = "segment_closures",
     indexes = [
         Index(name = "idx_segment_closures_segment_id", columnList = "segment_id"),
-        Index(name = "idx_segment_closures_dates", columnList = "start_date, end_date")
+        Index(name = "idx_segment_closures_dates", columnList = "start_date, end_date"),
+        Index(name = "idx_segment_closures_type", columnList = "closure_type")
     ]
 )
 data class SegmentClosure(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "segment_id", length = 64, nullable = false)
+    val segmentId: String,
     
     @Column(name = "start_date")
     val startDate: Instant? = null,
@@ -162,11 +165,7 @@ data class SegmentClosure(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "segment_id")
-    var segment: Segment? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

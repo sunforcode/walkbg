@@ -91,6 +91,14 @@ interface UserRepository : JpaRepository<User, String> {
     fun findTop10ByOrderByCreatedAtDesc(): List<User>
 
     /**
+     * 统计用户创建的路线数量
+     */
+    @Query("""
+        SELECT COUNT(r) FROM Route r WHERE r.createdBy = :userId
+    """)
+    fun countUserCreatedRoutes(@Param("userId") userId: String): Long
+
+    /**
      * 统计用户完成的路线数量
      */
     @Query("""
@@ -100,9 +108,10 @@ interface UserRepository : JpaRepository<User, String> {
 
     /**
      * 统计用户收藏的路线数量
+     * 注意：单向关联，直接使用userId字段，不需要JOIN
      */
     @Query("""
-        SELECT COUNT(ufr) FROM UserFavoriteRoute ufr JOIN ufr.user u WHERE u.id = :userId
+        SELECT COUNT(ufr) FROM UserFavoriteRoute ufr WHERE ufr.userId = :userId
     """)
     fun countUserFavoriteRoutes(@Param("userId") userId: String): Long
 

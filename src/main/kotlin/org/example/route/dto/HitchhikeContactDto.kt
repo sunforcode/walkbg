@@ -34,16 +34,7 @@ data class HitchhikeContactDto(
                 location = contact.location,
                 price = contact.price,
                 lastVerified = contact.lastVerified,
-                creator = contact.creator?.let { user ->
-                    UserBasicDto(
-                        id = user.id,
-                        username = user.username,
-                        nickname = user.nickname,
-                        email = user.email,
-                        avatarUrl = user.avatarUrl,
-                        createdAt = user.createdAt.epochSecond // 转换为时间戳
-                    )
-                },
+                creator = null,  // 需要通过 UserRepository 查询
                 createdAt = contact.createdAt.epochSecond, // 转换为时间戳
                 updatedAt = contact.updatedAt.epochSecond // 转换为时间戳
             )

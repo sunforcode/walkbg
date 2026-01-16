@@ -20,7 +20,8 @@ data class UserCreateRequest(
     @field:Size(max = 50, message = "昵称长度不能超过50个字符")
     val nickname: String? = null,
 
-    @field:Pattern(regexp = "^[1-9]\\d{10}$", message = "手机号格式不正确")
+    @field:Pattern(regexp = "^[+]?[\\d\\s-()]+$|^$", message = "手机号格式不正确")
+    @field:Size(max = 20, message = "手机号长度不能超过20个字符")
     val phone: String? = null,
 
     @JsonProperty("avatar_url")

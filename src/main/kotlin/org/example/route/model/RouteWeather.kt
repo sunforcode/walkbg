@@ -3,14 +3,22 @@ package org.example.route.model
 import jakarta.persistence.*
 
 /**
- * 路线天气实体
+ * 路线天气实体（单向关联）
  */
 @Entity
-@Table(name = "route_weather")
+@Table(
+    name = "route_weather",
+    indexes = [
+        Index(name = "idx_route_weather_route_id", columnList = "route_id", unique = true)
+    ]
+)
 data class RouteWeather(
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long = 0,
+    @Column(length = 64)
+    val id: String,
+
+    @Column(name = "route_id", length = 64, nullable = false, unique = true)
+    val routeId: String,
     
     @Column(columnDefinition = "TEXT")
     val description: String? = null,
@@ -19,37 +27,66 @@ data class RouteWeather(
     val precautions: String? = null,
     
     @Column(name = "best_seasons", columnDefinition = "TEXT")
-    val bestSeasons: String? = null, // JSON 字符串存储最佳季节数组
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null,
-    
-    @OneToMany(mappedBy = "routeWeather", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val seasonalWeather: MutableList<SeasonalWeather> = mutableListOf()
+    val bestSeasons: String? = null // JSON 字符串存储最佳季节数组
 ) {
-    fun addSeasonalWeather(season: String, description: String) {
-        seasonalWeather.add(SeasonalWeather(routeWeather = this, season = season, description = description))
+    /**
+     * 注意：不再持有 seasonalWeather 集合
+     * 通过 SeasonalWeatherRepository.findByRouteWeatherId(routeWeatherId) 查询
+     */
+    
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as RouteWeather
+        return id == other.id
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
+
+    override fun toString(): String {
+        return "RouteWeather(id='$id', routeId='$routeId')"
     }
 }
 
 /**
- * 季节性天气实体
+ * 季节性天气实体（单向关联）
  */
 @Entity
-@Table(name = "seasonal_weather")
+@Table(
+    name = "seasonal_weather",
+    indexes = [
+        Index(name = "idx_seasonal_weather_route_weather_id", columnList = "route_weather_id"),
+        Index(name = "idx_seasonal_weather_season", columnList = "season")
+    ]
+)
 data class SeasonalWeather(
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long = 0,
+    @Column(length = 64)
+    val id: String,
+
+    @Column(name = "route_weather_id", length = 64, nullable = false)
+    val routeWeatherId: String,
     
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     val season: String,
     
     @Column(columnDefinition = "TEXT")
-    val description: String? = null,
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_weather_id")
-    var routeWeather: RouteWeather? = null
-)
+    val description: String? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as SeasonalWeather
+        return id == other.id
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
+
+    override fun toString(): String {
+        return "SeasonalWeather(id='$id', season='$season')"
+    }
+}

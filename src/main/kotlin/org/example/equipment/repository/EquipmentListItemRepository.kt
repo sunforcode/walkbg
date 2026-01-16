@@ -164,21 +164,25 @@ interface EquipmentListItemRepository : JpaRepository<EquipmentListItem, Equipme
 
     /**
      * 获取装备物品的最近使用记录
+     * 注意：由于单向关联，无法直接排序 equipmentList.updatedAt
+     * 需要通过 EquipmentListRepository 按需查询
      */
     @Query("""
         SELECT eli FROM EquipmentListItem eli
         WHERE eli.equipmentItemId = :equipmentItemId
-        ORDER BY eli.equipmentList.updatedAt DESC
+        ORDER BY eli.equipmentListId DESC
     """)
     fun getRecentUsageByItem(@Param("equipmentItemId") equipmentItemId: String, pageable: Pageable): Page<EquipmentListItem>
 
     /**
      * 获取装备物品的最近使用记录（简化版本）
+     * 注意：由于单向关联，无法直接排序 equipmentList.updatedAt
+     * 需要通过 EquipmentListRepository 按需查询
      */
     @Query("""
         SELECT eli FROM EquipmentListItem eli
         WHERE eli.equipmentItemId = :equipmentItemId
-        ORDER BY eli.equipmentList.updatedAt DESC
+        ORDER BY eli.equipmentListId DESC
     """)
     fun getRecentUsageByItemList(@Param("equipmentItemId") equipmentItemId: String, pageable: Pageable): List<EquipmentListItem>
     /**

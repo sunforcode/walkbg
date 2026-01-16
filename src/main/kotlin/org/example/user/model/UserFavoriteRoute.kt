@@ -24,15 +24,21 @@ data class UserFavoriteRoute(
     @Column(length = 64)
     val id: String,
 
+    @Column(name = "user_id", length = 64, nullable = false)
+    val userId: String,
+
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_favorite_routes_user_id"))
     var user: User? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
+    @JoinColumn(name = "route_id", insertable = false, updatable = false, foreignKey = ForeignKey(name = "fk_user_favorite_routes_route_id"))
     var route: Route? = null
 ) {
     override fun equals(other: Any?): Boolean {

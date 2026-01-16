@@ -1,9 +1,12 @@
 package org.example.route.service
 
-
 import org.example.route.dto.RouteBasicResponse
 import org.example.route.dto.toRoute
 import org.example.route.model.Route
+import org.example.route.model.Waypoint
+import org.example.route.model.Segment
+import org.example.route.repository.WaypointRepository
+import org.example.route.repository.SegmentRepository
 import org.example.common.util.IdGenerator
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -12,13 +15,15 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * 路线应用服务
+ * 路线应用服务（重构版 - 单向关联）
  * 职责：业务用例编排、跨领域协调、DTO转换
- * 严格遵循分层架构，所有数据访问都通过DomainService
+ * 严格遵循分层架构，所有数据访问都通过DomainService或Repository
  */
 @Service
 class RouteApplicationService(
-    private val routeService: RouteService
+    private val routeService: RouteService,
+    private val waypointRepository: WaypointRepository,
+    private val segmentRepository: SegmentRepository
 ) {
 
     /**
@@ -72,67 +77,40 @@ class RouteApplicationService(
     }
     
     /**
-     * 业务用例：创建完整路线
-     * 复杂业务用例，通过领域服务协调多个步骤和业务规则
+     * 业务用例：创建完整路线（重构版 - 单向关联）
+     * 使用单向关联的方式创建路线及其关联对象
      */
     @Transactional
     fun createCompleteRoute(request: org.example.route.dto.RouteCreateRequest): RouteBasicResponse {
         // 1. 业务规则验证（通过领域服务）
         routeService.validateCompleteRouteCreation(request)
 
-        // 2. 构建路线主体和简单关联对象
-        val route = buildRouteWithSimpleAssociations(request)
+        // 2. 创建路线主体
+        val route = Route(
+            id = IdGenerator.generateIdWithPrefix("route"),
+            name = request.name,
+            description = request.description,
+            region = request.region,
+            regionId = request.regionId,
+            difficulty = request.difficulty,
+            routeType = request.routeType,
+            status = 0, // 规划中
+            coverUrl = request.coverUrl,
+            defaultMapId = request.defaultMapId,
+            createdBy = request.createdBy,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
 
-        // 3. 先保存路线和简单关联对象（包括Waypoint）
+        // 3. 保存路线主体
         val savedRoute = routeService.createRouteWithValidation(route)
 
-        // 4. 创建复杂关联对象（依赖已保存的Waypoint）
-        createComplexAssociationsAfterSave(savedRoute, request)
-
-        // 5. 再次保存以包含复杂关联对象
-        val finalRoute = routeService.updateRoute(savedRoute)
-
-        // 6. DTO转换（应用层职责）
-        return RouteBasicResponse.fromRoute(finalRoute)
-    }
-
-    /**
-     * 构建路线主体和简单关联对象（无外键依赖）
-     * 应用层职责：实体构建和组装
-     */
-    private fun buildRouteWithSimpleAssociations(request: org.example.route.dto.RouteCreateRequest): Route {
-        // 1. 构建路线主体
-        val route = request.toRoute().copy(id = IdGenerator.generateIdWithPrefix("route"))
-
-        // 2. 创建简单关联对象（无外键依赖）
-        createSimpleAssociations(route, request)
-
-        return route
-    }
-
-    /**
-     * 创建简单关联对象（无外键依赖）
-     * 内部实体ID自动生成
-     */
-    private fun createSimpleAssociations(route: Route, request: org.example.route.dto.RouteCreateRequest) {
-        // 创建标签（自动生成ID）
-        request.tags.forEach { tagName ->
-            route.addTag(tagName)
-        }
-
-        // 创建图片（自动生成ID）
-        request.images.forEach { imageRequest ->
-            route.addImage(
-                imageUrl = imageRequest.imageUrl,
-                isCover = imageRequest.isCover,
-                sequenceNumber = imageRequest.sequenceNumber
-            )
-        }
-
-        // 创建路点（自动生成ID）
+        // 4. 创建路点（单向关联 - 只存 routeId）
+        val savedWaypoints = mutableMapOf<Int, Waypoint>()
         request.waypoints.forEach { waypointRequest ->
-            val waypoint = org.example.route.model.Waypoint(
+            val waypoint = Waypoint(
                 id = IdGenerator.generateIdWithPrefix("waypoint"),
+                routeId = savedRoute.id,  // 单向关联
                 name = waypointRequest.name,
                 description = waypointRequest.description,
                 latitude = waypointRequest.latitude,
@@ -141,143 +119,54 @@ class RouteApplicationService(
                 type = waypointRequest.type,
                 iconUrl = waypointRequest.iconUrl,
                 imageUrl = waypointRequest.imageUrl,
-                sequenceNumber = waypointRequest.sequenceNumber
+                sequenceNumber = waypointRequest.sequenceNumber,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now()
             )
-            // 设置关联关系
-            waypoint.route = route
-            route.waypoints.add(waypoint)
+            val saved = waypointRepository.save(waypoint)
+            savedWaypoints[saved.sequenceNumber] = saved
         }
 
-        // 创建补给点（自动生成ID）
-        request.supplies.forEach { supplyRequest ->
-            val supply = org.example.route.model.Supply(
-                id = IdGenerator.generateIdWithPrefix("supply"),
-                name = supplyRequest.name,
-                description = supplyRequest.description,
-                latitude = supplyRequest.latitude,
-                longitude = supplyRequest.longitude,
-                elevation = supplyRequest.elevation,
-                supplyType = supplyRequest.supplyType,
-                lastVerified = supplyRequest.lastVerified,
-                updatedBy = supplyRequest.updatedBy,
-                createdBy = route.createdBy
-            )
-            route.supplies.add(supply)
-            supply.route = route
-        }
-
-        // 创建营地（自动生成ID）
-        request.campsites.forEach { campsiteRequest ->
-            val campsite = org.example.route.model.Campsite(
-                id = IdGenerator.generateIdWithPrefix("campsite"),
-                name = campsiteRequest.name,
-                description = campsiteRequest.description,
-                latitude = campsiteRequest.latitude,
-                longitude = campsiteRequest.longitude,
-                elevation = campsiteRequest.elevation,
-                campsiteType = campsiteRequest.campsiteType,
-                notes = campsiteRequest.notes,
-                createdBy = route.createdBy
-            )
-            route.campsites.add(campsite)
-            campsite.route = route
-        }
-
-        // 创建标记点（自动生成ID）
-        request.markerPoints.forEach { markerRequest ->
-            val markerPoint = org.example.route.model.MarkerPoint(
-                id = IdGenerator.generateIdWithPrefix("marker"),
-                name = markerRequest.name,
-                description = markerRequest.description,
-                latitude = markerRequest.latitude,
-                longitude = markerRequest.longitude,
-                elevation = markerRequest.elevation,
-                markerType = markerRequest.markerType,
-                iconUrl = markerRequest.iconUrl
-            )
-            route.addMarkerPoint(markerPoint)
-        }
-
-        // 创建日程计划（自动生成ID）
-        request.dailyPlans.forEach { planRequest ->
-            val dailyPlan = org.example.route.model.DailyPlan(
-                id = IdGenerator.generateIdWithPrefix("plan"),
-                title = planRequest.title,
-                description = planRequest.description,
-                dayNumber = planRequest.dayNumber,
-                distance = planRequest.distance?.toDouble(),
-                elevationGain = planRequest.elevationGain?.toInt(),
-                elevationLoss = planRequest.elevationLoss?.toDouble(),
-                estimatedTime = planRequest.estimatedTime,
-                notes = planRequest.notes,
-            )
-            route.addDailyPlan(dailyPlan)
-        }
-
-        // 创建水源（自动生成ID）
-        request.waterSources.forEach{ waterSourceRequest ->
-            val waterSource = org.example.water.model.WaterSource(
-                id = IdGenerator.generateIdWithPrefix("water"),
-                name = waterSourceRequest.name,
-                description = waterSourceRequest.description,
-                latitude = waterSourceRequest.latitude?.toDouble(),
-                longitude = waterSourceRequest.longitude?.toDouble(),
-                elevation = waterSourceRequest.elevation?.toDouble(),
-                waterType = waterSourceRequest.waterType ?: 0,
-                waterQuality = waterSourceRequest.waterQuality ?: 4,
-                requiresTreatment = waterSourceRequest.requiresTreatment,
-                reliability = waterSourceRequest.reliability
-            )
-            route.waterSources.add(waterSource)
-            waterSource.route = route
-            // 通过关联对象设置创建者（如果需要的话，可以在这里设置）
-            waterSource.creator = route.creator
-        }
-
-        // 创建搭车联系人（自动生成ID）
-        request.hitchhikeContacts.forEach { hitchhikeRequest ->
-            val hitchhikeContact = org.example.route.model.HitchhikeContact(
-                id = IdGenerator.generateIdWithPrefix("contact"),
-                name = hitchhikeRequest.name,
-                phone = hitchhikeRequest.phone,
-                description = hitchhikeRequest.description,
-                location = hitchhikeRequest.location,
-                price = hitchhikeRequest.price,
-                lastVerified = hitchhikeRequest.verified ?: false,
-                createdBy = route.createdBy
-            )
-            route.hitchhikeContacts.add(hitchhikeContact)
-            hitchhikeContact.route = route
-        }
-    }
-
-
-
-    /**
-     * 创建复杂关联对象（依赖已保存的关联对象）
-     */
-    private fun createComplexAssociationsAfterSave(route: Route, request: org.example.route.dto.RouteCreateRequest) {
-        // 此时Waypoint已经被保存到数据库，可以安全地使用它们的序号
-        val waypointMap = route.waypoints.associateBy { it.sequenceNumber }
-
-        // 创建路段，使用已保存的Waypoint（自动生成路段ID）
+        // 5. 创建路段（单向关联 - 只存 routeId 和 waypointId）
         request.segments.forEachIndexed { index, segmentRequest ->
-            val segment = org.example.route.model.Segment(
+            val segment = Segment(
                 id = IdGenerator.generateIdWithPrefix("segment"),
-                name = "路段${index + 1}",
-                description = "路段${index + 1}描述",
+                routeId = savedRoute.id,  // 单向关联
+                name = segmentRequest.name ?: "路段${index + 1}",
+                description = segmentRequest.description,
                 distance = segmentRequest.distance,
                 elevationGain = segmentRequest.elevationGain,
                 elevationLoss = segmentRequest.elevationLoss,
                 estimatedTime = segmentRequest.estimatedTime,
                 difficulty = segmentRequest.difficulty,
-                routeType = null,
-                notes = null,
-                // 使用对象引用而不是ID，让JPA自动管理外键关系
-                startPoint = waypointMap[index + 1],
-                endPoint = waypointMap[index + 2]
+                routeType = segmentRequest.routeType,
+                notes = segmentRequest.notes,
+                startPointId = savedWaypoints[segmentRequest.startSequence]?.id,  // 单向关联
+                endPointId = savedWaypoints[segmentRequest.endSequence]?.id,  // 单向关联
+                createdAt = Instant.now(),
+                updatedAt = Instant.now()
             )
-            route.addSegment(segment)
+            segmentRepository.save(segment)
         }
+
+        // 6. TODO: 创建其他关联对象（tags、images、campsites、supplies等）
+        // 这些可以后续添加，使用相同的单向关联模式
+
+        // 7. DTO转换（应用层职责）
+        return RouteBasicResponse.fromRoute(savedRoute)
+    }
+
+    /**
+     * 业务用例：获取热门路线
+     * 通过领域服务获取按热度排序的路线
+     */
+    @Transactional(readOnly = true)
+    fun getPopularRoutes(limit: Int): Page<RouteBasicResponse> {
+        // 1. 通过领域服务获取热门路线
+        val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
+        val routes = routeService.getPopularRoutes(limit, pageable)
+
+        // 2. DTO转换（应用层职责）
+        return routes.map { RouteBasicResponse.fromRoute(it) }
     }
 }

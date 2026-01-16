@@ -132,4 +132,8 @@ class TripServiceImpl(
             null
         }
     }
+
+    override fun getPlannedTrips(pageable: Pageable): Page<Trip> {
+        return tripRepository.findByStatus(0, pageable) // 0 = PLANNING status
+    }
 }

@@ -25,15 +25,7 @@ data class TripRouteAssociation(
     val routeId: String,
 
     @Column(name = "is_primary", nullable = false)
-    var isPrimary: Boolean = false,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", insertable = false, updatable = false)
-    var trip: Trip? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id", insertable = false, updatable = false)
-    var route: Route? = null
+    var isPrimary: Boolean = false
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

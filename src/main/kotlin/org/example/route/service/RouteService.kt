@@ -109,4 +109,10 @@ interface RouteService {
      * 包含业务规则验证
      */
     fun updateRoute(route: Route): Route
+
+    /**
+     * 获取热门路线
+     * 领域逻辑：按热度排序返回路线列表
+     */
+    fun getPopularRoutes(limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route>
 }

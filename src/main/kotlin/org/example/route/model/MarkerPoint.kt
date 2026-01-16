@@ -25,15 +25,25 @@ enum class MarkerPointType(val value: Int) {
 }
 
 /**
- * 标记点实体
+ * 标记点实体（单向关联）
  */
 @Entity
-@Table(name = "marker_points")
+@Table(
+    name = "marker_points",
+    indexes = [
+        Index(name = "idx_marker_points_route_id", columnList = "route_id"),
+        Index(name = "idx_marker_points_type", columnList = "marker_type")
+    ]
+)
 data class MarkerPoint(
     @Id
     @Column(length = 64)
     val id: String,
 
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
+
+    @Column(length = 200)
     val name: String? = null,
 
     @Column(columnDefinition = "TEXT")
@@ -42,7 +52,7 @@ data class MarkerPoint(
     @Column(name = "marker_type", nullable = false)
     val markerType: Int = 0,
 
-    @Column(name = "icon_url")
+    @Column(name = "icon_url", length = 500)
     val iconUrl: String? = null,
 
     val latitude: Double? = null,
@@ -58,11 +68,7 @@ data class MarkerPoint(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null
+    var updatedAt: Instant = Instant.now()
 ) {
     /**
      * 获取标记点类型枚举

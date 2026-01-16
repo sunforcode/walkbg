@@ -41,19 +41,23 @@ data class EquipmentItem(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-    
-    // 关联关系
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", insertable = false, updatable = false)
-    var creator: User? = null,
-
-    @OneToMany(mappedBy = "equipmentItem", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
-    val equipmentListItems: MutableList<EquipmentListItem> = mutableListOf(),
-
-    @OneToMany(mappedBy = "equipmentItem", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
-    val userEquipmentItems: MutableList<UserEquipmentItem> = mutableListOf()
+    var updatedAt: Instant = Instant.now()
 ) {
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - equipmentListItems: 通过 EquipmentListItemRepository.findByEquipmentItemId(equipmentItemId) 查询
+     * - userEquipmentItems: 通过 UserEquipmentItemRepository.findByEquipmentItemId(equipmentItemId) 查询
+     */
+
+    /**
+     * 领域行为：更新重量
+     */
+    fun updateWeight(newWeight: BigDecimal, unit: Int) {
+        require(unit in 0..3) { "重量单位必须在 0-3 之间" }
+        this.weight = newWeight
+        this.weightUnit = unit
+        this.updatedAt = Instant.now()
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

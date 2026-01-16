@@ -5,19 +5,28 @@ import jakarta.persistence.*
 import java.time.Instant
 
 /**
- * 每日计划实体
+ * 每日计划实体（单向关联）
  */
 @Entity
-@Table(name = "daily_plans")
+@Table(
+    name = "daily_plans",
+    indexes = [
+        Index(name = "idx_daily_plans_route_id", columnList = "route_id"),
+        Index(name = "idx_daily_plans_day_number", columnList = "day_number")
+    ]
+)
 data class DailyPlan(
     @Id
     @Column(length = 64)
     val id: String,
 
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
+
     @Column(name = "day_number", nullable = false)
     val dayNumber: Int,
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     val title: String,
     
     @Column(columnDefinition = "TEXT")
@@ -40,6 +49,7 @@ data class DailyPlan(
     @Column(name = "min_elevation")
     val minElevation: Double? = null,
 
+    @Column(length = 200)
     val accommodation: String? = null,
 
     @Column(columnDefinition = "TEXT")
@@ -49,28 +59,12 @@ data class DailyPlan(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null,
-    
-    @OneToMany(mappedBy = "dailyPlan", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val segments: MutableList<DailyPlanSegment> = mutableListOf()
+    var updatedAt: Instant = Instant.now()
 ) {
     /**
-     * 添加路段到每日计划
+     * 注意：不再持有 segments 集合
+     * 通过 DailyPlanSegmentRepository.findByDailyPlanId(dailyPlanId) 查询
      */
-    fun addSegment(segment: Segment, sequenceNumber: Int = segments.size + 1) {
-        segments.add(
-            DailyPlanSegment(
-                id = java.util.UUID.randomUUID().toString(),
-                sequenceNumber = sequenceNumber,
-                dailyPlan = this,
-                segment = segment
-            )
-        )
-    }
     
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -86,30 +80,34 @@ data class DailyPlan(
     }
     
     override fun toString(): String {
-        return "DailyPlan(id='$id', dayNumber=$dayNumber, title='$title')"
+        return "DailyPlan(id='$id', routeId='$routeId', dayNumber=$dayNumber, title='$title')"
     }
 }
 
 /**
- * 每日计划-路段关联表
+ * 每日计划-路段关联表（单向关联）
  */
 @Entity
-@Table(name = "daily_plan_segments")
+@Table(
+    name = "daily_plan_segments",
+    indexes = [
+        Index(name = "idx_daily_plan_segments_plan_id", columnList = "daily_plan_id"),
+        Index(name = "idx_daily_plan_segments_segment_id", columnList = "segment_id")
+    ]
+)
 data class DailyPlanSegment(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "daily_plan_id", length = 64, nullable = false)
+    val dailyPlanId: String,
+
+    @Column(name = "segment_id", length = 64, nullable = false)
+    val segmentId: String,
     
     @Column(nullable = false)
-    val sequenceNumber: Int,
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "daily_plan_id")
-    var dailyPlan: DailyPlan? = null,
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "segment_id")
-    var segment: Segment? = null
+    val sequenceNumber: Int
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

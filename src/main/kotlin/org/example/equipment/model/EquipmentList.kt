@@ -45,37 +45,34 @@ data class EquipmentList(
     val createdAt: Instant = Instant.now(),
     
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-    
-    // 关联关系
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", insertable = false, updatable = false)
-    var trip: Trip? = null,
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "creator_id", insertable = false, updatable = false)
-    var creator: User? = null,
-    
-    @OneToMany(mappedBy = "equipmentList", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    val equipmentListItems: MutableList<EquipmentListItem> = mutableListOf()
+    var updatedAt: Instant = Instant.now()
 ) {
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - equipmentListItems: 通过 EquipmentListItemRepository.findByEquipmentListId(equipmentListId) 查询
+     * 
+     * 优势：
+     * 1. 避免 N+1 查询问题
+     * 2. 减少内存占用
+     * 3. 避免序列化死循环
+     * 4. 提高查询灵活性（按需加载）
+     */
 
-    fun addEquipmentItem(equipmentListItem: EquipmentListItem) {
-        equipmentListItems.add(equipmentListItem)
-        equipmentListItem.equipmentList = this
-        recalculateWeight()
+    /**
+     * 领域行为：更新总重量
+     */
+    fun updateTotalWeight(newWeight: BigDecimal) {
+        this.totalWeight = newWeight
+        this.updatedAt = Instant.now()
     }
 
-    fun removeEquipmentItem(equipmentListItem: EquipmentListItem) {
-        equipmentListItems.remove(equipmentListItem)
-        recalculateWeight()
-    }
-
-    private fun recalculateWeight() {
-        totalWeight = equipmentListItems.sumOf { item ->
-            item.equipmentItem?.weight?.multiply(BigDecimal(item.quantity)) ?: BigDecimal.ZERO
-        }
-        updatedAt = Instant.now()
+    /**
+     * 领域行为：更新状态
+     */
+    fun updateStatus(newStatus: Int) {
+        require(newStatus in 0..2) { "状态值必须在 0-2 之间" }
+        this.status = newStatus
+        this.updatedAt = Instant.now()
     }
 
     override fun equals(other: Any?): Boolean {

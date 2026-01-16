@@ -186,7 +186,11 @@ class RouteServiceImpl(
     override fun favoriteRoute(routeId: String, userId: String): Boolean {
         // 领域规则验证
         val route = routeRepository.findById(routeId).orElse(null) ?: return false
-        val user = userRepository.findById(userId).orElse(null) ?: return false
+        
+        // 验证用户存在
+        if (!userRepository.existsById(userId)) {
+            return false
+        }
 
         // 领域规则：不能收藏自己创建的路线
         if (route.createdBy == userId) {
@@ -203,11 +207,12 @@ class RouteServiceImpl(
             return true
         }
 
-        // 创建收藏关系
+        // 创建收藏关系（单向关联 - 只存 ID）
         val favorite = UserFavoriteRoute(
             id = UUID.randomUUID().toString(),
-            user = user,
-            route = route
+            userId = userId,
+            routeId = routeId,
+            createdAt = Instant.now()
         )
 
         userFavoriteRouteRepository.save(favorite)
@@ -314,7 +319,6 @@ class RouteServiceImpl(
             difficulty = difficulty,
             routeType = routeType,
             status = null, // 只查询已发布的路线（业务规则）
-            tag = null,
             pageable = pageable
         )
     }
@@ -341,5 +345,25 @@ class RouteServiceImpl(
         // 应用业务规则
         route.updatedAt = Instant.now()
         return routeRepository.save(route)
+    }
+
+    /**
+     * 获取热门路线
+     * 领域逻辑：按热度排序返回已发布的路线
+     */
+    @Transactional(readOnly = true)
+    override fun getPopularRoutes(limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route> {
+        // 领域规则：只返回已发布的路线（status = 1）
+        // 按热度（popularity）降序排列，热度相同时按使用次数（usageCount）降序
+        val sort = org.springframework.data.domain.Sort.by(
+            org.springframework.data.domain.Sort.Order.desc("popularity"),
+            org.springframework.data.domain.Sort.Order.desc("usageCount")
+        )
+        val pageRequest = org.springframework.data.domain.PageRequest.of(
+            pageable.pageNumber,
+            limit.coerceAtMost(100),
+            sort
+        )
+        return routeRepository.findByStatus(1, pageRequest)
     }
 }

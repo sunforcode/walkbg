@@ -32,8 +32,8 @@ data class RouteBasicResponse(
                 name = route.name,
                 description = route.description,
                 region = route.region,
-                distance = route.mapData?.distance,
-                duration = route.mapData?.duration,
+                distance = null,  // 需要通过 Repository 查询 MapData
+                duration = null,  // 需要通过 Repository 查询 MapData
                 difficulty = route.difficulty,
                 coverUrl = route.coverUrl,
                 popularity = route.popularity,

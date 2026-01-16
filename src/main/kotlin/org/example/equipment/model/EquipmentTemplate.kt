@@ -39,30 +39,30 @@ data class EquipmentTemplate(
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    @OneToMany(mappedBy = "template", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val equipmentItems: MutableList<TemplateEquipmentItem> = mutableListOf(),
-
-    @OneToMany(mappedBy = "template", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val seasons: MutableList<TemplateSeasonSuitability> = mutableListOf(),
-
-    @OneToMany(mappedBy = "template", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val tags: MutableList<TemplateTag> = mutableListOf()
+    var updatedAt: Instant = Instant.now()
 ) {
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - equipmentItems: 通过 TemplateEquipmentItemRepository.findByTemplateId(templateId) 查询
+     * - seasons: 通过 TemplateSeasonSuitabilityRepository.findByTemplateId(templateId) 查询
+     * - tags: 通过 TemplateTagRepository.findByTemplateId(templateId) 查询
+     */
 
-    // 添加关联实体的辅助方法
-    fun addEquipmentItem(item: TemplateEquipmentItem) {
-        equipmentItems.add(item)
-        item.template = this
+    /**
+     * 领域行为：更新使用次数
+     */
+    fun incrementUsageCount() {
+        this.usageCount++
+        this.updatedAt = Instant.now()
     }
 
-    fun addSeason(season: Int) { // 0: 春季, 1: 夏季, 2: 秋季, 3: 冬季
-        seasons.add(TemplateSeasonSuitability(template = this, season = season))
-    }
-    
-    fun addTag(tag: String) {
-        tags.add(TemplateTag(template = this, tag = tag))
+    /**
+     * 领域行为：更新评分
+     */
+    fun updateRating(newRating: Double) {
+        require(newRating in 0.0..5.0) { "评分必须在 0-5 之间" }
+        this.rating = newRating
+        this.updatedAt = Instant.now()
     }
     
     override fun equals(other: Any?): Boolean {

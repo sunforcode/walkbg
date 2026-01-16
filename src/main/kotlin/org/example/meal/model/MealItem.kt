@@ -31,11 +31,7 @@ data class MealItem(
     var quantity: Int = 1,
 
     @Column(columnDefinition = "TEXT")
-    var notes: String? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "meal_day_id", insertable = false, updatable = false)
-    var mealDay: MealDay? = null
+    var notes: String? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

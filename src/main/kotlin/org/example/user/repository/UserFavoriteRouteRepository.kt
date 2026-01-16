@@ -19,31 +19,26 @@ interface UserFavoriteRouteRepository : JpaRepository<UserFavoriteRoute, String>
     /**
      * 根据用户ID查找收藏的路线
      */
-    @Query("SELECT ufr FROM UserFavoriteRoute ufr JOIN ufr.user u WHERE u.id = :userId")
     fun findByUserId(@Param("userId") userId: String): List<UserFavoriteRoute>
 
     /**
      * 根据路线ID查找收藏的用户
      */
-    @Query("SELECT ufr FROM UserFavoriteRoute ufr JOIN ufr.route r WHERE r.id = :routeId")
     fun findByRouteId(@Param("routeId") routeId: String): List<UserFavoriteRoute>
 
     /**
      * 检查用户是否收藏了路线
      */
-    @Query("SELECT COUNT(ufr) > 0 FROM UserFavoriteRoute ufr JOIN ufr.user u JOIN ufr.route r WHERE u.id = :userId AND r.id = :routeId")
     fun existsByUserIdAndRouteId(@Param("userId") userId: String, @Param("routeId") routeId: String): Boolean
 
     /**
      * 统计用户收藏的路线数量
      */
-    @Query("SELECT COUNT(ufr) FROM UserFavoriteRoute ufr JOIN ufr.user u WHERE u.id = :userId")
     fun countByUserId(@Param("userId") userId: String): Long
 
     /**
      * 统计路线被收藏的次数
      */
-    @Query("SELECT COUNT(ufr) FROM UserFavoriteRoute ufr JOIN ufr.route r WHERE r.id = :routeId")
     fun countByRouteId(@Param("routeId") routeId: String): Long
 
     // TODO: 以下方法需要重新实现，暂时注释掉以便应用启动
@@ -67,63 +62,54 @@ interface UserFavoriteRouteRepository : JpaRepository<UserFavoriteRoute, String>
 
     /**
      * 查找最受欢迎的路线（按收藏数排序）
+     * 注意：由于单向关联，简化实现
      */
     @Query("""
-        SELECT r.id, COUNT(ufr) as favoriteCount
+        SELECT ufr.routeId, COUNT(ufr) as favoriteCount
         FROM UserFavoriteRoute ufr
-        JOIN ufr.route r
-        GROUP BY r.id
+        GROUP BY ufr.routeId
         ORDER BY favoriteCount DESC
     """)
     fun findMostFavoritedRoutes(pageable: Pageable): Page<Array<Any>>
 
     /**
      * 推荐路线（基于用户收藏历史）
+     * 注意：由于单向关联，简化实现
      */
     @Query("""
-        SELECT DISTINCT r2.id
+        SELECT DISTINCT ufr2.routeId
         FROM UserFavoriteRoute ufr1
-        JOIN ufr1.user u1
-        JOIN ufr1.route r1
-        JOIN UserFavoriteRoute ufr2 ON u1.id != ufr2.user.id
-        JOIN ufr2.route r2
-        WHERE u1.id = :userId
-        AND r1.id IN :favoriteRouteIds
-        AND r2.id NOT IN :favoriteRouteIds
+        JOIN UserFavoriteRoute ufr2 ON ufr1.routeId = ufr2.routeId
+        WHERE ufr1.userId = :userId
+        AND ufr2.routeId NOT IN :favoriteRouteIds
         ORDER BY ufr2.createdAt DESC
     """)
     fun findRecommendedRoutes(@Param("userId") userId: String, @Param("favoriteRouteIds") favoriteRouteIds: List<String>): List<String>
 
     /**
      * 查找相似用户（有相同收藏偏好的用户）
+     * 注意：由于单向关联，简化实现
      */
     @Query("""
-        SELECT DISTINCT u2.id
+        SELECT DISTINCT ufr2.userId
         FROM UserFavoriteRoute ufr1
-        JOIN ufr1.user u1
-        JOIN ufr1.route r1
-        JOIN UserFavoriteRoute ufr2 ON r1.id = ufr2.route.id
-        JOIN ufr2.user u2
-        WHERE u1.id = :userId
-        AND u2.id != :userId
-        AND r1.id IN :favoriteRouteIds
-        GROUP BY u2.id
-        HAVING COUNT(u2.id) >= 2
-        ORDER BY COUNT(u2.id) DESC
+        JOIN UserFavoriteRoute ufr2 ON ufr1.routeId = ufr2.routeId
+        WHERE ufr1.userId = :userId
+        AND ufr2.userId != :userId
+        AND ufr1.routeId IN :favoriteRouteIds
+        GROUP BY ufr2.userId
+        HAVING COUNT(ufr2.userId) >= 2
+        ORDER BY COUNT(ufr2.userId) DESC
     """)
     fun findSimilarUsers(@Param("userId") userId: String, @Param("favoriteRouteIds") favoriteRouteIds: List<String>): List<String>
 
     /**
      * 删除用户对路线的收藏
      */
-    @Query("DELETE FROM UserFavoriteRoute ufr WHERE ufr.user.id = :userId AND ufr.route.id = :routeId")
-    @Modifying
     fun deleteByUserIdAndRouteId(@Param("userId") userId: String, @Param("routeId") routeId: String): Long
 
     /**
      * 删除用户的所有收藏
      */
-    @Query("DELETE FROM UserFavoriteRoute ufr WHERE ufr.user.id = :userId")
-    @Modifying
     fun deleteByUserId(@Param("userId") userId: String): Long
 }

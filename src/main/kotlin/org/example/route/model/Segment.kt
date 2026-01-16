@@ -4,14 +4,24 @@ import jakarta.persistence.*
 import java.time.Instant
 
 /**
- * 路段实体
+ * 路段实体（单向关联）
  */
 @Entity
-@Table(name = "segments")
+@Table(
+    name = "segments",
+    indexes = [
+        Index(name = "idx_segments_route_id", columnList = "route_id"),
+        Index(name = "idx_segments_start_point", columnList = "start_point_id"),
+        Index(name = "idx_segments_end_point", columnList = "end_point_id")
+    ]
+)
 data class Segment(
     @Id
     @Column(length = 64)
     val id: String,
+
+    @Column(name = "route_id", length = 64, nullable = false)
+    val routeId: String,
 
     @Column(nullable = false, length = 200)
     var name: String,
@@ -20,57 +30,42 @@ data class Segment(
     var description: String? = null,
 
     val distance: Double? = null,
+
+    @Column(name = "elevation_gain")
     val elevationGain: Double? = null,
+
+    @Column(name = "elevation_loss")
     val elevationLoss: Double? = null,
+
+    @Column(name = "estimated_time")
     val estimatedTime: Double? = null,
+
     val difficulty: Int? = null,
 
     @Column(name = "route_type")
-    val routeType: Int? = null, // 路线类型
+    val routeType: Int? = null,
 
     @Column(columnDefinition = "TEXT")
     var notes: String? = null,
+
+    @Column(name = "start_point_id", length = 64)
+    val startPointId: String? = null,
+
+    @Column(name = "end_point_id", length = 64)
+    val endPointId: String? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    var route: Route? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "start_point_id")
-    var startPoint: Waypoint? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "end_point_id")
-    var endPoint: Waypoint? = null,
-
-    @OneToMany(mappedBy = "segment", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val pathPoints: MutableList<PathPoint> = mutableListOf(),
-
-    @OneToMany(mappedBy = "segment", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val keypoints: MutableList<SegmentKeypoint> = mutableListOf(),
-
-    @OneToMany(mappedBy = "segment", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val closures: MutableList<SegmentClosure> = mutableListOf()
+    var updatedAt: Instant = Instant.now()
 ) {
-    fun addPathPoint(pathPoint: PathPoint) {
-        pathPoints.add(pathPoint)
-        pathPoint.segment = this
-    }
-
-    fun addKeypoint(waypointId: String, sequenceNumber: Int = keypoints.size + 1) {
-        keypoints.add(SegmentKeypoint(
-            id = java.util.UUID.randomUUID().toString(),
-            waypointId = waypointId,
-            sequenceNumber = sequenceNumber,
-            segment = this
-        ))
-    }
+    /**
+     * 注意：不再持有以下关联关系的集合引用
+     * - pathPoints: 通过 PathPointRepository.findBySegmentId(segmentId) 查询
+     * - keypoints: 通过 SegmentKeypointRepository.findBySegmentId(segmentId) 查询
+     * - closures: 通过 SegmentClosureRepository.findBySegmentId(segmentId) 查询
+     */
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -84,7 +79,7 @@ data class Segment(
     }
 
     override fun toString(): String {
-        return "Segment(id='$id', name='$name')"
+        return "Segment(id='$id', name='$name', routeId='$routeId')"
     }
 }
 

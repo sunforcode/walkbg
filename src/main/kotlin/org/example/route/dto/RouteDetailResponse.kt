@@ -30,6 +30,10 @@ data class RouteDetailResponse(
     val coverUrl: String?,
     @JsonProperty("default_map_id")
     val defaultMapId: String?,
+    @JsonProperty("kml_url")
+    val kmlUrl: String?,
+    @JsonProperty("gpx_url")
+    val gpxUrl: String?,
     val popularity: Int,
     @JsonProperty("usage_count")
     val usageCount: Int,
@@ -63,12 +67,22 @@ data class RouteDetailResponse(
     @JsonProperty("hitchhike_contacts")
     val hitchhikeContacts: List<HitchhikeContactDto> = emptyList(),
     @JsonProperty("marker_points")
-    val markerPoints: List<MarkerPointDto> = emptyList()
+    val markerPoints: List<MarkerPointDto> = emptyList(),
+    @JsonProperty("track_points")
+    val trackPoints: List<TrackPointDto> = emptyList()
 ) {
     companion object {
         /**
-         * 从Route实体创建详细响应DTO
+         * 从 Route实体创建详细响应 DTO
+         * 
+         * @deprecated 使用 RouteApplicationService.enrichRouteDetail() 替代，它会从数据库填充所有嵌套集合。
+         *            fromRoute() 你仅为了向后兑改而保留，新代码不应使用此方法。
          */
+        @Deprecated(
+            message = "使用 RouteApplicationService.enrichRouteDetail() 替代",
+            replaceWith = ReplaceWith("enrichRouteDetail(route, null)"),
+            level = DeprecationLevel.WARNING
+        )
         fun fromRoute(route: org.example.route.model.Route, isFavorite: Boolean = false): RouteDetailResponse {
             return RouteDetailResponse(
                 id = route.id,
@@ -85,6 +99,8 @@ data class RouteDetailResponse(
                 routeDirection = null, // 暂时设为null，后续可以根据实际需求调整
                 coverUrl = route.coverUrl,
                 defaultMapId = route.defaultMapId,
+                kmlUrl = null,  // 需要通过 RouteMapDataRepository 查询
+                gpxUrl = null,  // 需要通过 RouteMapDataRepository 查询
                 popularity = route.popularity,
                 usageCount = route.usageCount,
                 isLoop = route.isLoop,
@@ -107,7 +123,8 @@ data class RouteDetailResponse(
                 // 暂时使用默认值，后续可以根据实际需求调整
                 ratings = null,
                 weatherInfo = null,
-                hitchhikeContacts = emptyList()  // 需要通过 HitchhikeContactRepository 查询
+                hitchhikeContacts = emptyList(),  // 需要通过 HitchhikeContactRepository 查询
+                trackPoints = emptyList()  // 需要通过 WaypointRepository 查询
             )
         }
     }

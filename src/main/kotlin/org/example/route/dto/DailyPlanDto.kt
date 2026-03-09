@@ -16,9 +16,9 @@ data class DailyPlanDto(
     @JsonProperty("estimated_time")
     val estimatedTime: Double?,
     @JsonProperty("elevation_gain")
-    val elevationGain: Int?,
+    val elevationGain: Int? = 0,
     @JsonProperty("elevation_loss")
-    val elevationLoss: Double?,
+    val elevationLoss: Double? = 0.0,
     @JsonProperty("max_elevation")
     val maxElevation: Double?,
     @JsonProperty("min_elevation")
@@ -43,8 +43,8 @@ data class DailyPlanDto(
                 description = plan.description,
                 distance = plan.distance,
                 estimatedTime = plan.estimatedTime,
-                elevationGain = plan.elevationGain?.toInt(),
-                elevationLoss = plan.elevationLoss,
+                elevationGain = plan.elevationGain?.toInt() ?: 0,
+                elevationLoss = plan.elevationLoss ?: 0.0,
                 maxElevation = plan.maxElevation,
                 minElevation = plan.minElevation,
                 accommodation = plan.accommodation,

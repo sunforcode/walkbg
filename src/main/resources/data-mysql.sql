@@ -409,6 +409,296 @@ INSERT INTO trips (
     NOW()
 );
 
+-- 创建示例路线地图数据（KML/GPX 和统计信息）
+INSERT INTO route_map_data (
+    id, distance, duration, latitude, longitude, altitude,
+    elevation_gain, elevation_loss, kml_url, gpx_url,
+    favorite_count, completion_count, trip_count,
+    created_at, updated_at
+) VALUES
+(
+    'route_huangshan_001',
+    7.5,
+    360,
+    30.1450,
+    118.1600,
+    1864.0,
+    1064.0,
+    0.0,
+    'https://example.com/maps/huangshan_001.kml',
+    'https://example.com/maps/huangshan_001.gpx',
+    342,
+    89,
+    12,
+    NOW(),
+    NOW()
+),
+(
+    'route_jiuzhaigou_001',
+    12.0,
+    480,
+    33.2520,
+    104.7702,
+    2400.0,
+    450.0,
+    450.0,
+    'https://example.com/maps/jiuzhaigou_001.kml',
+    'https://example.com/maps/jiuzhaigou_001.gpx',
+    578,
+    156,
+    28,
+    NOW(),
+    NOW()
+),
+(
+    'route_zhangjiajie_001',
+    15.3,
+    540,
+    29.3255,
+    110.4625,
+    1200.0,
+    600.0,
+    600.0,
+    'https://example.com/maps/zhangjiajie_001.kml',
+    'https://example.com/maps/zhangjiajie_001.gpx',
+    456,
+    132,
+    35,
+    NOW(),
+    NOW()
+),
+(
+    'route_changbaishan_001',
+    18.5,
+    600,
+    42.0002,
+    128.0562,
+    2744.0,
+    950.0,
+    950.0,
+    'https://example.com/maps/changbaishan_001.kml',
+    'https://example.com/maps/changbaishan_001.gpx',
+    385,
+    98,
+    22,
+    NOW(),
+    NOW()
+),
+(
+    'route_emeishan_001',
+    20.2,
+    720,
+    29.5432,
+    103.3344,
+    3099.0,
+    1500.0,
+    0.0,
+    'https://example.com/maps/emeishan_001.kml',
+    'https://example.com/maps/emeishan_001.gpx',
+    512,
+    118,
+    38,
+    NOW(),
+    NOW()
+),
+(
+    'route_huashan_001',
+    16.8,
+    600,
+    34.4868,
+    110.0843,
+    2155.0,
+    1200.0,
+    0.0,
+    'https://example.com/maps/huashan_001.kml',
+    'https://example.com/maps/huashan_001.gpx',
+    723,
+    208,
+    65,
+    NOW(),
+    NOW()
+),
+(
+    'route_taishan_001',
+    22.4,
+    780,
+    36.2597,
+    117.1205,
+    1545.0,
+    1345.0,
+    0.0,
+    'https://example.com/maps/taishan_001.kml',
+    'https://example.com/maps/taishan_001.gpx',
+    678,
+    192,
+    72,
+    NOW(),
+    NOW()
+),
+(
+    'route_wuyi_001',
+    11.5,
+    420,
+    27.7431,
+    117.4845,
+    800.0,
+    300.0,
+    300.0,
+    'https://example.com/maps/wuyi_001.kml',
+    'https://example.com/maps/wuyi_001.gpx',
+    334,
+    78,
+    18,
+    NOW(),
+    NOW()
+),
+(
+    'route_guilin_001',
+    24.6,
+    840,
+    25.2919,
+    110.2965,
+    500.0,
+    150.0,
+    150.0,
+    'https://example.com/maps/guilin_001.kml',
+    'https://example.com/maps/guilin_001.gpx',
+    612,
+    145,
+    52,
+    NOW(),
+    NOW()
+),
+(
+    'route_xihu_001',
+    13.0,
+    480,
+    30.2875,
+    120.1551,
+    300.0,
+    50.0,
+    50.0,
+    'https://example.com/maps/xihu_001.kml',
+    'https://example.com/maps/xihu_001.gpx',
+    945,
+    256,
+    98,
+    NOW(),
+    NOW()
+);
+
+-- 添加更多九寨沟路线的路径点数据
+INSERT INTO waypoints (id, name, description, latitude, longitude, elevation, type, icon_url, image_url, sequence_number, route_id, created_at, updated_at) VALUES
+('waypoint_jiuzhai_001', '诺日朗瀑布', '九寨沟最大的瀑布，落差20米', 33.2685, 104.7743, 2365.0, '景点', 'https://example.com/icons/waterfall.png', 'https://example.com/images/nuorilang.jpg', 1, 'route_jiuzhaigou_001', NOW(), NOW()),
+('waypoint_jiuzhai_002', '五花海', '九寨沟最美的海子，色彩斑斓', 33.2542, 104.7634, 2472.0, '景点', 'https://example.com/icons/lake.png', 'https://example.com/images/wuhuahai.jpg', 2, 'route_jiuzhaigou_001', NOW(), NOW()),
+('waypoint_jiuzhai_003', '镜海', '湖面平静如镜，倒影清晰', 33.2720, 104.7912, 2340.0, '景点', 'https://example.com/icons/lake.png', 'https://example.com/images/jinghai.jpg', 3, 'route_jiuzhaigou_001', NOW(), NOW()),
+('waypoint_jiuzhai_004', '箭竹海', '竹海风景独特', 33.2956, 104.7589, 2588.0, '景点', 'https://example.com/icons/scenic.png', 'https://example.com/images/jianzhushi.jpg', 4, 'route_jiuzhaigou_001', NOW(), NOW()),
+('waypoint_jiuzhai_005', '长海', '九寨沟最高最大的海子', 33.3156, 104.7312, 2590.0, '终点', 'https://example.com/icons/peak.png', 'https://example.com/images/changhai.jpg', 5, 'route_jiuzhaigou_001', NOW(), NOW());
+
+-- 添加九寨沟路线段数据
+INSERT INTO segments (id, name, description, distance, elevation_gain, elevation_loss, estimated_time, difficulty, route_id, created_at, updated_at) VALUES
+('segment_jiuzhai_001', '诺日朗至五花海', '平坦步道', 2.5, 107.0, 0.0, 1.0, 0, 'route_jiuzhaigou_001', NOW(), NOW()),
+('segment_jiuzhai_002', '五花海至镜海', '缓下坡', 3.2, 0.0, 132.0, 1.2, 0, 'route_jiuzhaigou_001', NOW(), NOW()),
+('segment_jiuzhai_003', '镜海至箭竹海', '上升路段', 2.8, 248.0, 0.0, 1.5, 1, 'route_jiuzhaigou_001', NOW(), NOW()),
+('segment_jiuzhai_004', '箭竹海至长海', '缓上升', 3.5, 2.0, 0.0, 1.3, 0, 'route_jiuzhaigou_001', NOW(), NOW());
+
+-- 添加九寨沟路线标签
+INSERT INTO route_tags (id, tag, route_id) VALUES
+(UUID(), '世界遗产', 'route_jiuzhaigou_001'),
+(UUID(), '水景', 'route_jiuzhaigou_001'),
+(UUID(), '摄影胜地', 'route_jiuzhaigou_001'),
+(UUID(), '轻松', 'route_jiuzhaigou_001'),
+(UUID(), '彩林', 'route_jiuzhaigou_001');
+
+-- 添加九寨沟路线图片
+INSERT INTO route_images (id, image_url, is_cover, sequence_number, route_id) VALUES
+(UUID(), 'https://example.com/images/jiuzhaigou_cover.jpg', 1, 1, 'route_jiuzhaigou_001'),
+(UUID(), 'https://example.com/images/jiuzhaigou_spring.jpg', 0, 2, 'route_jiuzhaigou_001'),
+(UUID(), 'https://example.com/images/jiuzhaigou_fall.jpg', 0, 3, 'route_jiuzhaigou_001'),
+(UUID(), 'https://example.com/images/jiuzhaigou_waterfall.jpg', 0, 4, 'route_jiuzhaigou_001');
+
+-- 添加九寨沟补给点
+INSERT INTO supplies (
+    id, name, description, route_id, latitude, longitude, elevation,
+    supply_type, created_at, updated_at
+) VALUES
+(
+    'supply_jiuzhai_001',
+    '诺日朗服务中心',
+    '九寨沟内最大的服务中心，提供餐饮和补给',
+    'route_jiuzhaigou_001',
+    33.2685,
+    104.7743,
+    2365.0,
+    1,
+    NOW(),
+    NOW()
+),
+(
+    'supply_jiuzhai_002',
+    '原始森林便利店',
+    '提供登山食品和饮用水',
+    'route_jiuzhaigou_001',
+    33.2850,
+    104.7600,
+    2480.0,
+    0,
+    NOW(),
+    NOW()
+);
+
+-- 添加九寨沟水源
+INSERT INTO water_sources (
+    id, name, description, route_id, latitude, longitude, elevation,
+    water_type, water_quality, reliability, requires_treatment, notes,
+    created_at, updated_at
+) VALUES
+(
+    'water_jiuzhai_001',
+    '五花海补水点',
+    '景区内提供的饮用水补给点',
+    'route_jiuzhaigou_001',
+    33.2542,
+    104.7634,
+    2472.0,
+    1,
+    1,
+    0.95,
+    0,
+    '由景区管理，水质有保障',
+    NOW(),
+    NOW()
+),
+(
+    'water_jiuzhai_002',
+    '诺日朗瀑布水源',
+    '自然水源，需处理',
+    'route_jiuzhaigou_001',
+    33.2685,
+    104.7743,
+    2365.0,
+    0,
+    0,
+    0.8,
+    1,
+    '瀑布水需过滤和加热处理',
+    NOW(),
+    NOW()
+);
+
+-- 添加用户路线收藏
+INSERT INTO user_route_favorites (user_id, route_id, created_at) VALUES
+('user_test_001', 'route_huangshan_001', NOW()),
+('user_test_001', 'route_jiuzhaigou_001', NOW()),
+('user_admin_001', 'route_huashan_001', NOW()),
+('user_admin_001', 'route_xihu_001', NOW());
+
+-- 添加用户路线完成记录
+INSERT INTO user_route_completions (user_id, route_id, completed_at, duration_minutes, notes, created_at, updated_at) VALUES
+('user_guide_001', 'route_huangshan_001', DATE_SUB(NOW(), INTERVAL 15 DAY), 340, '天气晴朗，风景壮观', NOW(), NOW()),
+('user_guide_001', 'route_jiuzhaigou_001', DATE_SUB(NOW(), INTERVAL 30 DAY), 480, '彩林正当时，拍摄效果很好', NOW(), NOW()),
+('user_test_001', 'route_xihu_001', DATE_SUB(NOW(), INTERVAL 5 DAY), 120, '轻松惬意的散步', NOW(), NOW());
+
 -- 提示信息
 SELECT '✅ MySQL 初始化数据插入完成！' AS message;
 SELECT CONCAT('共插入 ', COUNT(*), ' 条路线数据') AS routes_count FROM routes;
@@ -416,3 +706,4 @@ SELECT CONCAT('共插入 ', COUNT(*), ' 条用户数据') AS users_count FROM us
 SELECT CONCAT('共插入 ', COUNT(*), ' 条路径点数据') AS waypoints_count FROM waypoints;
 SELECT CONCAT('共插入 ', COUNT(*), ' 条攻略数据') AS guides_count FROM guides;
 SELECT CONCAT('共插入 ', COUNT(*), ' 条行程数据') AS trips_count FROM trips;
+SELECT CONCAT('共插入 ', COUNT(*), ' 条路线地图数据') AS route_map_data_count FROM route_map_data;

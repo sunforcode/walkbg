@@ -5,9 +5,10 @@ import org.example.route.dto.toRoute
 import org.example.route.model.Route
 import org.example.route.model.Waypoint
 import org.example.route.model.Segment
-import org.example.route.repository.WaypointRepository
-import org.example.route.repository.SegmentRepository
+import org.example.route.repository.*
 import org.example.common.util.IdGenerator
+import org.example.water.repository.WaterSourceRepository
+import org.example.user.repository.UserRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -23,7 +24,19 @@ import java.time.Instant
 class RouteApplicationService(
     private val routeService: RouteService,
     private val waypointRepository: WaypointRepository,
-    private val segmentRepository: SegmentRepository
+    private val segmentRepository: SegmentRepository,
+    // Phase 1: 添加关联数据Repository注入
+    private val routeTagRepository: RouteTagRepository,
+    private val campsiteRepository: CampsiteRepository,
+    private val supplyRepository: SupplyRepository,
+    private val waterSourceRepository: WaterSourceRepository,
+    private val markerPointRepository: MarkerPointRepository,
+    private val dailyPlanRepository: DailyPlanRepository,
+    private val hitchhikeContactRepository: HitchhikeContactRepository,
+    private val routeImageRepository: RouteImageRepository,
+    private val routeMapDataRepository: RouteMapDataRepository,
+    private val routeRatingRepository: RouteRatingRepository,
+    private val userRepository: UserRepository
 ) {
 
     /**
@@ -41,8 +54,121 @@ class RouteApplicationService(
         // 3. 检查用户收藏状态
         val isFavorite = userId?.let { routeService.isRouteFavorited(routeId, it) } ?: false
 
-        // 4. DTO转换（应用层职责）
-        return org.example.route.dto.RouteDetailResponse.fromRoute(route, isFavorite)
+        // 4. DTO转换（应用层职责）使用enrichRouteDetail方法来填充所有关联数据
+        return enrichRouteDetail(route, userId).copy(isFavorite = isFavorite)
+    }
+
+    /**
+     * Phase 1: 补充路线详情数据 - 从各个Repository查询关联数据
+     * 确保所有嵌套集合都被填充而不是返回空列表
+     */
+    @Transactional(readOnly = true)
+    private fun enrichRouteDetail(route: org.example.route.model.Route, userId: String?): org.example.route.dto.RouteDetailResponse {
+        // 批量查询所有关联数据
+        val tags = routeTagRepository.findByRouteId(route.id).map { it.tag }
+        val segments = segmentRepository.findByRouteId(route.id)
+            .map { org.example.route.dto.SegmentDto.fromSegment(it) }
+        val campsites = campsiteRepository.findByRouteId(route.id, org.springframework.data.domain.PageRequest.of(0, Int.MAX_VALUE)).content
+            .map { org.example.route.dto.CampsiteDto.fromCampsite(it) }
+        val supplies = supplyRepository.findByRouteId(route.id, org.springframework.data.domain.PageRequest.of(0, Int.MAX_VALUE)).content
+            .map { org.example.route.dto.SupplyDto.fromSupply(it) }
+        val waterSources = waterSourceRepository.findByRouteId(route.id, org.springframework.data.domain.PageRequest.of(0, Int.MAX_VALUE)).content
+            .map { org.example.water.dto.WaterSourceDto.fromWaterSource(it) }
+        val markerPoints = markerPointRepository.findByRouteId(route.id)
+            .map { org.example.route.dto.MarkerPointDto.fromMarkerPoint(it) }
+        val dailyPlans = dailyPlanRepository.findByRouteId(route.id)
+            .map { org.example.route.dto.DailyPlanDto.fromDailyPlan(it) }
+        val hitchhikeContacts = hitchhikeContactRepository.findByRouteId(route.id)
+            .map { org.example.route.dto.HitchhikeContactDto.fromHitchhikeContact(it) }
+        
+        // 查询创建者信息
+        val creator = route.createdBy?.let { createdById ->
+            userRepository.findById(createdById).orElse(null)?.let { user ->
+                org.example.user.dto.UserBasicDto(
+                    id = user.id,
+                    username = user.username,
+                    nickname = user.nickname ?: user.username,
+                    email = user.email,
+                    avatarUrl = user.avatarUrl,
+                    createdAt = user.createdAt.epochSecond
+                )
+            }
+        }
+        
+        // 查询图片URL
+        val imageUrls = routeImageRepository.findByRouteIdOrderBySequenceNumber(route.id)
+            .mapNotNull { it.imageUrl }
+        
+        // 查询地图数据（距离、时长、海拔等）
+        val mapData = routeMapDataRepository.findById(route.id).orElse(null)
+        val distance = mapData?.distance?.toDouble()
+        val duration = mapData?.duration
+        val elevationGain = mapData?.elevationGain?.toDouble()
+        val elevationLoss = mapData?.elevationLoss?.toDouble()
+        
+        // 查询评分数据
+        val ratingData = routeRatingRepository.findByRouteId(route.id)
+        val ratings = ratingData?.let {
+            org.example.route.dto.RatingDto(
+                overall = it.overall,
+                scenery = it.scenery,
+                difficulty = it.difficulty,
+                experience = it.experience,
+                facilities = it.facilities,
+                ratingCount = it.ratingCount
+            )
+        }
+        
+        // 查询轨迹点数据（按序列号排序）
+        val trackPoints = waypointRepository.findByRouteIdOrderBySequenceNumberAsc(route.id)
+            .map { org.example.route.dto.TrackPointDto.fromWaypoint(it) }
+        
+        // 查询 KML/GPX URL
+        val kmlUrl = mapData?.kmlUrl
+        val gpxUrl = mapData?.gpxUrl
+        
+        // 构建完整的RouteDetailResponse
+        return org.example.route.dto.RouteDetailResponse(
+            id = route.id,
+            name = route.name,
+            description = route.description,
+            regionId = route.regionId,
+            region = route.region,
+            distance = distance,
+            duration = duration,
+            elevationGain = elevationGain,
+            elevationLoss = elevationLoss,
+            difficulty = route.difficulty,
+            routeType = route.routeType,
+            routeDirection = null,
+            coverUrl = route.coverUrl,
+            defaultMapId = route.defaultMapId,
+            kmlUrl = kmlUrl,
+            gpxUrl = gpxUrl,
+            popularity = route.popularity,
+            usageCount = route.usageCount,
+            isLoop = route.isLoop,
+            isFavorite = false,  // 将由调用方覆盖
+            status = route.status,
+            createdAt = route.createdAt.epochSecond,
+            updatedAt = route.updatedAt.epochSecond,
+            createdBy = route.createdBy,
+            creator = creator,  // 已填充创建者信息
+            
+            // 关联数据
+            tags = tags,
+            segments = segments,
+            campsites = campsites,
+            supplies = supplies,
+            waterSources = waterSources,
+            markerPoints = markerPoints,
+            dailyPlans = dailyPlans,
+            hitchhikeContacts = hitchhikeContacts,
+            imageUrls = imageUrls,
+            ratings = ratings,
+            weatherInfo = null,  // 暂时设为null，可后续集成天气API
+            trackPoints = trackPoints
+        )
     }
 
     /**

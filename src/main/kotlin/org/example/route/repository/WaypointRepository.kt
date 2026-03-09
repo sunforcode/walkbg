@@ -11,18 +11,30 @@ import org.springframework.stereotype.Repository
 @Repository
 interface WaypointRepository : JpaRepository<Waypoint, String> {
     
-    // TODO: Waypoint 实体中没有 routeId 属性，这些方法暂时注释掉
-    // fun findByRouteIdOrderBySequenceNumber(routeId: String): List<Waypoint>
-    // fun findByRouteId(routeId: String, pageable: Pageable): Page<Waypoint>
+    /**
+     * 根据路线 ID 查找所有路径点，按序列号升序排列
+     */
+    fun findByRouteIdOrderBySequenceNumberAsc(routeId: String): List<Waypoint>
+    
+    /**
+     * 根据路线 ID 查找所有路径点
+     */
+    fun findByRouteId(routeId: String, pageable: Pageable): Page<Waypoint>
     
     /**
      * 根据类型查找路径点
      */
     fun findByType(type: String): List<Waypoint>
     
-    // TODO: Waypoint 实体中没有 routeId 属性，这些方法暂时注释掉
-    // fun findByRouteIdAndType(routeId: String, type: String): List<Waypoint>
-    // fun countByRouteId(routeId: String): Long
+    /**
+     * 根据路线 ID 和 类型查找路径点
+     */
+    fun findByRouteIdAndType(routeId: String, type: String): List<Waypoint>
+    
+    /**
+     * 统计指定路线的路径点数量
+     */
+    fun countByRouteId(routeId: String): Long
     
     /**
      * 根据地理位置范围查找路径点
@@ -35,6 +47,8 @@ interface WaypointRepository : JpaRepository<Waypoint, String> {
         @Param("maxLon") maxLongitude: Double
     ): List<Waypoint>
     
-    // TODO: Waypoint 实体中没有 routeId 属性，这个方法暂时注释掉
-    // fun deleteByRouteId(routeId: String): Int
+    /**
+     * 削除指定路线的所有路径点
+     */
+    fun deleteByRouteId(routeId: String): Int
 }

@@ -25,7 +25,11 @@ import jakarta.validation.constraints.NotBlank
 @Tag(name = "路线管理", description = "路线相关的API接口")
 @Validated
 class RouteController(
-    private val routeApplicationService: RouteApplicationService
+    private val routeApplicationService: RouteApplicationService,
+    private val routeService: org.example.route.service.RouteService,
+    private val userRouteFavoriteRepository: org.example.route.repository.UserRouteFavoriteRepository,
+    private val userRouteCompletionRepository: org.example.route.repository.UserRouteCompletionRepository,
+    private val routeRepository: org.example.route.repository.RouteRepository
 ) {
 
     /**
@@ -112,7 +116,20 @@ class RouteController(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @Parameter(description = "用户ID") @RequestParam userId: String
     ): ResponseEntity<ApiResponse<Nothing>> {
-        // TODO: 实现收藏逻辑
+        // 验证路线是否存在
+        routeRepository.findById(id).orElseThrow {
+            BusinessException.notFound("路线不存在")
+        }
+        
+        // 幂等性处理：如果已经收藏，则不重复创建
+        if (!userRouteFavoriteRepository.existsByUserIdAndRouteId(userId, id)) {
+            val favorite = org.example.route.model.UserRouteFavorite(
+                userId = userId,
+                routeId = id
+            )
+            userRouteFavoriteRepository.save(favorite)
+        }
+        
         return ResponseUtil.success(null, "收藏成功")
     }
 
@@ -125,7 +142,8 @@ class RouteController(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @Parameter(description = "用户ID") @RequestParam userId: String
     ): ResponseEntity<ApiResponse<Nothing>> {
-        // TODO: 实现取消收藏逻辑
+        // 幂等性处理：如果没有收藏，则不报错
+        userRouteFavoriteRepository.deleteByUserIdAndRouteId(userId, id)
         return ResponseUtil.success(null, "取消收藏成功")
     }
 
@@ -138,7 +156,26 @@ class RouteController(
         @Parameter(description = "路线ID") @PathVariable id: String,
         @Parameter(description = "用户ID") @RequestParam userId: String
     ): ResponseEntity<ApiResponse<Nothing>> {
-        // TODO: 实现完成路线逻辑
+        // 验证路线是否存在
+        val route = routeRepository.findById(id).orElseThrow {
+            BusinessException.notFound("路线不存在")
+        }
+        
+        // 幂等性处理：每个用户每次完成路线都会需要记录，但usage_count仅在第一次有效完成时增加
+        val existingCompletion = userRouteCompletionRepository.findByUserIdAndRouteId(userId, id)
+        if (existingCompletion == null) {
+            // 第一次完成，需要更新路线的usage_count
+            val completion = org.example.route.model.UserRouteCompletion(
+                userId = userId,
+                routeId = id
+            )
+            userRouteCompletionRepository.save(completion)
+            
+            // 更新路线的usage_count
+            route.incrementUsageCount()
+            routeRepository.save(route)
+        }
+        
         return ResponseUtil.success(null, "路线完成记录成功")
     }
 
@@ -152,13 +189,10 @@ class RouteController(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        // TODO: 实现查询我创建的路线逻辑
-        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-            emptyList(),
-            org.springframework.data.domain.PageRequest.of(page, size),
-            0
-        )
-        return ResponseUtil.successPage(emptyPage)
+        val pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        val routes = routeRepository.findByCreatedBy(userId, pageable)
+        val result = routes.map { RouteBasicResponse.fromRoute(it) }
+        return ResponseUtil.successPage(result)
     }
 
     /**
@@ -171,13 +205,20 @@ class RouteController(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        // TODO: 实现查询收藏路线逻辑
-        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-            emptyList(),
-            org.springframework.data.domain.PageRequest.of(page, size),
-            0
+        val pageable = org.springframework.data.domain.PageRequest.of(page, size)
+        val favorites = userRouteFavoriteRepository.findByUserId(userId, pageable)
+        // 关联路线信息
+        val result = favorites.map { favorite ->
+            routeRepository.findById(favorite.routeId).map { RouteBasicResponse.fromRoute(it) }.orElse(null)
+        }.filterNotNull()
+        // 重新币造Page对象
+        return ResponseUtil.successPage(
+            org.springframework.data.domain.PageImpl(
+                result,
+                pageable,
+                favorites.totalElements
+            )
         )
-        return ResponseUtil.successPage(emptyPage)
     }
 
     /**
@@ -190,13 +231,20 @@ class RouteController(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        // TODO: 实现查询完成路线逻辑
-        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-            emptyList(),
-            org.springframework.data.domain.PageRequest.of(page, size),
-            0
+        val pageable = org.springframework.data.domain.PageRequest.of(page, size)
+        val completions = userRouteCompletionRepository.findByUserId(userId, pageable)
+        // 关联路线信息
+        val result = completions.map { completion ->
+            routeRepository.findById(completion.routeId).map { RouteBasicResponse.fromRoute(it) }.orElse(null)
+        }.filterNotNull()
+        // 重新造活Page对象
+        return ResponseUtil.successPage(
+            org.springframework.data.domain.PageImpl(
+                result,
+                pageable,
+                completions.totalElements
+            )
         )
-        return ResponseUtil.successPage(emptyPage)
     }
 
     /**

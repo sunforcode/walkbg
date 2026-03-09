@@ -27,6 +27,13 @@ data class RouteMapData(
     @Column(name = "elevation_loss")
     val elevationLoss: BigDecimal? = null,
 
+    // 文件数据
+    @Column(name = "kml_url", length = 500)
+    val kmlUrl: String? = null,
+
+    @Column(name = "gpx_url", length = 500)
+    val gpxUrl: String? = null,
+
     // 统计信息
     @Column(name = "favorite_count", nullable = false)
     var favoriteCount: Long = 0,
@@ -57,6 +64,6 @@ data class RouteMapData(
     }
 
     override fun toString(): String {
-        return "RouteMapData(id='$id', distance=$distance, duration=$duration)"
+        return "RouteMapData(id='$id', distance=$distance, duration=$duration, kmlUrl=$kmlUrl, gpxUrl=$gpxUrl)"
     }
 }

@@ -4,7 +4,6 @@ import org.example.equipment.repository.EquipmentItemRepository
 import org.example.equipment.repository.EquipmentListItemRepository
 import org.example.equipment.repository.EquipmentListRepository
 import org.example.equipment.repository.EquipmentTemplateRepository
-import org.example.equipment.dto.*
 import org.example.equipment.model.*
 import org.example.equipment.repository.*
 import org.example.user.model.UserEquipmentItem

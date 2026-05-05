@@ -36,9 +36,19 @@ interface RouteRepository : JpaRepository<Route, String> {
     fun findByRouteType(routeType: Int, pageable: Pageable): Page<Route>
 
     /**
+     * 根据路线 ID 列表查找路线
+     */
+    fun findByIdIn(ids: List<String>, pageable: Pageable): Page<Route>
+
+    /**
      * 根据状态查找路线
      */
     fun findByStatus(status: Int, pageable: Pageable): Page<Route>
+
+    /**
+     * 根据状态查找路线，按创建时间降序排列（新晋路线）
+     */
+    fun findByStatusOrderByCreatedAtDesc(status: Int, pageable: Pageable): Page<Route>
 
     /**
      * 根据标签查找路线

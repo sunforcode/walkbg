@@ -115,4 +115,48 @@ interface RouteService {
      * 领域逻辑：按热度排序返回路线列表
      */
     fun getPopularRoutes(limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route>
+
+    /**
+     * 获取新晋路线
+     * 领域逻辑：按创建时间降序返回路线列表
+     */
+    fun getNewRoutes(limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route>
+
+    /**
+     * 获取季节性路线
+     * 领域逻辑：根据季节标签返回路线列表
+     */
+    fun getSeasonalRoutes(season: String?, limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route>
+
+    /**
+     * 获取周末路线
+     * 领域逻辑：返回适合周末的短途路线
+     */
+    fun getWeekendRoutes(limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route>
+
+    /**
+     * 按标签搜索路线
+     * 领域逻辑：根据标签列表查找路线
+     */
+    fun searchRoutesByTags(
+        tags: List<String>,
+        pageable: org.springframework.data.domain.Pageable
+    ): org.springframework.data.domain.Page<Route>
+
+    /**
+     * 统一搜索路线（支持所有抽象参数）
+     * 领域逻辑：结合所有查询条件搜索路线
+     */
+    fun searchRoutesUnified(
+        keyword: String? = null,
+        regionId: String? = null,
+        difficulty: Int? = null,
+        routeType: Int? = null,
+        minDistance: Double? = null,
+        maxDistance: Double? = null,
+        userId: String? = null,
+        tags: List<String>? = null,
+        sortBy: String? = "popular",
+        pageable: org.springframework.data.domain.Pageable
+    ): org.springframework.data.domain.Page<Route>
 }

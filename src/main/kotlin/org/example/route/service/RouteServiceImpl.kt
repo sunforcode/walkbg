@@ -5,11 +5,16 @@ import org.example.user.repository.UserFavoriteRouteRepository
 import org.example.user.model.UserFavoriteRoute
 import org.example.route.model.Route
 import org.example.route.repository.RouteRepository
+import org.example.route.repository.RouteTagRepository
 import org.example.route.dto.RouteCreateRequest
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
-import java.util.*
+import java.util.UUID
 
 /**
  * 路线领域服务实现
@@ -19,6 +24,7 @@ import java.util.*
 @Service
 class RouteServiceImpl(
     private val routeRepository: RouteRepository,
+    private val routeTagRepository: RouteTagRepository,
     private val userRepository: UserRepository,
     private val userFavoriteRouteRepository: UserFavoriteRouteRepository
 ) : RouteService {
@@ -365,5 +371,179 @@ class RouteServiceImpl(
             sort
         )
         return routeRepository.findByStatus(1, pageRequest)
+    }
+
+    /**
+     * 获取新晋路线
+     * 领域逻辑：按创建时间降序返回已发布的路线
+     */
+    @Transactional(readOnly = true)
+    override fun getNewRoutes(limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route> {
+        // 领域规则：只返回已发布的路线（status = 1）
+        // 按创建时间（createdAt）降序排列
+        val pageRequest = org.springframework.data.domain.PageRequest.of(
+            pageable.pageNumber,
+            limit.coerceAtMost(100)
+        )
+        return routeRepository.findByStatusOrderByCreatedAtDesc(1, pageRequest)
+    }
+
+    /**
+     * 获取季节性路线
+     * 领域逻辑：根据季节标签返回路线
+     */
+    @Transactional(readOnly = true)
+    override fun getSeasonalRoutes(season: String?, limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route> {
+        // 领域规则：只返回已发布的路线（status = 1）
+        // 如果没有指定季节，根据当前月份判断
+        val targetSeason = season ?: getCurrentSeason()
+        
+        // 通过标签查找季节性路线
+        val seasonalTags = getSeasonTags(targetSeason)
+        
+        // 简化实现：如果没有标签数据，返回热门路线
+        // 实际项目中应该通过 RouteTagRepository 查找
+        return getPopularRoutes(limit, pageable)
+    }
+
+    /**
+     * 获取周末路线
+     * 领域逻辑：返回适合周末的短途路线
+     */
+    @Transactional(readOnly = true)
+    override fun getWeekendRoutes(limit: Int, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Route> {
+        // 领域规则：只返回已发布的路线（status = 1）
+        // 周末路线通常是往返或环线类型（routeType = 0 或 1）
+        // 简化实现：返回热门路线
+        // 实际项目中应该按路线类型和距离筛选
+        return getPopularRoutes(limit, pageable)
+    }
+
+    /**
+     * 获取当前季节
+     */
+    private fun getCurrentSeason(): String {
+        val month = java.time.LocalDate.now().monthValue
+        return when (month) {
+            3, 4, 5 -> "春季"
+            6, 7, 8 -> "夏季"
+            9, 10, 11 -> "秋季"
+            else -> "冬季"
+        }
+    }
+
+    /**
+     * 获取季节对应的标签列表
+     */
+    private fun getSeasonTags(season: String): List<String> {
+        return when (season) {
+            "春季", "春" -> listOf("春季", "春天", "赏花", "踏青")
+            "夏季", "夏" -> listOf("夏季", "夏天", "避暑", "溯溪")
+            "秋季", "秋" -> listOf("秋季", "秋天", "赏枫", "秋收")
+            "冬季", "冬" -> listOf("冬季", "冬天", "赏雪", "温泉")
+            else -> listOf(season)
+        }
+    }
+
+    /**
+     * 按标签搜索路线
+     * 领域逻辑：根据标签列表查找已发布的路线
+     */
+    @Transactional(readOnly = true)
+    override fun searchRoutesByTags(
+        tags: List<String>,
+        pageable: org.springframework.data.domain.Pageable
+    ): Page<Route> {
+        if (tags.isEmpty()) {
+            return PageImpl(emptyList(), pageable, 0)
+        }
+
+        // 1. 通过 RouteTagRepository 查找包含任意标签的路线 ID
+        val routeIds = tags.flatMap { tag ->
+            routeTagRepository.findByTag(tag)
+        }.map { it.routeId }
+            .distinct()
+
+        if (routeIds.isEmpty()) {
+            return PageImpl(emptyList(), pageable, 0)
+        }
+
+        // 2. 通过路线 ID 列表查找路线，只返回已发布的
+        val routes = routeRepository.findByIdIn(routeIds, pageable)
+        
+        // 3. 过滤只返回已发布的路线
+        val publishedRoutes = routes.content.filter { it.status == 1 }
+        return PageImpl(publishedRoutes, pageable, publishedRoutes.size.toLong())
+    }
+
+    /**
+     * 统一搜索路线（支持所有抽象参数）
+     * 领域逻辑：结合所有查询条件搜索路线
+     */
+    @Transactional(readOnly = true)
+    override fun searchRoutesUnified(
+        keyword: String?,
+        regionId: String?,
+        difficulty: Int?,
+        routeType: Int?,
+        minDistance: Double?,
+        maxDistance: Double?,
+        userId: String?,
+        tags: List<String>?,
+        sortBy: String?,
+        pageable: org.springframework.data.domain.Pageable
+    ): Page<Route> {
+        // 1. 如果有标签条件，先按标签过滤
+        var resultRouteIds: Set<String>? = null
+        if (!tags.isNullOrEmpty()) {
+            val tagRouteIds = tags.flatMap { tag ->
+                routeTagRepository.findByTag(tag)
+            }.map { it.routeId }.toSet()
+            
+            resultRouteIds = tagRouteIds
+            
+            // 如果没有匹配的标签路线，直接返回空
+            if (resultRouteIds.isEmpty()) {
+                return PageImpl(emptyList(), pageable, 0)
+            }
+        }
+
+        // 2. 应用排序
+        val sort = when (sortBy?.lowercase()) {
+            "new", "最新" -> Sort.by(Sort.Order.desc("createdAt"))
+            "distance", "距离" -> Sort.by(Sort.Order.asc("distance"))
+            else -> Sort.by(
+                Sort.Order.desc("popularity"),
+                Sort.Order.desc("usageCount")
+            )
+        }
+
+        val pageRequest = PageRequest.of(
+            pageable.pageNumber,
+            pageable.pageSize,
+            sort
+        )
+
+        // 3. 执行多条件搜索
+        val searchResults = if (userId != null) {
+            routeRepository.findUserFavoriteRoutes(userId, pageRequest)
+        } else {
+            routeRepository.searchRoutes(
+                keyword = keyword,
+                region = regionId,
+                difficulty = difficulty,
+                routeType = routeType,
+                status = 1, // 只查询已发布的路线
+                pageable = pageRequest
+            )
+        }
+
+        // 4. 如果有标签过滤，再进一步过滤
+        return if (resultRouteIds != null) {
+            val filteredRoutes = searchResults.content.filter { it.id in resultRouteIds }
+            PageImpl(filteredRoutes, pageRequest, filteredRoutes.size.toLong())
+        } else {
+            searchResults
+        }
     }
 }

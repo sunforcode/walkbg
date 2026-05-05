@@ -33,25 +33,44 @@ class RouteController(
 ) {
 
     /**
-     * 分页查询路线列表
+     * 分页查询路线列表（支持统一参数）
+     * 
+     * 支持抽象参数：
+     * - category: 路线类别（hiking/cycling/camping/climbing/urban/mountain/coastal 或中文：徒步/骑行/露营/攀岩/城市/山地/海滨）
+     * - tags: 标签（逗号分隔，如："春季,赏花"）
+     * - difficulty: 难度（支持数字 1-5 或字符串 easy/medium/hard）
+     * - routeType: 路线类型（支持数字 0-3 或字符串 roundtrip/loop/oneway/multiday）
+     * - sort: 排序方式（popular/new/distance 或 热门/最新/距离）
      */
     @GetMapping
-    @Operation(summary = "分页查询路线列表", description = "获取路线列表，支持分页")
+    @Operation(summary = "分页查询路线列表", description = "获取路线列表，支持分页和统一参数过滤")
     fun getRoutes(
         @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
         @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int,
         @Parameter(description = "关键词搜索") @RequestParam(required = false) keyword: String?,
+        @Parameter(description = "路线类别（hiking/cycling/camping/climbing/urban/mountain/coastal 或中文）") @RequestParam(required = false) category: String?,
+        @Parameter(description = "标签（逗号分隔，如：春季,赏花）") @RequestParam(required = false) tags: String?,
         @Parameter(description = "区域ID") @RequestParam(required = false) regionId: String?,
-        @Parameter(description = "难度等级") @RequestParam(required = false) difficulty: Int?,
-        @Parameter(description = "路线类型") @RequestParam(required = false) routeType: Int?,
+        @Parameter(description = "难度等级（支持数字 1-5 或字符串 easy/medium/hard）") @RequestParam(required = false) difficulty: String?,
+        @Parameter(description = "路线类型（支持数字 0-3 或字符串 roundtrip/loop/oneway/multiday）") @RequestParam(required = false) routeType: String?,
         @Parameter(description = "最小距离") @RequestParam(required = false) minDistance: Double?,
         @Parameter(description = "最大距离") @RequestParam(required = false) maxDistance: Double?,
-        @Parameter(description = "用户ID") @RequestParam(required = false) userId: String?
+        @Parameter(description = "用户ID（查询收藏路线时使用）") @RequestParam(required = false) userId: String?,
+        @Parameter(description = "排序方式（popular/new/distance 或 热门/最新/距离）") @RequestParam(defaultValue = "popular") sort: String?
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
         val pageable = org.springframework.data.domain.PageRequest.of(page, size)
-        val routes = routeApplicationService.searchRoutes(
-            keyword, regionId, difficulty, routeType,
-            minDistance, maxDistance, userId, pageable
+        val routes = routeApplicationService.searchRoutesUnified(
+            keyword = keyword,
+            category = category,
+            tags = tags,
+            regionId = regionId,
+            difficulty = difficulty,
+            routeType = routeType,
+            minDistance = minDistance,
+            maxDistance = maxDistance,
+            userId = userId,
+            sort = sort,
+            pageable = pageable
         )
         return ResponseUtil.successPage(routes)
     }
@@ -297,6 +316,43 @@ class RouteController(
         @Parameter(description = "返回数量限制") @RequestParam(defaultValue = "10") limit: Int
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
         val routes = routeApplicationService.getPopularRoutes(limit)
+        return ResponseUtil.successPage(routes)
+    }
+
+    /**
+     * 获取新晋路线
+     */
+    @GetMapping("/new")
+    @Operation(summary = "获取新晋路线", description = "按创建时间降序返回新晋路线列表")
+    fun getNewRoutes(
+        @Parameter(description = "返回数量限制") @RequestParam(defaultValue = "10") limit: Int
+    ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
+        val routes = routeApplicationService.getNewRoutes(limit)
+        return ResponseUtil.successPage(routes)
+    }
+
+    /**
+     * 获取季节性路线
+     */
+    @GetMapping("/seasonal")
+    @Operation(summary = "获取季节性路线", description = "根据当前季节或指定季节返回路线列表")
+    fun getSeasonalRoutes(
+        @Parameter(description = "季节（可选：春季/夏季/秋季/冬季），不指定则根据当前月份自动判断") @RequestParam(required = false) season: String?,
+        @Parameter(description = "返回数量限制") @RequestParam(defaultValue = "10") limit: Int
+    ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
+        val routes = routeApplicationService.getSeasonalRoutes(season, limit)
+        return ResponseUtil.successPage(routes)
+    }
+
+    /**
+     * 获取周末路线
+     */
+    @GetMapping("/weekend")
+    @Operation(summary = "获取周末路线", description = "返回适合周末出行的短途路线列表")
+    fun getWeekendRoutes(
+        @Parameter(description = "返回数量限制") @RequestParam(defaultValue = "10") limit: Int
+    ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
+        val routes = routeApplicationService.getWeekendRoutes(limit)
         return ResponseUtil.successPage(routes)
     }
 }

@@ -172,4 +172,13 @@ class UserServiceImpl(
     override fun countUserTripParticipations(userId: String): Long {
         return userRepository.countUserTripParticipations(userId)
     }
+
+    @Transactional
+    @CacheEvict(value = ["users"], key = "#userId")
+    override fun deleteUser(userId: String) {
+        if (!userRepository.existsById(userId)) {
+            throw BusinessException.notFound("用户不存在")
+        }
+        userRepository.deleteById(userId)
+    }
 }

@@ -93,3 +93,9 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
+
+# KML Agent Service 配置
+kml-agent:
+  base-url: http://localhost:8001
+  timeout: 30
+  enabled: true

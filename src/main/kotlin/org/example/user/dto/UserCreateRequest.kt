@@ -17,6 +17,10 @@ data class UserCreateRequest(
     @field:Size(max = 100, message = "邮箱长度不能超过100个字符")
     val email: String,
 
+    @field:NotBlank(message = "密码不能为空")
+    @field:Size(min = 6, max = 50, message = "密码长度必须在6-50个字符之间")
+    val password: String,
+
     @field:Size(max = 50, message = "昵称长度不能超过50个字符")
     val nickname: String? = null,
 

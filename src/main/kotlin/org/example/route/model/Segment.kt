@@ -54,6 +54,18 @@ data class Segment(
     @Column(name = "end_point_id", length = 64)
     val endPointId: String? = null,
 
+    @Column(name = "sequence_number")
+    val sequenceNumber: Int = 0,
+
+    @Column(name = "track_start_index")
+    val trackStartIndex: Int? = null,
+
+    @Column(name = "track_end_index")
+    val trackEndIndex: Int? = null,
+
+    @Column(name = "color", length = 20)
+    val color: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 

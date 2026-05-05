@@ -39,6 +39,9 @@ data class User(
     @Column(name = "phone", length = 20)
     var phone: String? = null,
 
+    @Column(name = "password", nullable = false, length = 255)
+    var password: String = "",
+
     @Column(name = "bio", columnDefinition = "TEXT")
     var bio: String? = null,
 

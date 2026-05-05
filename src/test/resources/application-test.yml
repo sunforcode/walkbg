@@ -1,0 +1,29 @@
+# 测试环境配置
+spring:
+  # H2 内存数据库
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  # JPA 测试配置
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+  
+  # H2 控制台（测试环境可启用）
+  h2:
+    console:
+      enabled: true
+
+# 日志级别（测试环境可简化）
+logging:
+  level:
+    org.example: DEBUG
+    org.hibernate.SQL: DEBUG

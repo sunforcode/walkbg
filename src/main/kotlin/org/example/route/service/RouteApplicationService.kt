@@ -6,6 +6,7 @@ import org.example.route.model.Route
 import org.example.route.model.Waypoint
 import org.example.route.model.Segment
 import org.example.route.repository.*
+import org.example.route.util.RouteQueryParamMapper
 import org.example.common.util.IdGenerator
 import org.example.water.repository.WaterSourceRepository
 import org.example.user.repository.UserRepository
@@ -294,5 +295,115 @@ class RouteApplicationService(
 
         // 2. DTO转换（应用层职责）
         return routes.map { RouteBasicResponse.fromRoute(it) }
+    }
+
+    /**
+     * 业务用例：获取新晋路线
+     * 通过领域服务获取按创建时间排序的路线
+     */
+    @Transactional(readOnly = true)
+    fun getNewRoutes(limit: Int): Page<RouteBasicResponse> {
+        val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
+        val routes = routeService.getNewRoutes(limit, pageable)
+        return routes.map { RouteBasicResponse.fromRoute(it) }
+    }
+
+    /**
+     * 业务用例：获取季节性路线
+     * 通过领域服务获取对应季节的路线
+     */
+    @Transactional(readOnly = true)
+    fun getSeasonalRoutes(season: String?, limit: Int): Page<RouteBasicResponse> {
+        val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
+        val routes = routeService.getSeasonalRoutes(season, limit, pageable)
+        return routes.map { RouteBasicResponse.fromRoute(it) }
+    }
+
+    /**
+     * 业务用例：获取周末路线
+     * 通过领域服务获取适合周末的路线
+     */
+    @Transactional(readOnly = true)
+    fun getWeekendRoutes(limit: Int): Page<RouteBasicResponse> {
+        val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
+        val routes = routeService.getWeekendRoutes(limit, pageable)
+        return routes.map { RouteBasicResponse.fromRoute(it) }
+    }
+
+    /**
+     * 业务用例：统一搜索路线（支持所有抽象参数）
+     * 通过领域服务进行统一搜索，支持 category、tags 等抽象参数
+     */
+    @Transactional(readOnly = true)
+    fun searchRoutesUnified(
+        keyword: String? = null,
+        category: String? = null,
+        tags: String? = null,
+        regionId: String? = null,
+        difficulty: String? = null,
+        routeType: String? = null,
+        minDistance: Double? = null,
+        maxDistance: Double? = null,
+        userId: String? = null,
+        sort: String? = "popular",
+        pageable: Pageable
+    ): Page<RouteBasicResponse> {
+        // 1. 解析抽象参数
+        // category 映射到对应的标签列表
+        val categoryTags = RouteQueryParamMapper.getTagsForCategory(category)
+        
+        // 解析 tags 参数（逗号分隔）
+        val parsedTags = RouteQueryParamMapper.parseTags(tags)
+        
+        // 合并 category 和 tags
+        val allTags = (categoryTags + parsedTags).distinct()
+        
+        // 解析 difficulty（支持字符串和数字）
+        val parsedDifficulty = if (difficulty != null) {
+            RouteQueryParamMapper.parseDifficulty(difficulty)
+        } else {
+            null
+        }
+        
+        // 解析 routeType（支持字符串和数字）
+        val parsedRouteType = if (routeType != null) {
+            RouteQueryParamMapper.parseRouteType(routeType)
+        } else {
+            null
+        }
+
+        // 2. 通过领域服务进行统一搜索
+        val routes = routeService.searchRoutesUnified(
+            keyword = keyword,
+            regionId = regionId,
+            difficulty = parsedDifficulty,
+            routeType = parsedRouteType,
+            minDistance = minDistance,
+            maxDistance = maxDistance,
+            userId = userId,
+            tags = if (allTags.isNotEmpty()) allTags else null,
+            sortBy = sort,
+            pageable = pageable
+        )
+
+        // 3. DTO转换（应用层职责）
+        return routes.map { RouteBasicResponse.fromRoute(it) }
+    }
+
+    /**
+     * 业务用例：按类别获取路线
+     * 这是一个简化的方法，专门用于前端过滤器快速查询
+     */
+    @Transactional(readOnly = true)
+    fun getRoutesByCategory(
+        category: String,
+        limit: Int
+    ): Page<RouteBasicResponse> {
+        val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
+        return searchRoutesUnified(
+            category = category,
+            sort = "popular",
+            pageable = pageable
+        )
     }
 }

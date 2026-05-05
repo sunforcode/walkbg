@@ -100,4 +100,11 @@ interface UserService {
      * 统计用户参与的行程数量
      */
     fun countUserTripParticipations(userId: String): Long
+
+    // ========== 用户删除 ==========
+    /**
+     * 删除用户
+     * 领域规则：用户不存在时抛出异常
+     */
+    fun deleteUser(userId: String)
 }

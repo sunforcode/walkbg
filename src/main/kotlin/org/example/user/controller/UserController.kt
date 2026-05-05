@@ -102,8 +102,8 @@ class UserController(
     fun deleteUser(
         @Parameter(description = "用户ID") @PathVariable id: String
     ): ResponseEntity<ApiResponse<Nothing>> {
-        // TODO: 实现删除逻辑
-        throw BusinessException.badRequest("删除功能暂未实现")
+        userApplicationService.deleteUser(id)
+        return ResponseUtil.noContent("用户删除成功")
     }
 
     /**

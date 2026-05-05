@@ -22,6 +22,13 @@ data class SegmentDto(
     @JsonProperty("route_type")
     val routeType: Int?,
     val notes: String?,
+    @JsonProperty("sequence_number")
+    val sequenceNumber: Int,
+    @JsonProperty("track_start_index")
+    val trackStartIndex: Int?,
+    @JsonProperty("track_end_index")
+    val trackEndIndex: Int?,
+    val color: String?,
     @JsonProperty("start_point")
     val startPoint: WaypointDto?,
     @JsonProperty("end_point")
@@ -44,9 +51,43 @@ data class SegmentDto(
                 difficulty = segment.difficulty,
                 routeType = segment.routeType,
                 notes = segment.notes,
-                startPoint = null,  // 需要通过 WaypointRepository 查询
-                endPoint = null,  // 需要通过 WaypointRepository 查询
-                keypoints = emptyList()  // 需要通过 SegmentKeypointRepository 查询
+                sequenceNumber = segment.sequenceNumber,
+                trackStartIndex = segment.trackStartIndex,
+                trackEndIndex = segment.trackEndIndex,
+                color = segment.color,
+                startPoint = null,
+                endPoint = null,
+                keypoints = emptyList()
+            )
+        }
+
+        /**
+         * 从Segment实体和关联的Waypoint创建DTO
+         */
+        fun fromSegmentWithWaypoints(
+            segment: org.example.route.model.Segment,
+            startPoint: WaypointDto? = null,
+            endPoint: WaypointDto? = null,
+            keypoints: List<WaypointDto> = emptyList()
+        ): SegmentDto {
+            return SegmentDto(
+                id = segment.id,
+                name = segment.name,
+                description = segment.description,
+                distance = segment.distance,
+                elevationGain = segment.elevationGain,
+                elevationLoss = segment.elevationLoss,
+                estimatedTime = segment.estimatedTime,
+                difficulty = segment.difficulty,
+                routeType = segment.routeType,
+                notes = segment.notes,
+                sequenceNumber = segment.sequenceNumber,
+                trackStartIndex = segment.trackStartIndex,
+                trackEndIndex = segment.trackEndIndex,
+                color = segment.color,
+                startPoint = startPoint,
+                endPoint = endPoint,
+                keypoints = keypoints
             )
         }
     }

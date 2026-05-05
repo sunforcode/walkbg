@@ -147,4 +147,13 @@ class UserApplicationService(
             "completedCount" to completedCount
         )
     }
+
+    /**
+     * 业务用例：删除用户
+     * 通过领域服务协调业务逻辑和数据访问
+     */
+    @Transactional
+    fun deleteUser(userId: String) {
+        userService.deleteUser(userId)
+    }
 }

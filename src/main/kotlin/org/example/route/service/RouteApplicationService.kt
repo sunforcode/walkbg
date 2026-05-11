@@ -5,10 +5,11 @@ import org.example.route.dto.toRoute
 import org.example.route.model.Route
 import org.example.route.model.Waypoint
 import org.example.route.model.Segment
+import org.example.route.dto.PoiPointDto
+import org.example.route.dto.SegmentSchemeDto
 import org.example.route.repository.*
 import org.example.route.util.RouteQueryParamMapper
 import org.example.common.util.IdGenerator
-import org.example.water.repository.WaterSourceRepository
 import org.example.user.repository.UserRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -26,18 +27,15 @@ class RouteApplicationService(
     private val routeService: RouteService,
     private val waypointRepository: WaypointRepository,
     private val segmentRepository: SegmentRepository,
-    // Phase 1: 添加关联数据Repository注入
     private val routeTagRepository: RouteTagRepository,
-    private val campsiteRepository: CampsiteRepository,
-    private val supplyRepository: SupplyRepository,
-    private val waterSourceRepository: WaterSourceRepository,
-    private val markerPointRepository: MarkerPointRepository,
     private val dailyPlanRepository: DailyPlanRepository,
     private val hitchhikeContactRepository: HitchhikeContactRepository,
     private val routeImageRepository: RouteImageRepository,
     private val routeMapDataRepository: RouteMapDataRepository,
     private val routeRatingRepository: RouteRatingRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val segmentSchemeRepository: SegmentSchemeRepository,
+    private val poiPointRepository: PoiPointRepository
 ) {
 
     /**
@@ -60,23 +58,27 @@ class RouteApplicationService(
     }
 
     /**
-     * Phase 1: 补充路线详情数据 - 从各个Repository查询关联数据
-     * 确保所有嵌套集合都被填充而不是返回空列表
+     * 补充路线详情数据 - 从各个Repository查询关联数据
      */
     @Transactional(readOnly = true)
     private fun enrichRouteDetail(route: org.example.route.model.Route, userId: String?): org.example.route.dto.RouteDetailResponse {
-        // 批量查询所有关联数据
         val tags = routeTagRepository.findByRouteId(route.id).map { it.tag }
-        val segments = segmentRepository.findByRouteId(route.id)
-            .map { org.example.route.dto.SegmentDto.fromSegment(it) }
-        val campsites = campsiteRepository.findByRouteId(route.id, org.springframework.data.domain.PageRequest.of(0, Int.MAX_VALUE)).content
-            .map { org.example.route.dto.CampsiteDto.fromCampsite(it) }
-        val supplies = supplyRepository.findByRouteId(route.id, org.springframework.data.domain.PageRequest.of(0, Int.MAX_VALUE)).content
-            .map { org.example.route.dto.SupplyDto.fromSupply(it) }
-        val waterSources = waterSourceRepository.findByRouteId(route.id, org.springframework.data.domain.PageRequest.of(0, Int.MAX_VALUE)).content
-            .map { org.example.water.dto.WaterSourceDto.fromWaterSource(it) }
-        val markerPoints = markerPointRepository.findByRouteId(route.id)
-            .map { org.example.route.dto.MarkerPointDto.fromMarkerPoint(it) }
+
+        // 分段方案（每个方案包含内部分段列表）
+        val segmentSchemes = run {
+            val schemes = segmentSchemeRepository.findByRouteId(route.id)
+            schemes.map { scheme ->
+                val schemeSegments = segmentRepository.findByRouteId(route.id)
+                    .filter { it.schemeId == scheme.id }
+                    .map { org.example.route.dto.SegmentDto.fromSegment(it) }
+                SegmentSchemeDto.fromScheme(scheme, schemeSegments)
+            }
+        }
+
+        // 统一 POI 点
+        val poiPoints = poiPointRepository.findByRouteId(route.id)
+            .map { PoiPointDto.fromPoiPoint(it) }
+
         val dailyPlans = dailyPlanRepository.findByRouteId(route.id)
             .map { org.example.route.dto.DailyPlanDto.fromDailyPlan(it) }
         val hitchhikeContacts = hitchhikeContactRepository.findByRouteId(route.id)
@@ -158,16 +160,13 @@ class RouteApplicationService(
             
             // 关联数据
             tags = tags,
-            segments = segments,
-            campsites = campsites,
-            supplies = supplies,
-            waterSources = waterSources,
-            markerPoints = markerPoints,
+            segmentSchemes = segmentSchemes,
+            poiPoints = poiPoints,
             dailyPlans = dailyPlans,
             hitchhikeContacts = hitchhikeContacts,
             imageUrls = imageUrls,
             ratings = ratings,
-            weatherInfo = null,  // 暂时设为null，可后续集成天气API
+            weatherInfo = null,
             trackPoints = trackPoints
         )
     }

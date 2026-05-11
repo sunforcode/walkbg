@@ -2,7 +2,6 @@ package org.example.route.model
 
 import jakarta.persistence.*
 import org.example.user.model.User
-import java.math.BigDecimal
 import java.time.Instant
 
 /**
@@ -33,14 +32,11 @@ data class Supply(
     @Column(columnDefinition = "TEXT")
     var description: String? = null,
 
-    @Column(precision = 10, scale = 6)
-    var latitude: BigDecimal? = null,
+    var latitude: Double? = null,
 
-    @Column(precision = 10, scale = 6)
-    var longitude: BigDecimal? = null,
+    var longitude: Double? = null,
 
-    @Column(precision = 8, scale = 2)
-    var elevation: BigDecimal? = null,
+    var elevation: Double? = null,
 
     @Column(name = "supply_type")
     var supplyType: Int? = null, // 0: 商店, 1: 餐厅, 2: 自动售货机, 3: 紧急补给点, 4: 其他

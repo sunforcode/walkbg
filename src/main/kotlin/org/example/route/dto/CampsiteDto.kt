@@ -1,6 +1,7 @@
 package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.example.route.model.CampsiteType
 import org.example.user.dto.UserBasicDto
 
 /**
@@ -14,7 +15,7 @@ data class CampsiteDto(
     val longitude: Double?,
     val elevation: Double?,
     @JsonProperty("campsite_type")
-    val campsiteType: Int,
+    val campsiteType: String,
     val notes: String?,
     val creator: UserBasicDto?,
     @JsonProperty("created_at")
@@ -34,7 +35,7 @@ data class CampsiteDto(
                 latitude = campsite.latitude,
                 longitude = campsite.longitude,
                 elevation = campsite.elevation,
-                campsiteType = campsite.campsiteType,
+                campsiteType = CampsiteType.fromValue(campsite.campsiteType).name.lowercase(),
                 notes = campsite.notes,
                 creator = null,  // 需要通过 UserRepository 查询
                 createdAt = campsite.createdAt.epochSecond, // 转换为时间戳

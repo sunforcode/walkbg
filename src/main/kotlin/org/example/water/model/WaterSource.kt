@@ -13,7 +13,9 @@ enum class WaterSourceType(val value: Int) {
     NATURAL(0),     // 天然水源
     TREATED(1),     // 处理过的水源
     BOTTLED(2),     // 瓶装水
-    OTHER(3);       // 其他
+    OTHER(3),       // 其他
+    SPRING(4),      // 泉水
+    RIVER(5);       // 河流/溧流
 
     companion object {
         fun fromValue(value: Int): WaterSourceType {

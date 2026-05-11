@@ -14,6 +14,10 @@ data class UserBasicResponse(
     val phone: String?,
     @JsonProperty("avatar_url")
     val avatarUrl: String?,
+    val bio: String?,
+    val status: Int,
+    @JsonProperty("last_login_at")
+    val lastLoginAt: Long?,
     @JsonProperty("created_at")
     val createdAt: Long // 时间戳（秒）
 ) {
@@ -29,6 +33,9 @@ data class UserBasicResponse(
                 nickname = user.nickname,
                 phone = user.phone,
                 avatarUrl = user.avatarUrl,
+                bio = user.bio,
+                status = user.status,
+                lastLoginAt = user.lastLoginAt?.epochSecond,
                 createdAt = user.createdAt.epochSecond
             )
         }

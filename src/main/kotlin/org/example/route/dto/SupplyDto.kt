@@ -11,11 +11,11 @@ data class SupplyDto(
     val id: String,
     val name: String,
     val description: String?,
-    val latitude: BigDecimal?,
-    val longitude: BigDecimal?,
-    val elevation: BigDecimal?,
+    val latitude: Double?,
+    val longitude: Double?,
+    val elevation: Double?,
     @JsonProperty("supply_type")
-    val supplyType: Int?,
+    val supplyType: String?,
     @JsonProperty("last_verified")
     val lastVerified: String?,
     @JsonProperty("last_verified_at")
@@ -39,10 +39,16 @@ data class SupplyDto(
                 id = supply.id,
                 name = supply.name,
                 description = supply.description,
-                latitude = supply.latitude, // 保持BigDecimal
-                longitude = supply.longitude, // 保持BigDecimal
-                elevation = supply.elevation, // 保持BigDecimal
-                supplyType = supply.supplyType,
+                latitude = supply.latitude,
+                longitude = supply.longitude,
+                elevation = supply.elevation,
+                supplyType = when (supply.supplyType) {
+                    0 -> "shop"
+                    1 -> "restaurant"
+                    2 -> "vending_machine"
+                    3 -> "emergency"
+                    else -> "other"
+                },
                 lastVerified = supply.lastVerified,
                 lastVerifiedAt = supply.lastVerifiedAt?.epochSecond, // 转换为时间戳
                 updatedBy = supply.updatedBy,

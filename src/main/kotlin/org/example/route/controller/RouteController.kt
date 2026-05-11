@@ -6,9 +6,15 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.example.common.dto.ApiResponse
 import org.example.common.exception.BusinessException
 import org.example.common.util.ResponseUtil
-import org.example.route.service.RouteApplicationService
-import org.example.route.dto.RouteDetailResponse
+import org.example.route.dto.PoiPointDto
 import org.example.route.dto.RouteBasicResponse
+import org.example.route.dto.RouteDetailResponse
+import org.example.route.dto.SegmentDto
+import org.example.route.dto.SegmentSchemeDto
+import org.example.route.repository.PoiPointRepository
+import org.example.route.repository.SegmentRepository
+import org.example.route.repository.SegmentSchemeRepository
+import org.example.route.service.RouteApplicationService
 import org.springframework.data.domain.Page
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
@@ -29,7 +35,10 @@ class RouteController(
     private val routeService: org.example.route.service.RouteService,
     private val userRouteFavoriteRepository: org.example.route.repository.UserRouteFavoriteRepository,
     private val userRouteCompletionRepository: org.example.route.repository.UserRouteCompletionRepository,
-    private val routeRepository: org.example.route.repository.RouteRepository
+    private val routeRepository: org.example.route.repository.RouteRepository,
+    private val segmentSchemeRepository: SegmentSchemeRepository,
+    private val segmentRepository: SegmentRepository,
+    private val poiPointRepository: PoiPointRepository
 ) {
 
     /**
@@ -58,18 +67,14 @@ class RouteController(
         @Parameter(description = "用户ID（查询收藏路线时使用）") @RequestParam(required = false) userId: String?,
         @Parameter(description = "排序方式（popular/new/distance 或 热门/最新/距离）") @RequestParam(defaultValue = "popular") sort: String?
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        val pageable = org.springframework.data.domain.PageRequest.of(page, size)
-        val routes = routeApplicationService.searchRoutesUnified(
+        val pageable = org.springframework.data.domain.PageRequest.of(
+            page, size,
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+        )
+        // Admin 后台展示所有状态的路线（不过滤 status），使用 searchRoutes 而非 searchRoutesUnified
+        val routes = routeApplicationService.searchRoutes(
             keyword = keyword,
-            category = category,
-            tags = tags,
-            regionId = regionId,
-            difficulty = difficulty,
-            routeType = routeType,
-            minDistance = minDistance,
-            maxDistance = maxDistance,
-            userId = userId,
-            sort = sort,
+            difficulty = difficulty?.toIntOrNull(),
             pageable = pageable
         )
         return ResponseUtil.successPage(routes)
@@ -354,5 +359,66 @@ class RouteController(
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
         val routes = routeApplicationService.getWeekendRoutes(limit)
         return ResponseUtil.successPage(routes)
+    }
+
+    // =========================================================================
+    // v2: 多方案分段 & POI 端点
+    // =========================================================================
+
+    /**
+     * 按方案类型查询路线分段方案
+     *
+     * @param id         路线 ID
+     * @param schemeType 方案类型：slope|day|terrain|road_type（不传则返回默认方案）
+     */
+    @GetMapping("/{id}/segments")
+    @Operation(summary = "查询路线分段方案", description = "支持 scheme_type 参数指定方案类型")
+    fun getRouteSegments(
+        @Parameter(description = "路线 ID") @PathVariable id: String,
+        @Parameter(description = "方案类型：slope|day|terrain|road_type") @RequestParam("scheme_type", required = false) schemeType: String?
+    ): ResponseEntity<ApiResponse<List<SegmentSchemeDto>>> {
+        return try {
+            val schemes = if (schemeType != null) {
+                val scheme = segmentSchemeRepository.findByRouteIdAndSchemeType(id, schemeType)
+                if (scheme != null) listOf(scheme) else emptyList()
+            } else {
+                val defaultScheme = segmentSchemeRepository.findByRouteIdAndIsDefaultTrue(id)
+                if (defaultScheme != null) listOf(defaultScheme)
+                else segmentSchemeRepository.findByRouteId(id)
+            }
+            val result = schemes.map { scheme ->
+                val segs = segmentRepository.findByRouteId(id)
+                    .filter { it.schemeId == scheme.id }
+                    .map { SegmentDto.fromSegment(it) }
+                SegmentSchemeDto.fromScheme(scheme, segs)
+            }
+            ResponseUtil.success(result, "获取分段方案成功")
+        } catch (e: Exception) {
+            ResponseUtil.error("获取分段方案失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 查询路线的 POI 点
+     *
+     * @param id       路线 ID
+     * @param category 可选：water|camp|supply|photo|pass|valley|weather|danger|start|end
+     */
+    @GetMapping("/{id}/pois")
+    @Operation(summary = "查询路线 POI 点", description = "支持 category 参数筛选，不传则返回全部")
+    fun getRoutePois(
+        @Parameter(description = "路线 ID") @PathVariable id: String,
+        @Parameter(description = "POI 类型: water|camp|supply|photo|pass|valley|weather|danger|start|end") @RequestParam("category", required = false) category: String?
+    ): ResponseEntity<ApiResponse<List<PoiPointDto>>> {
+        return try {
+            val pois = if (category != null) {
+                poiPointRepository.findByRouteIdAndCategory(id, category)
+            } else {
+                poiPointRepository.findByRouteId(id)
+            }
+            ResponseUtil.success(pois.map { PoiPointDto.fromPoiPoint(it) }, "获取 POI 点成功")
+        } catch (e: Exception) {
+            ResponseUtil.error("获取 POI 点失败: ${e.message}")
+        }
     }
 }

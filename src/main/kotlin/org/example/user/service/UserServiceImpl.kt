@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 /**
  * 用户领域服务实现
@@ -129,9 +130,7 @@ class UserServiceImpl(
 
     @Transactional(readOnly = true)
     override fun searchUsers(keyword: String?, status: Int?, pageable: Pageable): Page<User> {
-        // 注意：当前UserRepository的searchUsers方法不支持status参数
-        // TODO: 如果需要按状态筛选，需要在UserRepository中添加相应的查询方法
-        return userRepository.searchUsers(keyword, pageable)
+        return userRepository.searchUsers(keyword, status, pageable)
     }
 
     @Transactional(readOnly = true)
@@ -171,6 +170,17 @@ class UserServiceImpl(
     @Transactional(readOnly = true)
     override fun countUserTripParticipations(userId: String): Long {
         return userRepository.countUserTripParticipations(userId)
+    }
+
+    @Transactional(readOnly = true)
+    override fun countUserEquipmentLists(userId: String): Long {
+        return userRepository.countUserEquipmentLists(userId)
+    }
+
+    @Transactional
+    @CacheEvict(value = ["users"], key = "#userId")
+    override fun updateLastLoginAt(userId: String) {
+        userRepository.updateLastLoginAt(userId, Instant.now())
     }
 
     @Transactional

@@ -66,6 +66,20 @@ data class Segment(
     @Column(name = "color", length = 20)
     val color: String? = null,
 
+    /**
+     * 所属分段方案 ID（FK → segment_schemes.id）
+     * 新数据必填；历史数据（手动创建的路段）可为 null
+     */
+    @Column(name = "scheme_id", length = 64)
+    val schemeId: String? = null,
+
+    /**
+     * 冗余字段：所属方案类型（slope/day/terrain/road_type）
+     * 方便按类型过滤，无需 JOIN segment_schemes
+     */
+    @Column(name = "scheme_type", length = 32)
+    val schemeType: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 

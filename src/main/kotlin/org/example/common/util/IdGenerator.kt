@@ -40,6 +40,13 @@ object IdGenerator {
     }
     
     /**
+     * 生成短ID（8位随机字符串）
+     */
+    fun generateShortId(): String {
+        return generateRandomString(8)
+    }
+
+    /**
      * 生成带前缀的ID
      */
     fun generateIdWithPrefix(prefix: String): String {

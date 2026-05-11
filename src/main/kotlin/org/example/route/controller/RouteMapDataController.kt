@@ -77,9 +77,9 @@ class RouteMapDataController(
      * 删除路线地图数据
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "删除路线地图数据", description = "根据ID删除路线地图数据")
+    @Operation(summary = "删除路线地图数据", description = "根据 ID 删除路线地图数据")
     fun deleteRouteMapData(
-        @Parameter(description = "地图数据ID") @PathVariable id: String
+        @Parameter(description = "地图数据 ID") @PathVariable id: String
     ): ResponseEntity<ApiResponse<Nothing>> {
         return try {
             if (routeMapDataRepository.existsById(id)) {
@@ -92,4 +92,5 @@ class RouteMapDataController(
             ResponseUtil.error("删除地图数据失败: ${e.message}")
         }
     }
+
 }

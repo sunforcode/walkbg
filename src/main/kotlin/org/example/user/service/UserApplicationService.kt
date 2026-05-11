@@ -124,6 +124,7 @@ class UserApplicationService(
     /**
      * 业务用例：获取用户统计信息
      * 按需查询和组装统计数据（单向关联的优势）
+     * 字段名使用 snake_case，与 Flutter UserStatsModel 对齐
      */
     @Transactional(readOnly = true)
     fun getUserStats(userId: String): Map<String, Any> {
@@ -134,17 +135,19 @@ class UserApplicationService(
         // 2. 按需查询统计数据（通过领域服务，遵循分层原则）
         val routeCount = userService.countUserCreatedRoutes(userId)
         val tripCount = userService.countUserTripParticipations(userId)
-        val favoriteCount = userService.countUserFavoriteRoutes(userId)
-        val completedCount = userService.countUserCompletedRoutes(userId)
+        val favoriteRoutes = userService.countUserFavoriteRoutes(userId)
+        val completedRoutes = userService.countUserCompletedRoutes(userId)
+        val equipmentLists = userService.countUserEquipmentLists(userId)
 
-        // 3. 组装返回数据
+        // 3. 组装返回数据（snake_case key，与 Flutter UserStatsModel 对齐）
         return mapOf(
-            "userId" to user.id,
+            "user_id" to user.id,
             "username" to user.username,
-            "routeCount" to routeCount,
-            "tripCount" to tripCount,
-            "favoriteCount" to favoriteCount,
-            "completedCount" to completedCount
+            "route_count" to routeCount,
+            "trip_count" to tripCount,
+            "favorite_routes" to favoriteRoutes,
+            "completed_routes" to completedRoutes,
+            "equipment_lists" to equipmentLists
         )
     }
 

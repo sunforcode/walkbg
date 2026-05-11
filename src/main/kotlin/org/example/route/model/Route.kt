@@ -47,7 +47,7 @@ data class Route(
     var routeType: Int? = null, // 0: 往返, 1: 环线, 2: 单程, 3: 多日
 
     @Column(nullable = false)
-    var status: Int = 0, // 0: 规划中, 1: 已发布, 2: 已关闭
+    var status: Int = 0, // 0: 规划中, 1: 已发布, 2: 已关闭, 3: 分析中
 
     @JsonProperty("cover_url")
     @Column(name = "cover_url", length = 500)
@@ -65,6 +65,9 @@ data class Route(
 
     @Column(name = "is_loop", nullable = false)
     var isLoop: Boolean = false,
+
+    @Column(name = "is_favorite", nullable = false)
+    var isFavorite: Boolean = false,
 
     @Column(name = "image_urls", columnDefinition = "TEXT")
     var imageUrls: String? = null, // JSON 字符串存储图片URL数组
@@ -138,6 +141,25 @@ data class Route(
     fun close() {
         require(status == 1) { "只有已发布的路线才能关闭" }
         status = 2
+        updatedAt = Instant.now()
+    }
+
+    /**
+     * 领域行为：标记路线为分析中
+     * 由 Agent 触发分析时设置此状态
+     */
+    fun markAnalyzing() {
+        status = 3
+        updatedAt = Instant.now()
+    }
+
+    /**
+     * 领域行为：分析完成，恢复为规划中状态
+     * Agent 分析完成并落库后调用
+     */
+    fun markAnalysisComplete() {
+        require(status == 3) { "只有分析中的路线才能标记分析完成" }
+        status = 0 // 规划中，等待管理员发布
         updatedAt = Instant.now()
     }
 

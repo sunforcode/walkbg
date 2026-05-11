@@ -1,7 +1,7 @@
 package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.Instant
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 data class KmlAnalysisSubmitRequest(
     @JsonProperty("route_id")
@@ -65,9 +65,10 @@ data class TaskStatusResponse(
     val qualityScore: Double? = null
 )
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class HealthCheckResponse(
     val status: String,
     val version: String,
-    val timestamp: Instant,
+    val timestamp: String? = null,  // agent 返回无时区后缀的字符串，用 String 接收
     val checks: Map<String, String>? = null
 )

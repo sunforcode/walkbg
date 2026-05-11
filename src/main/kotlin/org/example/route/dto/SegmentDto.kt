@@ -29,6 +29,8 @@ data class SegmentDto(
     @JsonProperty("track_end_index")
     val trackEndIndex: Int?,
     val color: String?,
+    @JsonProperty("scheme_type")
+    val schemeType: String? = null,
     @JsonProperty("start_point")
     val startPoint: WaypointDto?,
     @JsonProperty("end_point")
@@ -55,6 +57,7 @@ data class SegmentDto(
                 trackStartIndex = segment.trackStartIndex,
                 trackEndIndex = segment.trackEndIndex,
                 color = segment.color,
+                schemeType = segment.schemeType,
                 startPoint = null,
                 endPoint = null,
                 keypoints = emptyList()
@@ -62,7 +65,7 @@ data class SegmentDto(
         }
 
         /**
-         * 从Segment实体和关联的Waypoint创建DTO
+         * 从 Segment 实体和关联的 Waypoint 创建 DTO
          */
         fun fromSegmentWithWaypoints(
             segment: org.example.route.model.Segment,
@@ -85,9 +88,41 @@ data class SegmentDto(
                 trackStartIndex = segment.trackStartIndex,
                 trackEndIndex = segment.trackEndIndex,
                 color = segment.color,
+                schemeType = segment.schemeType,
                 startPoint = startPoint,
                 endPoint = endPoint,
                 keypoints = keypoints
+            )
+        }
+    }
+}
+
+/**
+ * 分段方案 DTO（对外 API 返回给 App）
+ */
+data class SegmentSchemeDto(
+    val id: String,
+    @JsonProperty("route_id")
+    val routeId: String,
+    @JsonProperty("scheme_type")
+    val schemeType: String,
+    val label: String,
+    @JsonProperty("is_default")
+    val isDefault: Boolean,
+    val segments: List<SegmentDto> = emptyList()
+) {
+    companion object {
+        fun fromScheme(
+            scheme: org.example.route.model.SegmentScheme,
+            segments: List<SegmentDto> = emptyList()
+        ): SegmentSchemeDto {
+            return SegmentSchemeDto(
+                id = scheme.id,
+                routeId = scheme.routeId,
+                schemeType = scheme.schemeType,
+                label = scheme.label,
+                isDefault = scheme.isDefault,
+                segments = segments
             )
         }
     }

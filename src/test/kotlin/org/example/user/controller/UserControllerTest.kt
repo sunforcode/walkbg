@@ -288,6 +288,9 @@ class UserControllerTest {
             nickname = "测试用户",
             phone = "13800138000",
             avatarUrl = "https://example.com/avatar.jpg",
+            bio = null,
+            status = 0,
+            lastLoginAt = null,
             createdAt = Instant.now().epochSecond
         )
     }

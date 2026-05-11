@@ -38,11 +38,11 @@ class AuthApplicationService(
         val refreshToken = jwtTokenUtil.generateRefreshToken(user.id, user.username)
         val expiresAt = jwtTokenUtil.getExpirationDateFromToken(token)?.toInstant() ?: Instant.now()
 
-        user.lastLoginAt = Instant.now()
-        val userWithLoginTime = user.copy(lastLoginAt = Instant.now())
+        // 持久化 lastLoginAt（使用领域服务，同时触发缓存失效）
+        userService.updateLastLoginAt(user.id)
 
         return UserLoginResponse.fromUser(
-            user = user,
+            user = user.copy(lastLoginAt = Instant.now()),
             token = token,
             refreshToken = refreshToken,
             expiresAt = expiresAt

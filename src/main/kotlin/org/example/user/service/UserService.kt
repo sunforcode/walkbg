@@ -101,6 +101,16 @@ interface UserService {
      */
     fun countUserTripParticipations(userId: String): Long
 
+    /**
+     * 统计用户的装备清单数量
+     */
+    fun countUserEquipmentLists(userId: String): Long
+
+    /**
+     * 更新用户最近登录时间
+     */
+    fun updateLastLoginAt(userId: String)
+
     // ========== 用户删除 ==========
     /**
      * 删除用户

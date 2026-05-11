@@ -45,6 +45,9 @@ data class User(
     @Column(name = "bio", columnDefinition = "TEXT")
     var bio: String? = null,
 
+    @Column(name = "status", nullable = false, columnDefinition = "INT DEFAULT 0")
+    var status: Int = 0,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 

@@ -1,6 +1,7 @@
 package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.example.route.model.MarkerPointType
 import java.time.Instant
 
 /**
@@ -11,7 +12,7 @@ data class MarkerPointDto(
     val name: String?,
     val description: String?,
     @JsonProperty("marker_type")
-    val markerType: Int,
+    val markerType: String,
     @JsonProperty("icon_url")
     val iconUrl: String?,
     val latitude: Double?,
@@ -32,7 +33,7 @@ data class MarkerPointDto(
                 id = marker.id,
                 name = marker.name,
                 description = marker.description,
-                markerType = marker.markerType,
+                markerType = MarkerPointType.fromValue(marker.markerType).name.lowercase(),
                 iconUrl = marker.iconUrl,
                 latitude = marker.latitude,
                 longitude = marker.longitude,

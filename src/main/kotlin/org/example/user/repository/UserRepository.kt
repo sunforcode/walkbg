@@ -4,9 +4,11 @@ import org.example.user.model.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import java.time.Instant
 
 /**
  * 用户数据访问层
@@ -60,7 +62,7 @@ interface UserRepository : JpaRepository<User, String> {
     fun findUsersWithCompletedRoutesGreaterThan(@Param("count") count: Int, pageable: Pageable): Page<User>
 
     /**
-     * 多条件搜索用户
+     * 多条件搜索用户（支持关键词和状态筛选）
      */
     @Query("""
         SELECT u FROM User u
@@ -68,9 +70,11 @@ interface UserRepository : JpaRepository<User, String> {
                LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
                LOWER(u.nickname) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
                LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        AND (:status IS NULL OR u.status = :status)
     """)
     fun searchUsers(
         @Param("keyword") keyword: String?,
+        @Param("status") status: Int?,
         pageable: Pageable
     ): Page<User>
 
@@ -84,6 +88,13 @@ interface UserRepository : JpaRepository<User, String> {
         FROM User u
     """)
     fun getUserStatistics(): Map<String, Any>
+
+    /**
+     * 更新用户最近登录时间
+     */
+    @Modifying
+    @Query("UPDATE User u SET u.lastLoginAt = :lastLoginAt WHERE u.id = :userId")
+    fun updateLastLoginAt(@Param("userId") userId: String, @Param("lastLoginAt") lastLoginAt: Instant)
 
     /**
      * 查找最近注册的用户

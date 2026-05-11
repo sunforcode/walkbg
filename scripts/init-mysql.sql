@@ -22,6 +22,10 @@ USE walkbg;
 -- ALTER TABLE routes ADD INDEX idx_routes_status (status);
 -- ALTER TABLE routes ADD INDEX idx_routes_created_by (created_by);
 
+-- 迁移：为 users 表新增 status 列（如果数据库已存在且未使用 ddl-auto=update）
+-- 0=正常(ACTIVE), 1=禁用(DISABLED)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status INT NOT NULL DEFAULT 0;
+
 -- 插入初始数据（可选）
 -- INSERT INTO users (id, username, nickname, email, created_at, updated_at)
 -- VALUES ('user-001', 'admin', '管理员', 'admin@walkbg.com', NOW(), NOW());

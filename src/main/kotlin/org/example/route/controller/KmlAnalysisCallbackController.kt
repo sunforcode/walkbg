@@ -33,34 +33,23 @@ class KmlAnalysisCallbackController(
      * {
      *   "route_id": "route_123",
      *   "task_id": "task_abc123",
-     *   "segments": [
+     *   "segment_schemes": [
      *     {
-     *       "id": "seg_001",
-     *       "name": "第1段-爬升段(+300m)",
-     *       "sequence_number": 1,
-     *       "color": "#FF5722",
-     *       "distance": 5.2,
-     *       "elevation_gain": 300.0,
-     *       "elevation_loss": 50.0,
-     *       "estimated_time": 45,
-     *       "difficulty": 2,
-     *       "track_start_index": 0,
-     *       "track_end_index": 150,
-     *       "start_point": {
-     *         "latitude": 39.0123,
-     *         "longitude": 113.4567,
-     *         "elevation": 2500.0
-     *       },
-     *       "end_point": {
-     *         "latitude": 39.0456,
-     *         "longitude": 113.7890,
-     *         "elevation": 2800.0
-     *       },
-     *       "segment_type": "climb",
-     *       "slope_direction": "climb",
-     *       "avg_slope_degrees": 5.2,
-     *       "max_slope_degrees": 12.5,
-     *       "confidence": 0.85
+     *       "scheme_type": "slope",
+     *       "label": "按坡度",
+     *       "is_default": true,
+     *       "segments": [...]
+     *     }
+     *   ],
+     *   "poi_points": [
+     *     {
+     *       "name": "垭口",
+     *       "latitude": 39.0123,
+     *       "longitude": 113.4567,
+     *       "elevation": 3200.0,
+     *       "category": "pass",
+     *       "source": "kml_marker",
+     *       "confidence": 1.0
      *     }
      *   ]
      * }
@@ -74,28 +63,22 @@ class KmlAnalysisCallbackController(
             callbackService.handleCallback(request)
             logger.info(
                 "KML 分析回调处理成功，routeId: ${request.routeId}, " +
-                "segments: ${request.segments.size}, " +
-                "waterSources: ${request.waterSources.size}, " +
-                "campsites: ${request.campsites.size}, " +
-                "supplies: ${request.supplies.size}, " +
-                "markerPoints: ${request.markerPoints.size}"
+                "segmentSchemes: ${request.segmentSchemes.size}, " +
+                "poiPoints: ${request.poiPoints.size}"
             )
             ResponseUtil.success(
                 mapOf(
                     "success" to true,
                     "route_id" to request.routeId,
                     "task_id" to request.taskId,
-                    "segments_saved" to request.segments.size,
-                    "water_sources_saved" to request.waterSources.size,
-                    "campsites_saved" to request.campsites.size,
-                    "supplies_saved" to request.supplies.size,
-                    "marker_points_saved" to request.markerPoints.size,
+                    "segment_schemes_saved" to request.segmentSchemes.size,
+                    "poi_points_saved" to request.poiPoints.size,
                     "message" to "分析结果已保存"
                 )
             )
         } catch (e: IllegalArgumentException) {
             logger.warn("KML 分析回调参数错误: ${e.message}")
-            ResponseUtil.badRequest(e.message ?: "参数错误")
+            ResponseUtil.error(e.message ?: "参数错误", 400)
         } catch (e: Exception) {
             logger.error("KML 分析回调处理失败", e)
             ResponseUtil.error("处理回调失败: ${e.message}")
@@ -103,11 +86,11 @@ class KmlAnalysisCallbackController(
     }
 
     /**
-     * 健康检查端点
+     * 回调端点健康检查
      * 用于 KML Agent Service 检测回调端点是否可用
      */
-    @GetMapping("/health")
-    @Operation(summary = "健康检查", description = "回调端点健康检查")
+    @GetMapping("/callback/health")
+    @Operation(summary = "回调端点健康检查", description = "KML Agent Service 检测回调端点是否可用")
     fun healthCheck(): ResponseEntity<ApiResponse<Any>> {
         return ResponseUtil.success(
             mapOf(

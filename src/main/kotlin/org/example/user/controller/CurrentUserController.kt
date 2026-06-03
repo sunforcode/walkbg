@@ -64,22 +64,4 @@ class CurrentUserController(
         return ResponseUtil.success(user, "用户信息更新成功")
     }
 
-    @GetMapping("/preferences")
-    @Operation(summary = "获取用户偏好设置")
-    fun getCurrentUserPreferences(): ResponseEntity<ApiResponse<Map<String, Any>>> {
-        val preferences = mapOf(
-            "theme" to "light",
-            "language" to "zh_CN",
-            "notifications" to true
-        )
-        return ResponseUtil.success(preferences)
-    }
-
-    @PutMapping("/preferences")
-    @Operation(summary = "更新用户偏好设置")
-    fun updateCurrentUserPreferences(
-        @RequestBody preferences: Map<String, Any>
-    ): ResponseEntity<ApiResponse<Map<String, Any>>> {
-        return ResponseUtil.success(preferences, "偏好设置更新成功")
-    }
 }

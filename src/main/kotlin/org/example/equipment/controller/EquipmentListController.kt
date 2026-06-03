@@ -11,10 +11,12 @@ import org.example.equipment.model.EquipmentList
 import org.example.equipment.model.EquipmentListItem
 import org.example.equipment.service.EquipmentListItemService
 import org.example.equipment.service.EquipmentService
+import org.example.security.CustomUserDetails
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import jakarta.validation.Valid
@@ -31,6 +33,30 @@ class EquipmentListController(
     private val equipmentListItemService: EquipmentListItemService
 ) {
 
+    /**
+     * 获取当前登录用户ID
+     */
+    private fun getCurrentUserId(): String {
+        val authentication = SecurityContextHolder.getContext().authentication
+            ?: return "anonymous"
+        return when (val principal = authentication.principal) {
+            is CustomUserDetails -> principal.userId
+            else -> "anonymous"
+        }
+    }
+
+    /**
+     * 获取当前登录用户名
+     */
+    private fun getCurrentUsername(): String {
+        val authentication = SecurityContextHolder.getContext().authentication
+            ?: return "匿名用户"
+        return when (val principal = authentication.principal) {
+            is CustomUserDetails -> principal.username
+            else -> "匿名用户"
+        }
+    }
+
     @GetMapping("")
     @Operation(summary = "分页查询装备清单列表", description = "获取装备清单列表，支持分页")
     fun getAllEquipmentLists(
@@ -41,10 +67,8 @@ class EquipmentListController(
         @Parameter(description = "创建者ID") @RequestParam(required = false) creatorId: String?
     ): ResponseEntity<ApiResponse<Page<EquipmentListResponse>>> {
         val pageable = PageRequest.of(page, size)
-        val lists = when {
-            creatorId != null && type != null -> equipmentService.getUserEquipmentLists(creatorId, pageable)
-            else -> equipmentService.getUserEquipmentLists("admin", pageable)
-        }
+        val effectiveCreatorId = creatorId ?: getCurrentUserId()
+        val lists = equipmentService.getUserEquipmentLists(effectiveCreatorId, pageable)
         
         val responses = lists.map { list ->
             val itemCount = equipmentListItemService.countListItems(list.id)
@@ -80,15 +104,17 @@ class EquipmentListController(
             "description" to (request.description ?: "")
         )
         
+        val currentUserId = getCurrentUserId()
+        val currentUsername = getCurrentUsername()
         val list = if (request.templateId != null) {
             val templateMap = mapOf(
                 "templateId" to request.templateId,
                 "name" to request.name,
                 "personCount" to request.personCount
             )
-            equipmentService.createEquipmentListFromTemplate(templateMap, "admin", "管理员")
+            equipmentService.createEquipmentListFromTemplate(templateMap, currentUserId, currentUsername)
         } else {
-            equipmentService.createEquipmentList(requestMap, "admin", "管理员")
+            equipmentService.createEquipmentList(requestMap, currentUserId, currentUsername)
         }
         
         val response = EquipmentListResponse.fromEntity(list, 0)

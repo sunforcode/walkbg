@@ -172,6 +172,47 @@ class RouteApplicationService(
     }
 
     /**
+     * 将 Route 实体转换为 RouteBasicResponse，补全 MapData/tags/ratings 关联数据
+     * 注意：此方法会发起多次单条查询，适合列表已分页后的少量数据（≤20条）
+     */
+    @Transactional(readOnly = true)
+    fun enrichRouteBasic(route: org.example.route.model.Route): RouteBasicResponse {
+        val mapData = routeMapDataRepository.findById(route.id).orElse(null)
+        val tags = routeTagRepository.findByRouteId(route.id).map { it.tag }
+        val ratingData = routeRatingRepository.findByRouteId(route.id)
+        val ratings = ratingData?.let {
+            org.example.route.dto.RatingDto(
+                overall = it.overall,
+                scenery = it.scenery,
+                difficulty = it.difficulty,
+                experience = it.experience,
+                facilities = it.facilities,
+                ratingCount = it.ratingCount
+            )
+        }
+        return RouteBasicResponse(
+            id = route.id,
+            name = route.name,
+            description = route.description,
+            region = route.region,
+            distance = mapData?.distance,
+            duration = mapData?.duration,
+            difficulty = route.difficulty,
+            routeType = route.routeType,
+            isLoop = route.isLoop,
+            coverUrl = route.coverUrl,
+            popularity = route.popularity,
+            usageCount = route.usageCount,
+            elevationGain = mapData?.elevationGain,
+            elevationLoss = mapData?.elevationLoss,
+            tags = tags,
+            ratings = ratings,
+            createdAt = route.createdAt.epochSecond,
+            createdBy = route.createdBy
+        )
+    }
+
+    /**
      * 业务用例：分页搜索路线
      * 通过领域服务进行搜索，遵循分层架构
      */
@@ -198,8 +239,8 @@ class RouteApplicationService(
             pageable = pageable
         )
 
-        // 2. DTO转换（应用层职责）
-        return routes.map { RouteBasicResponse.fromRoute(it) }
+        // 2. DTO转换（应用层职责）- 带关联数据补全
+        return routes.map { enrichRouteBasic(it) }
     }
     
     /**
@@ -279,7 +320,7 @@ class RouteApplicationService(
         // 这些可以后续添加，使用相同的单向关联模式
 
         // 7. DTO转换（应用层职责）
-        return RouteBasicResponse.fromRoute(savedRoute)
+        return enrichRouteBasic(savedRoute)
     }
 
     /**
@@ -293,7 +334,7 @@ class RouteApplicationService(
         val routes = routeService.getPopularRoutes(limit, pageable)
 
         // 2. DTO转换（应用层职责）
-        return routes.map { RouteBasicResponse.fromRoute(it) }
+        return routes.map { enrichRouteBasic(it) }
     }
 
     /**
@@ -304,7 +345,7 @@ class RouteApplicationService(
     fun getNewRoutes(limit: Int): Page<RouteBasicResponse> {
         val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
         val routes = routeService.getNewRoutes(limit, pageable)
-        return routes.map { RouteBasicResponse.fromRoute(it) }
+        return routes.map { enrichRouteBasic(it) }
     }
 
     /**
@@ -315,7 +356,7 @@ class RouteApplicationService(
     fun getSeasonalRoutes(season: String?, limit: Int): Page<RouteBasicResponse> {
         val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
         val routes = routeService.getSeasonalRoutes(season, limit, pageable)
-        return routes.map { RouteBasicResponse.fromRoute(it) }
+        return routes.map { enrichRouteBasic(it) }
     }
 
     /**
@@ -326,7 +367,7 @@ class RouteApplicationService(
     fun getWeekendRoutes(limit: Int): Page<RouteBasicResponse> {
         val pageable = org.springframework.data.domain.PageRequest.of(0, limit)
         val routes = routeService.getWeekendRoutes(limit, pageable)
-        return routes.map { RouteBasicResponse.fromRoute(it) }
+        return routes.map { enrichRouteBasic(it) }
     }
 
     /**
@@ -386,7 +427,7 @@ class RouteApplicationService(
         )
 
         // 3. DTO转换（应用层职责）
-        return routes.map { RouteBasicResponse.fromRoute(it) }
+        return routes.map { enrichRouteBasic(it) }
     }
 
     /**

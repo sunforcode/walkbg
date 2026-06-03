@@ -20,7 +20,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import jakarta.validation.Valid
-import jakarta.validation.constraints.NotBlank
 
 /**
  * 路线控制器
@@ -106,30 +105,6 @@ class RouteController(
         return ResponseUtil.created(route, "路线创建成功")
     }
 
-    /**
-     * 更新路线
-     */
-    @PutMapping("/{id}")
-    @Operation(summary = "更新路线", description = "更新指定ID的路线信息")
-    fun updateRoute(
-        @Parameter(description = "路线ID") @PathVariable id: String,
-        @RequestBody @Valid request: org.example.route.dto.RouteCreateRequest
-    ): ResponseEntity<ApiResponse<RouteBasicResponse>> {
-        // TODO: 实现更新逻辑
-        throw BusinessException.badRequest("更新功能暂未实现")
-    }
-
-    /**
-     * 删除路线
-     */
-    @DeleteMapping("/{id}")
-    @Operation(summary = "删除路线", description = "删除指定ID的路线")
-    fun deleteRoute(
-        @Parameter(description = "路线ID") @PathVariable id: String
-    ): ResponseEntity<ApiResponse<Nothing>> {
-        // TODO: 实现删除逻辑
-        throw BusinessException.badRequest("删除功能暂未实现")
-    }
 
     /**
      * 收藏路线
@@ -215,7 +190,7 @@ class RouteController(
     ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
         val pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
         val routes = routeRepository.findByCreatedBy(userId, pageable)
-        val result = routes.map { RouteBasicResponse.fromRoute(it) }
+        val result = routes.map { routeApplicationService.enrichRouteBasic(it) }
         return ResponseUtil.successPage(result)
     }
 
@@ -233,7 +208,7 @@ class RouteController(
         val favorites = userRouteFavoriteRepository.findByUserId(userId, pageable)
         // 关联路线信息
         val result = favorites.map { favorite ->
-            routeRepository.findById(favorite.routeId).map { RouteBasicResponse.fromRoute(it) }.orElse(null)
+            routeRepository.findById(favorite.routeId).map { routeApplicationService.enrichRouteBasic(it) }.orElse(null)
         }.filterNotNull()
         // 重新币造Page对象
         return ResponseUtil.successPage(
@@ -259,7 +234,7 @@ class RouteController(
         val completions = userRouteCompletionRepository.findByUserId(userId, pageable)
         // 关联路线信息
         val result = completions.map { completion ->
-            routeRepository.findById(completion.routeId).map { RouteBasicResponse.fromRoute(it) }.orElse(null)
+            routeRepository.findById(completion.routeId).map { routeApplicationService.enrichRouteBasic(it) }.orElse(null)
         }.filterNotNull()
         // 重新造活Page对象
         return ResponseUtil.successPage(
@@ -271,46 +246,6 @@ class RouteController(
         )
     }
 
-    /**
-     * 获取推荐路线
-     */
-    @GetMapping("/recommendations")
-    @Operation(summary = "获取推荐路线", description = "根据用户偏好推荐路线")
-    fun getRecommendedRoutes(
-        @Parameter(description = "用户ID") @RequestParam(required = false) userId: String?,
-        @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
-        @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int,
-        @Parameter(description = "推荐类型") @RequestParam(required = false) type: String?
-    ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        // TODO: 实现路线推荐逻辑
-        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-            emptyList(),
-            org.springframework.data.domain.PageRequest.of(page, size),
-            0
-        )
-        return ResponseUtil.successPage(emptyPage)
-    }
-
-    /**
-     * 获取附近的路线
-     */
-    @GetMapping("/nearby")
-    @Operation(summary = "获取附近的路线", description = "根据地理位置获取附近的路线")
-    fun getNearbyRoutes(
-        @Parameter(description = "纬度") @RequestParam latitude: Double,
-        @Parameter(description = "经度") @RequestParam longitude: Double,
-        @Parameter(description = "搜索半径（公里）") @RequestParam(defaultValue = "10.0") radius: Double,
-        @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") page: Int,
-        @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") size: Int
-    ): ResponseEntity<ApiResponse<Page<RouteBasicResponse>>> {
-        // TODO: 实现附近路线查询逻辑
-        val emptyPage = org.springframework.data.domain.PageImpl<RouteBasicResponse>(
-            emptyList(),
-            org.springframework.data.domain.PageRequest.of(page, size),
-            0
-        )
-        return ResponseUtil.successPage(emptyPage)
-    }
 
     /**
      * 获取热门路线

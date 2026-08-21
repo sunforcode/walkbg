@@ -135,21 +135,23 @@ jobs:
         env:
           WALK_SERVER: ${{ secrets.WALK_SERVER }}
           WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
-          # 下面 4 个是唯一需要 secrets 的真实秘钥。
-          # 其余项（MYSQL_DATABASE、DB_POOL_MAX 等）由 docker-compose.yml 的默认值提供。
+          # 三个必填秘钥来自 GitHub secrets。
+          # 其余项 MYSQL_DATABASE / DB_POOL_MAX / OPENAI_BASE_URL / OPENAI_MODEL / WEB_PORT
+          # 在 docker-compose.yml 里有正确默认值（与服务器现有 .env 一致），不写即采用默认。
+          # 唯一与默认值不同、必须显式写出的是 CORS_ALLOWED_ORIGINS（默认空会让
+          # vialu.cn 跨域被拦）——非敏感的公开域名配置，直接硬编码，不占 secret 配额。
           MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # 在 runner 临时目录组装 .env，再 scp 到服务器：
-          # 避免秘钥出现在 ssh 命令行 / 进程列表里。
-          # 用 printf + 双引号取环境变量值：shell 不会对已替换的值做二次解释，
-          # 因此即便秘钥含 $ 或特殊字符也能原样写入。
+          # 在 runner 临时目录组装 .env，再 scp 到服务器：避免秘钥出现在 ssh 命令行/进程列表。
+          # printf + 双引号取环境变量值：shell 不对已替换的值做二次解释，秘钥含 $/特殊字符也原样写入。
           umask 077
           printf '%s\n' \
             "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" \
             "JWT_SECRET=${JWT_SECRET}" \
             "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+            "CORS_ALLOWED_ORIGINS=http://vialu.cn,http://www.vialu.cn,https://vialu.cn,https://www.vialu.cn" \
             > /tmp/.env
           scp /tmp/.env "$WALK_SERVER:$WALK_REMOTE_DIR/deploy/.env"
           rm -f /tmp/.env

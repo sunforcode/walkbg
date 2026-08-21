@@ -155,3 +155,4 @@ jobs:
           WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
         run: |
           ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose ps"
+# CI re-triggered after sibling Dockerfiles pushed

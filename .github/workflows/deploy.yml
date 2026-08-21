@@ -75,28 +75,18 @@ jobs:
 
       - name: Assemble sibling layout
         run: |
-          set -x
-          pwd
-          ls -la
-          echo "--- walkbg ---"
-          ls -la walkbg/ || echo "walkbg/ missing"
-          echo "--- walkbg/deploy ---"
-          ls -la walkbg/deploy/ || echo "walkbg/deploy/ missing"
-          echo "--- kml-agent-service ---"
-          ls -la kml-agent-service/ || echo "kml-agent-service/ missing"
-          echo "--- walkadmin-react ---"
-          ls -la walkadmin-react/ || echo "walkadmin-react/ missing"
           # compose 的 build context 写的是 ../<repo>，要求 deploy/ 与各仓库平级。
-          # 先把 walkbg/deploy 复制到平级位置，使相对路径生效。
-          mkdir -p deploy
-          cp -r walkbg/deploy/* deploy/
-          echo "--- deploy ---"
-          ls -la deploy/
-          # 关键文件齐备校验：在 runner 上早失败，优于在服务器构建时才发现。
-          test -f deploy/docker-compose.yml || { echo "missing deploy/docker-compose.yml"; exit 1; }
-          test -f walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }
-          test -f kml-agent-service/Dockerfile || { echo "missing kml-agent-service/Dockerfile"; exit 1; }
-          test -f walkadmin-react/Dockerfile || { echo "missing walkadmin-react/Dockerfile"; exit 1; }
+          # 这里在 runner 临时目录组装正确布局，避免 workspace 根目录已有内容干扰。
+          mkdir -p /tmp/walk-staging
+          cp -r walkbg /tmp/walk-staging/
+          cp -r kml-agent-service /tmp/walk-staging/
+          cp -r walkadmin-react /tmp/walk-staging/
+          cp -r walkbg/deploy /tmp/walk-staging/deploy
+          # 校验
+          test -f /tmp/walk-staging/deploy/docker-compose.yml || { echo "missing deploy/docker-compose.yml"; exit 1; }
+          test -f /tmp/walk-staging/walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }
+          test -f /tmp/walk-staging/kml-agent-service/Dockerfile || { echo "missing kml-agent-service/Dockerfile"; exit 1; }
+          test -f /tmp/walk-staging/walkadmin-react/Dockerfile || { echo "missing walkadmin-react/Dockerfile"; exit 1; }
 
       - name: Configure SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -129,7 +119,7 @@ jobs:
             --exclude '.DS_Store' \
             --exclude 'deploy/.env' \
             --exclude '.env' \
-            walkbg kml-agent-service walkadmin-react deploy \
+            /tmp/walk-staging/ \
             "$WALK_SERVER:$WALK_REMOTE_DIR/"
 
       - name: Write .env from secrets

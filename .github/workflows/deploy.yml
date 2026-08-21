@@ -75,6 +75,15 @@ jobs:
 
       - name: Verify files before deploy
         run: |
+          set -x
+          echo "=== walkbg ==="
+          ls -la walkbg/ | head -5
+          echo "=== walkbg/deploy ==="
+          ls -la walkbg/deploy/ | head -5
+          echo "=== kml-agent-service ==="
+          ls -la kml-agent-service/ | head -5
+          echo "=== walkadmin-react ==="
+          ls -la walkadmin-react/ | head -5
           # 关键文件齐备校验：在 runner 上早失败，优于在服务器构建时才发现。
           test -f walkbg/deploy/docker-compose.yml || { echo "missing walkbg/deploy/docker-compose.yml"; exit 1; }
           test -f walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }

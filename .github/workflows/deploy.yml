@@ -75,20 +75,12 @@ jobs:
 
       - name: Verify files before deploy
         run: |
-          set -x
-          echo "=== walkbg ==="
-          ls -la walkbg/ | head -5
-          echo "=== walkbg/deploy ==="
-          ls -la walkbg/deploy/ | head -5
-          echo "=== kml-agent-service ==="
-          ls -la kml-agent-service/ | head -5
-          echo "=== walkadmin-react ==="
-          ls -la walkadmin-react/ | head -5
           # 关键文件齐备校验：在 runner 上早失败，优于在服务器构建时才发现。
-          test -f walkbg/deploy/docker-compose.yml || { echo "missing walkbg/deploy/docker-compose.yml"; exit 1; }
-          test -f walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }
-          test -f kml-agent-service/Dockerfile || { echo "missing kml-agent-service/Dockerfile"; exit 1; }
-          test -f walkadmin-react/Dockerfile || { echo "missing walkadmin-react/Dockerfile"; exit 1; }
+          # 用 find 搜索，不依赖具体路径结构。
+          find . -name 'docker-compose.yml' -path '*/deploy/*' | grep -q . || { echo "missing docker-compose.yml"; exit 1; }
+          find walkbg -maxdepth 1 -name 'Dockerfile' | grep -q . || { echo "missing walkbg/Dockerfile"; exit 1; }
+          find kml-agent-service -maxdepth 1 -name 'Dockerfile' | grep -q . || { echo "missing kml-agent-service/Dockerfile"; exit 1; }
+          find walkadmin-react -maxdepth 1 -name 'Dockerfile' | grep -q . || { echo "missing walkadmin-react/Dockerfile"; exit 1; }
 
       - name: Configure SSH
         uses: webfactory/ssh-agent@v0.9.0

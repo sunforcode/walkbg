@@ -107,6 +107,11 @@ services:
       # 唯一对外暴露的端口。若 80 未备案通过，
       # 可改为 "8080:80" 并通过 SSH 隧道访问。
       - "${WEB_PORT:-80}:80"
+    volumes:
+      # Flutter Web 产物以宿主机目录挂载（非打进镜像）：
+      # walkfg 的 CI 构建后 rsync 覆盖此目录即完成发版，无需重建 web 镜像。
+      # 对应 nginx.conf 中预留的 location /app/ 路由。
+      - ../flutter-web:/usr/share/nginx/flutter
     networks:
       - walk-net
 

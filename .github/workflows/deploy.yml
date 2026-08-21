@@ -1,7 +1,7 @@
 # Walk 后端 CI/CD
 #
 # test job：每次 push / PR 跑 walkbg 单元测试（H2 内存库，无需 MySQL）。
-# deploy job：push 到 main（或手动触发）时，把四个仓库拼成 compose 所需的 sibling 布局，
+# deploy job：push 到 main（或手动触发）时，把三个仓库拼成 compose 所需的 sibling 布局，
 #             rsync 到服务器，用 GitHub Secrets 生成 .env，docker compose build && up。
 #
 # 秘钥全部存放在 GitHub（production environment secrets 或 repo secrets），服务器上不手工维护 .env。
@@ -144,14 +144,16 @@ jobs:
           WALK_SERVER: ${{ secrets.WALK_SERVER }}
           WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
         run: |
-          # compose 文件在 walkbg/deploy/ 下，因此工作目录需指向该位置。
-          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/walkbg/deploy && docker compose build"
-          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/walkbg/deploy && docker compose up -d --remove-orphans"
+          # rsync 把 walkbg/deploy 拍平成 $WALK_REMOTE_DIR/deploy/，与各仓库平级。
+          # compose 的 build context 是 ../walkbg 等，必须从平级的 deploy/ 起 compose，
+          # 否则 ../walkbg 会解析成 walkbg/walkbg 而构建失败。
+          # .env 也写在这个 deploy/ 下，compose 会自动加载。
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose build"
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose up -d --remove-orphans"
 
       - name: Show status
         env:
           WALK_SERVER: ${{ secrets.WALK_SERVER }}
           WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
         run: |
-          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/walkbg/deploy && docker compose ps"
-# CI re-triggered after sibling Dockerfiles pushed
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose ps"

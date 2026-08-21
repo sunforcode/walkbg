@@ -1,0 +1,118 @@
+# Walk 第一版部署编排
+#
+# 设计原则：各服务按「部署在不同主机」的方式编写，
+# 服务之间只通过服务名 + 端口通信，不使用 localhost。
+# 当前四个服务恰好落在同一台机器上，但这只是部署拓扑的选择：
+# 将 KML_AGENT_BASE_URL / DB_URL 换成其他主机地址即可拆分，代码无需改动。
+#
+# 对外只暴露 web 的 80 端口。walkbg、kml-agent、mysql 都不映射到宿主机，
+# 仅在内部网络可达，因此不会被公网直接访问。
+#
+# 所有密钥与地址来自同目录下的 .env 文件（参考 .env.example）。
+
+name: walk
+
+services:
+  # ---------- 数据库 ----------
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?必须设置}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-walkbg}
+      TZ: Asia/Shanghai
+    command:
+      # 字符集设为 utf8mb4：路线名称、描述含中文与 emoji，
+      # 用 utf8（三字节）会在写入 emoji 时报错。
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # 这台机器可用内存约 3G，需与 JVM 堆共存，
+      # 因此把缓冲池压到 256M，避免两者相加触发 OOM。
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=100
+    volumes:
+      # 数据必须落在命名卷上：容器重建时数据不能丢
+      - mysql-data:/var/lib/mysql
+    networks:
+      - walk-net
+    healthcheck:
+      # 用 root 密码做真实连接检查，而非只看端口是否监听：
+      # 端口通了但 MySQL 仍在初始化时，后端连上去会失败。
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # ---------- 后端 ----------
+  walkbg:
+    build:
+      context: ../walkbg
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        # 等数据库真正可用再启动：
+        # Flyway 在启动时就要连库执行迁移，连不上会直接启动失败。
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # 数据库地址用服务名 mysql，而非 localhost
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-walkbg}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?必须设置}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      # Agent 服务地址用服务名，拆分主机时改这一行即可
+      KML_AGENT_BASE_URL: http://kml-agent:8001
+      KML_AGENT_ENABLED: "true"
+      JWT_SECRET: ${JWT_SECRET:?必须设置}
+      # 前后端同源（都经 web 的 Nginx），浏览器不发跨域请求，
+      # 这里留空表示不额外放开任何来源。
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+    networks:
+      - walk-net
+    # 不映射端口：只允许 web 通过内部网络访问
+
+  # ---------- Agent 服务 ----------
+  kml-agent:
+    build:
+      context: ../kml-agent-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      # 生产必须关闭：DEBUG=true 会注册 /api/v1/debug/* 端点
+      DEBUG: "false"
+      ENABLE_API_DOCS: "false"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?必须设置}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.deepseek.com}
+      OPENAI_MODEL: ${OPENAI_MODEL:-deepseek-chat}
+      # 回调地址用服务名指回后端，形成 walkbg -> agent -> walkbg 闭环
+      WALKBG_BASE_URL: http://walkbg:8080
+      WALKBG_CALLBACK_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: ""
+    networks:
+      - walk-net
+    # 同样不映射端口：Agent 服务只应由 walkbg 内网调用
+
+  # ---------- 前端 + 反向代理 ----------
+  web:
+    build:
+      context: ../walkadmin-react
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - walkbg
+    ports:
+      # 唯一对外暴露的端口。若 80 未备案通过，
+      # 可改为 "8080:80" 并通过 SSH 隧道访问。
+      - "${WEB_PORT:-80}:80"
+    networks:
+      - walk-net
+
+networks:
+  walk-net:
+    driver: bridge
+
+volumes:
+  mysql-data:

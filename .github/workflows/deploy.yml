@@ -1,0 +1,157 @@
+# Walk 后端 CI/CD
+#
+# test job：每次 push / PR 跑 walkbg 单元测试（H2 内存库，无需 MySQL）。
+# deploy job：push 到 main（或手动触发）时，把四个仓库拼成 compose 所需的 sibling 布局，
+#             rsync 到服务器，用 GitHub Secrets 生成 .env，docker compose build && up。
+#
+# 秘钥全部存放在 GitHub（production environment secrets 或 repo secrets），服务器上不手工维护 .env。
+# CI 每次部署都从 secrets 重新生成服务器上的 deploy/.env；
+# 最后一次成功部署留下的 .env 留在服务器上，GitHub 不可用时仍可手动 docker compose up 救场。
+
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# 不取消进行中的部署：中途打断会在服务器上留下半构建状态。
+concurrency:
+  group: walk-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (walkbg)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout walkbg
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run tests
+        # 测试用 @ActiveProfiles("test") + H2 内存库，自包含，无需 MySQL。
+        # 不使用 maven-settings.xml 的腾讯镜像：GitHub runner 访问 Maven Central 更稳。
+        run: mvn -B test
+
+  deploy:
+    name: Deploy to walk-server
+    needs: test
+    # 只在 push 到 main 或手动触发时部署；PR 与 develop 仅跑测试。
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout walkbg (this repo)
+        uses: actions/checkout@v4
+        with:
+          path: walkbg
+
+      - name: Checkout kml-agent-service
+        uses: actions/checkout@v4
+        with:
+          repository: sunforcode/kml-agent-service
+          path: kml-agent-service
+          # 公开仓库无需 token。若该仓库为私有，新建 PAT_TOKEN secret（repo scope）并取消下行注释：
+          # token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Checkout walkadmin-react
+        uses: actions/checkout@v4
+        with:
+          repository: sunforcode/walkadmin-react
+          path: walkadmin-react
+          # token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Assemble sibling layout
+        run: |
+          # compose 的 build context 写的是 ../<repo>，要求 deploy/ 与各仓库平级。
+          # 这里把 walkbg 仓库内的 deploy/ 复制到平级位置，使相对路径生效。
+          cp -r walkbg/deploy deploy
+          # 关键文件齐备校验：在 runner 上早失败，优于在服务器构建时才发现。
+          test -f deploy/docker-compose.yml
+          test -f walkbg/Dockerfile
+          test -f kml-agent-service/Dockerfile
+          test -f walkadmin-react/Dockerfile
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust server host key
+        env:
+          WALK_SERVER: ${{ secrets.WALK_SERVER }}
+        run: |
+          HOST="$WALK_SERVER"
+          mkdir -p ~/.ssh
+          # WALK_SERVER 形如 ubuntu@1.2.3.4，去掉用户名部分再做 keyscan。
+          ssh-keyscan -H "${HOST##*@}" >> ~/.ssh/known_hosts
+
+      - name: Sync code to server
+        env:
+          WALK_SERVER: ${{ secrets.WALK_SERVER }}
+          WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'dist' \
+            --exclude 'target' \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude '*.log' \
+            --exclude 'logs' \
+            --exclude '.DS_Store' \
+            --exclude 'deploy/.env' \
+            --exclude '.env' \
+            walkbg kml-agent-service walkadmin-react deploy \
+            "$WALK_SERVER:$WALK_REMOTE_DIR/"
+
+      - name: Write .env from secrets
+        env:
+          WALK_SERVER: ${{ secrets.WALK_SERVER }}
+          WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
+          # 下面 4 个是唯一需要 secrets 的真实秘钥。
+          # 其余项（MYSQL_DATABASE、DB_POOL_MAX 等）由 docker-compose.yml 的默认值提供。
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # 在 runner 临时目录组装 .env，再 scp 到服务器：
+          # 避免秘钥出现在 ssh 命令行 / 进程列表里。
+          # 用 printf + 双引号取环境变量值：shell 不会对已替换的值做二次解释，
+          # 因此即便秘钥含 $ 或特殊字符也能原样写入。
+          umask 077
+          printf '%s\n' \
+            "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" \
+            "JWT_SECRET=${JWT_SECRET}" \
+            "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+            > /tmp/.env
+          scp /tmp/.env "$WALK_SERVER:$WALK_REMOTE_DIR/deploy/.env"
+          rm -f /tmp/.env
+
+      - name: Build and start services
+        env:
+          WALK_SERVER: ${{ secrets.WALK_SERVER }}
+          WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
+        run: |
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose build"
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose up -d --remove-orphans"
+
+      - name: Show status
+        env:
+          WALK_SERVER: ${{ secrets.WALK_SERVER }}
+          WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
+        run: |
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose ps"

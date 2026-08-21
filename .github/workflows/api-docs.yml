@@ -1,13 +1,6 @@
 name: API Documentation
 
 on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'src/**'
-      - 'pom.xml'
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:

@@ -77,13 +77,10 @@ jobs:
         run: |
           # compose 的 build context 写的是 ../<repo>，要求 deploy/ 与各仓库平级。
           # 这里把 walkbg 仓库内的 deploy/ 复制到平级位置，使相对路径生效。
+          # 先清理，防止 runner 缓存导致 cp -r 嵌套复制。
+          rm -rf deploy
           cp -r walkbg/deploy deploy
           # 关键文件齐备校验：在 runner 上早失败，优于在服务器构建时才发现。
-          ls -la
-          ls -la deploy/
-          ls -la walkbg/
-          ls -la kml-agent-service/
-          ls -la walkadmin-react/
           test -f deploy/docker-compose.yml || { echo "missing deploy/docker-compose.yml"; exit 1; }
           test -f walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }
           test -f kml-agent-service/Dockerfile || { echo "missing kml-agent-service/Dockerfile"; exit 1; }

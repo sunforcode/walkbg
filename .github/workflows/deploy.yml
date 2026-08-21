@@ -79,10 +79,15 @@ jobs:
           # 这里把 walkbg 仓库内的 deploy/ 复制到平级位置，使相对路径生效。
           cp -r walkbg/deploy deploy
           # 关键文件齐备校验：在 runner 上早失败，优于在服务器构建时才发现。
-          test -f deploy/docker-compose.yml
-          test -f walkbg/Dockerfile
-          test -f kml-agent-service/Dockerfile
-          test -f walkadmin-react/Dockerfile
+          ls -la
+          ls -la deploy/
+          ls -la walkbg/
+          ls -la kml-agent-service/
+          ls -la walkadmin-react/
+          test -f deploy/docker-compose.yml || { echo "missing deploy/docker-compose.yml"; exit 1; }
+          test -f walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }
+          test -f kml-agent-service/Dockerfile || { echo "missing kml-agent-service/Dockerfile"; exit 1; }
+          test -f walkadmin-react/Dockerfile || { echo "missing walkadmin-react/Dockerfile"; exit 1; }
 
       - name: Configure SSH
         uses: webfactory/ssh-agent@v0.9.0

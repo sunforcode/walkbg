@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  容器构建时使用的 Maven 配置。
+
+  用途：国内服务器直连 repo.maven.apache.org 速度极慢（实测数十 KB/s），
+  构建一次要十几分钟。改用与服务器同厂的腾讯云镜像后延迟约 0.1s。
+
+  仅用于镜像构建，不影响本地开发使用的 ~/.m2/settings.xml。
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>tencent-cloud</id>
+      <name>Tencent Cloud Maven Mirror</name>
+      <url>https://mirrors.cloud.tencent.com/nexus/repository/maven-public/</url>
+      <!--
+        只镜像 central。不要用 * ：
+        那会把所有仓库（包括将来可能加入的私有仓库）都指向此镜像，
+        导致私有构件无法解析。
+      -->
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>

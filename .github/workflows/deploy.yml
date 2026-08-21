@@ -73,20 +73,13 @@ jobs:
           path: walkadmin-react
           # token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Assemble sibling layout
+      - name: Verify files before deploy
         run: |
-          # compose 的 build context 写的是 ../<repo>，要求 deploy/ 与各仓库平级。
-          # 这里在 runner 临时目录组装正确布局，避免 workspace 根目录已有内容干扰。
-          mkdir -p /tmp/walk-staging
-          cp -r walkbg /tmp/walk-staging/
-          cp -r kml-agent-service /tmp/walk-staging/
-          cp -r walkadmin-react /tmp/walk-staging/
-          cp -r walkbg/deploy /tmp/walk-staging/deploy
-          # 校验
-          test -f /tmp/walk-staging/deploy/docker-compose.yml || { echo "missing deploy/docker-compose.yml"; exit 1; }
-          test -f /tmp/walk-staging/walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }
-          test -f /tmp/walk-staging/kml-agent-service/Dockerfile || { echo "missing kml-agent-service/Dockerfile"; exit 1; }
-          test -f /tmp/walk-staging/walkadmin-react/Dockerfile || { echo "missing walkadmin-react/Dockerfile"; exit 1; }
+          # 关键文件齐备校验：在 runner 上早失败，优于在服务器构建时才发现。
+          test -f walkbg/deploy/docker-compose.yml || { echo "missing walkbg/deploy/docker-compose.yml"; exit 1; }
+          test -f walkbg/Dockerfile || { echo "missing walkbg/Dockerfile"; exit 1; }
+          test -f kml-agent-service/Dockerfile || { echo "missing kml-agent-service/Dockerfile"; exit 1; }
+          test -f walkadmin-react/Dockerfile || { echo "missing walkadmin-react/Dockerfile"; exit 1; }
 
       - name: Configure SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -119,7 +112,7 @@ jobs:
             --exclude '.DS_Store' \
             --exclude 'deploy/.env' \
             --exclude '.env' \
-            /tmp/walk-staging/ \
+            walkbg kml-agent-service walkadmin-react walkbg/deploy \
             "$WALK_SERVER:$WALK_REMOTE_DIR/"
 
       - name: Write .env from secrets
@@ -150,13 +143,14 @@ jobs:
           WALK_SERVER: ${{ secrets.WALK_SERVER }}
           WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
         run: |
-          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose build"
-          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose up -d --remove-orphans"
+          # compose 文件在 walkbg/deploy/ 下，因此工作目录需指向该位置。
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/walkbg/deploy && docker compose build"
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/walkbg/deploy && docker compose up -d --remove-orphans"
 
       - name: Show status
         env:
           WALK_SERVER: ${{ secrets.WALK_SERVER }}
           WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
         run: |
-          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/deploy && docker compose ps"
+          ssh "$WALK_SERVER" "cd $WALK_REMOTE_DIR/walkbg/deploy && docker compose ps"
 # CI re-triggered after sibling Dockerfiles pushed

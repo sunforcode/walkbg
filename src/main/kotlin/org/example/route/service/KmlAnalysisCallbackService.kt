@@ -9,6 +9,7 @@ import org.example.route.dto.KmlAnalysisCallbackRequest
 import org.example.route.sse.SseProgressEvent
 import org.example.route.sse.SseTaskEventBus
 import org.example.route.model.PoiPoint
+import org.example.route.model.Route
 import org.example.route.model.RouteMapData
 import org.example.route.model.Segment
 import org.example.route.model.SegmentScheme
@@ -42,16 +43,21 @@ class KmlAnalysisCallbackService(
     @Transactional
     fun handleCallback(request: KmlAnalysisCallbackRequest) {
         val routeId = request.routeId
-        
+
         if (routeId.isNullOrBlank()) {
             logger.warn("收到 KML 分析回调，但 routeId 为空，taskId: ${request.taskId}")
             throw IllegalArgumentException("routeId 不能为空")
         }
-        
+
         val route = routeRepository.findById(routeId).orElseThrow {
             IllegalArgumentException("路线不存在: $routeId")
         }
-        
+
+        if (request.status == "failed") {
+            handleFailedCallback(route, request)
+            return
+        }
+
         logger.info(
             "处理 KML 分析回调，routeId: $routeId, " +
             "segmentSchemes: ${request.segmentSchemes.size}, " +
@@ -128,11 +134,51 @@ class KmlAnalysisCallbackService(
                     status = "completed",
                     progress = 100,
                     routeId = routeId,
-                    currentStep = "分析完成"
+                    currentStep = "分析完成",
+                    degraded = request.degraded
                 )
             )
         } else {
             logger.warn("回调中 taskId 为空，无法向 SSE 总线发布 completed 事件")
+        }
+    }
+
+    /**
+     * 处理分析失败的回调。
+     *
+     * 与成功回调的区别：
+     * 1. 不写入 description/difficulty/isLoop 等分析产出字段（agent 分析失败时这些数据本身就是空/无意义的）；
+     * 2. 不清除/保存 segmentSchemes、poiPoints，保留路线上一次的有效数据（如果有）；
+     * 3. 仅把路线状态从"分析中"释放为"规划中"，允许重新发起分析；
+     * 4. 向 SSE 总线发布真正的 failed 事件，而不是之前硬编码的 completed 事件。
+     */
+    private fun handleFailedCallback(route: Route, request: KmlAnalysisCallbackRequest) {
+        val routeId = request.routeId
+        logger.warn("KML 分析失败回调，routeId: $routeId, taskId: ${request.taskId}")
+
+        if (route.status == 3) {
+            route.markAnalysisFailed()
+            logger.info("路线 $routeId 分析失败，状态恢复为规划中，允许重新发起分析")
+        }
+        route.updatedAt = Instant.now()
+        routeRepository.save(route)
+
+        val taskId = request.taskId
+        if (!taskId.isNullOrBlank()) {
+            logger.info("向 SSE 总线发布 failed 事件，taskId=$taskId, routeId=$routeId")
+            sseTaskEventBus.publish(
+                taskId,
+                SseProgressEvent(
+                    taskId = taskId,
+                    status = "failed",
+                    progress = 100,
+                    routeId = routeId,
+                    currentStep = "分析失败",
+                    error = request.error ?: "分析失败"
+                )
+            )
+        } else {
+            logger.warn("回调中 taskId 为空，无法向 SSE 总线发布 failed 事件")
         }
     }
 

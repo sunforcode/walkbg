@@ -55,9 +55,10 @@ class RouteAnalysisOrchestrationService(
                 kmlAnalysisClientService.submitAnalysis(enrichedRequest)
             }
             .doOnSuccess { response ->
-                // 3.1: agent 任务提交成功，向 SSE 总线发布 processing 事件
+                // agent 任务提交成功后先登记任务，再发布 processing 事件。
                 val taskId = response.taskId
-                logger.info("KML 分析任务提交成功，向 SSE 总线发布 processing 事件，taskId=$taskId")
+                logger.info("KML 分析任务提交成功，注册任务并向 SSE 总线发布 processing 事件，taskId=$taskId")
+                sseTaskEventBus.registerTask(taskId)
                 sseTaskEventBus.publish(
                     taskId,
                     SseProgressEvent(

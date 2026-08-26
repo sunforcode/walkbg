@@ -11,7 +11,17 @@ data class KmlAnalysisCallbackRequest(
     
     @JsonProperty("task_id")
     val taskId: String?,
-    
+
+    /**
+     * 任务状态：completed | failed。
+     * 缺省按 "completed" 处理，兼容旧版本 agent（未携带该字段时的回调）。
+     */
+    @JsonProperty("status")
+    val status: String = "completed",
+
+    @JsonProperty("error")
+    val error: String? = null,
+
     @JsonProperty("source_kml_url")
     val sourceKmlUrl: String?,
     
@@ -62,6 +72,9 @@ data class KmlAnalysisCallbackRequest(
     
     @JsonProperty("equipment_recommendations")
     val equipmentRecommendations: List<String> = emptyList(),
+
+    /** 任一 Agent 节点是否使用了 fallback。 */
+    val degraded: Boolean = false,
     
     val warnings: List<CallbackWarningDto> = emptyList()
 )

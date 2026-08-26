@@ -55,25 +55,21 @@ class SseAnalysisController(
 
         val emitter = SseEmitter(SSE_TIMEOUT_MS)
 
-        // 注册到事件总线（超时/完成/错误回调在 SseTaskEventBus 内部处理）
-        sseTaskEventBus.register(taskId, emitter)
-
-        // 若 taskId 对应的总线中无活跃记录（即任务尚未被提交或 task_id 不合法），
-        // 通过检查注册后是否仍在 map 中来判断；这里直接依赖 publish 的存在性检查即可。
-        // 但根据时序：前端在提交后立即连接，大多数情况下任务已在处理中。
-        // 若任务 ID 确实不存在，后续不会收到任何 publish，emitter 会在超时后自动关闭。
-        // 为了立即反馈"任务不存在"，我们这里检查总线是否注册成功并且 taskId 格式合法。
-        // 注意：合法的 taskId 由 agent 生成（task_前缀），不合法时立即推送 failed。
-        if (!taskId.startsWith("task_")) {
+        // 只有提交成功后登记过的任务才能注册；格式合法但未知的 taskId 也必须立即失败。
+        if (!sseTaskEventBus.register(taskId, emitter)) {
             try {
-                sseTaskEventBus.publish(
-                    taskId,
-                    SseProgressEvent(
-                        taskId = taskId,
-                        status = "failed",
-                        error = "任务不存在"
-                    )
+                emitter.send(
+                    SseEmitter.event()
+                        .name("progress")
+                        .data(
+                            SseProgressEvent(
+                                taskId = taskId,
+                                status = "failed",
+                                error = "任务不存在"
+                            )
+                        )
                 )
+                emitter.complete()
             } catch (e: Exception) {
                 logger.warn("发送 taskId 不存在事件失败: ${e.message}")
                 emitter.completeWithError(e)

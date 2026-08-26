@@ -3,6 +3,7 @@ package org.example.route.sse
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.time.Clock
@@ -162,8 +163,7 @@ class SseTaskEventBus internal constructor(
     }
 
     private fun send(emitter: SseEmitter, event: SseProgressEvent) {
-        val json = objectMapper.writeValueAsString(event)
-        emitter.send(SseEmitter.event().name("progress").data(json))
+        emitter.send(SseEmitter.event().name("progress").data(event, MediaType.APPLICATION_JSON))
     }
 
     private fun configureCallbacks(taskId: String, emitter: SseEmitter) {

@@ -66,7 +66,8 @@ class SseAnalysisController(
                                 taskId = taskId,
                                 status = "failed",
                                 error = "任务不存在"
-                            )
+                            ),
+                            MediaType.APPLICATION_JSON
                         )
                 )
                 emitter.complete()

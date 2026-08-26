@@ -163,6 +163,17 @@ data class Route(
         updatedAt = Instant.now()
     }
 
+    /**
+     * 领域行为：分析失败，恢复为规划中状态
+     * Agent 分析失败回调后调用，与 markAnalysisComplete 的区别是不会写入任何分析产出数据，
+     * 仅用于把路线从"分析中"释放出来，避免因为分析失败而永久卡死在该状态
+     */
+    fun markAnalysisFailed() {
+        require(status == 3) { "只有分析中的路线才能标记分析失败" }
+        status = 0 // 规划中，允许重新发起分析
+        updatedAt = Instant.now()
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

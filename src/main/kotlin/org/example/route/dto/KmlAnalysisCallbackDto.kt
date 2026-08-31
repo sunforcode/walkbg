@@ -58,6 +58,9 @@ data class KmlAnalysisCallbackRequest(
     @JsonProperty("poi_points")
     val poiPoints: List<CallbackPoiPointDto> = emptyList(),
 
+    @JsonProperty("track_path")
+    val trackPath: List<List<Double?>> = emptyList(),
+
     @JsonProperty("generated_description")
     val generatedDescription: String?,
     

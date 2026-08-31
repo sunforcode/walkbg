@@ -3,6 +3,7 @@ package org.example.route.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.route.dto.KmlAnalysisCallbackRequest
 import org.example.route.model.Route
+import org.example.route.repository.PoiLibraryRepository
 import org.example.route.repository.PoiPointRepository
 import org.example.route.repository.RouteMapDataRepository
 import org.example.route.repository.RouteRepository
@@ -37,6 +38,8 @@ class KmlAnalysisCallbackServiceDegradedTest {
             mock<SegmentRepository>(),
             mock<SegmentSchemeRepository>(),
             mock<PoiPointRepository>(),
+            mock<PoiLibraryRepository>(),
+            mock<KmlAnalysisClientService>(),
             mock<RouteMapDataRepository>(),
             mock<WaypointRepository>(),
             eventBus,
@@ -82,6 +85,8 @@ class KmlAnalysisCallbackServiceDegradedTest {
             mock<SegmentRepository>(),
             mock<SegmentSchemeRepository>(),
             mock<PoiPointRepository>(),
+            mock<PoiLibraryRepository>(),
+            mock<KmlAnalysisClientService>(),
             mock<RouteMapDataRepository>(),
             mock<WaypointRepository>(),
             eventBus,

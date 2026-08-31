@@ -72,6 +72,13 @@ data class Route(
     @Column(name = "image_urls", columnDefinition = "TEXT")
     var imageUrls: String? = null, // JSON 字符串存储图片URL数组
 
+    /**
+     * 完整轨迹路径 JSON: [[lat, lng, elev], ...]
+     * 由 KML 分析回调写入，索引与分段 track_start/end_index 对齐
+     */
+    @Column(name = "track_geo_json", columnDefinition = "TEXT")
+    var trackGeoJson: String? = null,
+
     @JsonProperty("created_at")
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),

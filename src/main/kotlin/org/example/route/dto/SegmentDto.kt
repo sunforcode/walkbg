@@ -31,6 +31,10 @@ data class SegmentDto(
     val color: String?,
     @JsonProperty("scheme_type")
     val schemeType: String? = null,
+    /**
+     * 数据状态: draft(分析建议草稿) | confirmed(人工确认)
+     */
+    val status: String = "confirmed",
     @JsonProperty("start_point")
     val startPoint: WaypointDto?,
     @JsonProperty("end_point")
@@ -58,6 +62,7 @@ data class SegmentDto(
                 trackEndIndex = segment.trackEndIndex,
                 color = segment.color,
                 schemeType = segment.schemeType,
+                status = segment.status,
                 startPoint = null,
                 endPoint = null,
                 keypoints = emptyList()
@@ -89,6 +94,7 @@ data class SegmentDto(
                 trackEndIndex = segment.trackEndIndex,
                 color = segment.color,
                 schemeType = segment.schemeType,
+                status = segment.status,
                 startPoint = startPoint,
                 endPoint = endPoint,
                 keypoints = keypoints

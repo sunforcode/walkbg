@@ -1,6 +1,7 @@
 package org.example.route.service
 
 import org.example.route.dto.RouteBasicResponse
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.route.dto.toRoute
 import org.example.route.model.Route
 import org.example.route.model.Waypoint
@@ -35,7 +36,8 @@ class RouteApplicationService(
     private val routeRatingRepository: RouteRatingRepository,
     private val userRepository: UserRepository,
     private val segmentSchemeRepository: SegmentSchemeRepository,
-    private val poiPointRepository: PoiPointRepository
+    private val poiPointRepository: PoiPointRepository,
+    private val objectMapper: ObjectMapper
 ) {
 
     /**
@@ -63,6 +65,18 @@ class RouteApplicationService(
     @Transactional(readOnly = true)
     private fun enrichRouteDetail(route: org.example.route.model.Route, userId: String?): org.example.route.dto.RouteDetailResponse {
         val tags = routeTagRepository.findByRouteId(route.id).map { it.tag }
+
+        // 解析完整轨迹路径 JSON（分析回调写入）
+        val trackPath: List<List<Double?>> = route.trackGeoJson?.let { json ->
+            try {
+                objectMapper.readValue(
+                    json,
+                    object : com.fasterxml.jackson.core.type.TypeReference<List<List<Double?>>>() {}
+                )
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
 
         // 分段方案（每个方案包含内部分段列表）
         val segmentSchemes = run {
@@ -161,6 +175,7 @@ class RouteApplicationService(
             // 关联数据
             tags = tags,
             segmentSchemes = segmentSchemes,
+            trackPath = trackPath,
             poiPoints = poiPoints,
             dailyPlans = dailyPlans,
             hitchhikeContacts = hitchhikeContacts,

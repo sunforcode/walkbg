@@ -3,6 +3,10 @@ package org.example.route.service
 import org.example.route.config.KmlAgentServiceProperties
 import org.example.route.dto.HealthCheckResponse
 import org.example.route.dto.KmlAnalysisSubmitRequest
+import org.example.route.dto.PoiFilterAgentRequest
+import org.example.route.dto.PoiFilterAgentResponse
+import org.example.route.dto.PoiResolveAgentRequest
+import org.example.route.dto.PoiResolveAgentResponse
 import org.example.route.dto.TaskStatusResponse
 import org.example.route.dto.TaskSubmitResponse
 import org.slf4j.LoggerFactory
@@ -11,6 +15,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 @Service
 class KmlAnalysisClientService(
@@ -65,6 +70,40 @@ class KmlAnalysisClientService(
                     logger.error("任务状态查询失败: ${error.message}")
                 }
             }
+    }
+
+    /**
+     * POI LLM 筛选（同步阻塞调用，LLM 分批处理大列表，需要较长超时）
+     */
+    fun filterPois(request: PoiFilterAgentRequest): PoiFilterAgentResponse {
+        logger.info("提交 POI 筛选请求: routeId=${request.routeId}, 数量=${request.pois.size}")
+        return kmlAgentWebClient.post()
+            .uri("/api/v1/pois/filter")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono(PoiFilterAgentResponse::class.java)
+            .block(Duration.ofMinutes(5))
+            ?: throw IllegalStateException("POI 筛选响应为空")
+    }
+
+    /**
+     * POI 位置合并 AI 判定（同步阻塞调用，LLM 分批判定，需要较长超时）。
+     * 代码不写合并策略：候选召回与是否同一位置的判定都由 Agent 完成。
+     */
+    fun resolvePoiMatches(request: PoiResolveAgentRequest): PoiResolveAgentResponse {
+        logger.info(
+            "提交 POI 位置判定请求: routeId=${request.routeId}, " +
+                "pois=${request.pois.size}, library=${request.library.size}"
+        )
+        return kmlAgentWebClient.post()
+            .uri("/api/v1/pois/resolve")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono(PoiResolveAgentResponse::class.java)
+            .block(Duration.ofMinutes(5))
+            ?: throw IllegalStateException("POI 位置判定响应为空")
     }
 
     fun isServiceAvailable(): Mono<Boolean> {

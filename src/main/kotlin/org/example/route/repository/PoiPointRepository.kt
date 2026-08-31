@@ -11,6 +11,12 @@ interface PoiPointRepository : JpaRepository<PoiPoint, String> {
     /** 查询路线的所有 POI 点 */
     fun findByRouteId(@Param("routeId") routeId: String): List<PoiPoint>
 
+    /** 按数据状态查询路线的 POI 点（draft/confirmed） */
+    fun findByRouteIdAndStatus(
+        @Param("routeId") routeId: String,
+        @Param("status") status: String
+    ): List<PoiPoint>
+
     /** 按 category 查询路线的 POI 点 */
     fun findByRouteIdAndCategory(
         @Param("routeId") routeId: String,

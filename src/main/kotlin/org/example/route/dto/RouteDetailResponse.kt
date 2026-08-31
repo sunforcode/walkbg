@@ -52,6 +52,9 @@ data class RouteDetailResponse(
     // 关联对象信息
     @JsonProperty("segment_schemes")
     val segmentSchemes: List<SegmentSchemeDto> = emptyList(),
+
+    @JsonProperty("track_path")
+    val trackPath: List<List<Double?>> = emptyList(),
     @JsonProperty("poi_points")
     val poiPoints: List<PoiPointDto> = emptyList(),
     @JsonProperty("daily_plans")

@@ -49,7 +49,7 @@ data class PoiPoint(
     val routeId: String,
 
     @Column(nullable = false, length = 200)
-    val name: String,
+    var name: String,
 
     @Column(nullable = false)
     val latitude: Double,
@@ -91,6 +91,13 @@ data class PoiPoint(
      */
     @Column(name = "card_data", columnDefinition = "TEXT")
     val cardData: String? = null,
+
+    /**
+     * 数据状态: draft(分析建议草稿) | confirmed(人工确认/采纳)
+     * 分析回调写入的数据为 draft，人工采纳后变为 confirmed
+     */
+    @Column(length = 20)
+    var status: String = "confirmed",
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now()

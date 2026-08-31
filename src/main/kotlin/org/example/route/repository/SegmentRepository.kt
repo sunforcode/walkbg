@@ -17,6 +17,11 @@ interface SegmentRepository : JpaRepository<Segment, String> {
     fun findByRouteId(@Param("routeId") routeId: String): List<Segment>
 
     /**
+     * 根据路线ID和数据状态查找路段（draft/confirmed）
+     */
+    fun findByRouteIdAndStatus(@Param("routeId") routeId: String, @Param("status") status: String): List<Segment>
+
+    /**
      * 根据路线ID查找路段（分页）
      */
     fun findByRouteId(@Param("routeId") routeId: String, pageable: Pageable): Page<Segment>

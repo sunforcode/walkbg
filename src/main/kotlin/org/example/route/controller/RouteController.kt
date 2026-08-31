@@ -15,11 +15,37 @@ import org.example.route.repository.PoiPointRepository
 import org.example.route.repository.SegmentRepository
 import org.example.route.repository.SegmentSchemeRepository
 import org.example.route.service.RouteApplicationService
+import org.example.route.service.SegmentEditService
 import org.springframework.data.domain.Page
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import jakarta.validation.Valid
+
+/**
+ * 拆分路段请求
+ */
+data class SplitSegmentRequest(
+    @com.fasterxml.jackson.annotation.JsonProperty("split_track_index")
+    val splitTrackIndex: Int,
+    val splitPoint: org.example.route.service.SplitPointRequest? = null
+)
+
+/**
+ * 合并路段请求
+ */
+data class MergeSegmentsRequest(
+    @com.fasterxml.jackson.annotation.JsonProperty("segment_ids")
+    val segmentIds: List<String>,
+    val name: String? = null
+)
+
+/**
+ * 改名请求
+ */
+data class RenameRequest(
+    val name: String
+)
 
 /**
  * 路线控制器
@@ -37,7 +63,8 @@ class RouteController(
     private val routeRepository: org.example.route.repository.RouteRepository,
     private val segmentSchemeRepository: SegmentSchemeRepository,
     private val segmentRepository: SegmentRepository,
-    private val poiPointRepository: PoiPointRepository
+    private val poiPointRepository: PoiPointRepository,
+    private val segmentEditService: SegmentEditService
 ) {
 
     /**
@@ -103,6 +130,119 @@ class RouteController(
     ): ResponseEntity<ApiResponse<RouteBasicResponse>> {
         val route = routeApplicationService.createCompleteRoute(request)
         return ResponseUtil.created(route, "路线创建成功")
+    }
+
+    /**
+     * 合并多个路段为一个
+     */
+    @PostMapping("/{id}/segments/merge")
+    @Operation(summary = "合并路段", description = "将选中的多个路段（同一方案）合并为一个，轨迹区间取并集，数值累加")
+    fun mergeSegments(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @RequestBody request: MergeSegmentsRequest
+    ): ResponseEntity<ApiResponse<SegmentDto>> {
+        return ResponseUtil.success(
+            segmentEditService.mergeSegments(id, request.segmentIds, request.name),
+            "路段合并成功"
+        )
+    }
+
+    /**
+     * 路段改名
+     */
+    @PutMapping("/{id}/segments/{segmentId}/name")
+    @Operation(summary = "路段改名", description = "修改路段名称")
+    fun renameSegment(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @Parameter(description = "路段ID") @PathVariable segmentId: String,
+        @RequestBody request: RenameRequest
+    ): ResponseEntity<ApiResponse<SegmentDto>> {
+        return ResponseUtil.success(
+            segmentEditService.renameSegment(id, segmentId, request.name),
+            "路段已改名"
+        )
+    }
+
+    /**
+     * POI 改名
+     */
+    @PutMapping("/{id}/pois/{poiId}/name")
+    @Operation(summary = "POI 改名", description = "修改 POI 名称")
+    fun renamePoi(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @Parameter(description = "POI ID") @PathVariable poiId: String,
+        @RequestBody request: RenameRequest
+    ): ResponseEntity<ApiResponse<PoiPointDto>> {
+        return ResponseUtil.success(
+            segmentEditService.renamePoi(id, poiId, request.name),
+            "POI 已改名"
+        )
+    }
+
+    // =========================================================================
+    // 路段/POI 人工编辑（拆分/采纳）
+    // =========================================================================
+
+    /**
+     * 拆分路段：在指定轨迹索引处把一段拆为两段
+     */
+    @PostMapping("/{id}/segments/{segmentId}/split")
+    @Operation(summary = "拆分路段", description = "在指定轨迹索引处把路段拆为两段")
+    fun splitSegment(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @Parameter(description = "路段ID") @PathVariable segmentId: String,
+        @RequestBody request: SplitSegmentRequest
+    ): ResponseEntity<ApiResponse<Map<String, SegmentDto>>> {
+        val (segA, segB) = segmentEditService.splitSegment(id, segmentId, request.splitTrackIndex, request.splitPoint)
+        return ResponseUtil.success(mapOf("front" to segA, "back" to segB), "路段拆分成功")
+    }
+
+    /**
+     * 采纳单个草稿路段
+     */
+    @PostMapping("/{id}/segments/{segmentId}/adopt")
+    @Operation(summary = "采纳草稿路段", description = "将分析建议的草稿路段确认为正式数据")
+    fun adoptSegment(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @Parameter(description = "路段ID") @PathVariable segmentId: String
+    ): ResponseEntity<ApiResponse<SegmentDto>> {
+        return ResponseUtil.success(segmentEditService.adoptSegment(id, segmentId), "路段已采纳")
+    }
+
+    /**
+     * 采纳路线全部草稿路段
+     */
+    @PostMapping("/{id}/segments/adopt-all")
+    @Operation(summary = "批量采纳草稿路段", description = "将路线下所有草稿路段确认为正式数据")
+    fun adoptAllSegments(
+        @Parameter(description = "路线ID") @PathVariable id: String
+    ): ResponseEntity<ApiResponse<Map<String, Int>>> {
+        val count = segmentEditService.adoptAllSegments(id)
+        return ResponseUtil.success(mapOf("adopted" to count), "已采纳 $count 个路段")
+    }
+
+    /**
+     * 采纳单个草稿 POI
+     */
+    @PostMapping("/{id}/pois/{poiId}/adopt")
+    @Operation(summary = "采纳草稿 POI", description = "将分析建议的草稿 POI 确认为正式数据")
+    fun adoptPoi(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @Parameter(description = "POI ID") @PathVariable poiId: String
+    ): ResponseEntity<ApiResponse<PoiPointDto>> {
+        return ResponseUtil.success(segmentEditService.adoptPoi(id, poiId), "POI 已采纳")
+    }
+
+    /**
+     * 采纳路线全部草稿 POI
+     */
+    @PostMapping("/{id}/pois/adopt-all")
+    @Operation(summary = "批量采纳草稿 POI", description = "将路线下所有草稿 POI 确认为正式数据")
+    fun adoptAllPois(
+        @Parameter(description = "路线ID") @PathVariable id: String
+    ): ResponseEntity<ApiResponse<Map<String, Int>>> {
+        val count = segmentEditService.adoptAllPois(id)
+        return ResponseUtil.success(mapOf("adopted" to count), "已采纳 $count 个 POI")
     }
 
 

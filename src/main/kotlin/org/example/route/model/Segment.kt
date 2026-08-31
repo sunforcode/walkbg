@@ -71,7 +71,7 @@ data class Segment(
      * 新数据必填；历史数据（手动创建的路段）可为 null
      */
     @Column(name = "scheme_id", length = 64)
-    val schemeId: String? = null,
+    var schemeId: String? = null,
 
     /**
      * 冗余字段：所属方案类型（slope/day/terrain/road_type）
@@ -79,6 +79,13 @@ data class Segment(
      */
     @Column(name = "scheme_type", length = 32)
     val schemeType: String? = null,
+
+    /**
+     * 数据状态: draft(分析建议草稿) | confirmed(人工确认/采纳)
+     * 分析回调写入的数据为 draft，人工采纳后变为 confirmed
+     */
+    @Column(length = 20)
+    var status: String = "confirmed",
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),

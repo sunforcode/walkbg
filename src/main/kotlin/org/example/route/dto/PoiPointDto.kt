@@ -27,7 +27,11 @@ data class PoiPointDto(
      * 扩展属性，各 category 结构不同，透传 JSON
      */
     @JsonProperty("card_data")
-    val cardData: Any? = null
+    val cardData: Any? = null,
+    /**
+     * 数据状态: draft(分析建议草稿) | confirmed(人工确认)
+     */
+    val status: String = "confirmed"
 ) {
     companion object {
         private val mapper = ObjectMapper()
@@ -53,7 +57,8 @@ data class PoiPointDto(
                 source = poi.source,
                 description = poi.description,
                 confidence = poi.confidence,
-                cardData = cardData
+                cardData = cardData,
+                status = poi.status
             )
         }
     }

@@ -133,6 +133,52 @@ class RouteController(
     }
 
     /**
+     * 更新路线基本信息（管理端）
+     */
+    @PutMapping("/{id}")
+    @Operation(summary = "更新路线基本信息", description = "仅更新请求中出现的字段；分析中的路线不可编辑")
+    fun updateRoute(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @RequestBody @Valid request: org.example.route.dto.RouteUpdateRequest
+    ): ResponseEntity<ApiResponse<RouteDetailResponse>> {
+        return ResponseUtil.success(routeApplicationService.updateRouteBasic(id, request), "路线已更新")
+    }
+
+    /**
+     * 路线状态流转（管理端）
+     */
+    @PostMapping("/{id}/status")
+    @Operation(
+        summary = "路线状态流转",
+        description = "合法迁移：0→1 发布（含发布前检查）、1→0 下线、1→2 关闭、2→0 重新开启、2→1 重新发布；分析中(3)不可手动变更"
+    )
+    fun changeRouteStatus(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @RequestBody @Valid request: org.example.route.dto.RouteStatusUpdateRequest
+    ): ResponseEntity<ApiResponse<RouteDetailResponse>> {
+        return ResponseUtil.success(
+            routeApplicationService.changeRouteStatus(id, request.targetStatus, request.reason),
+            "路线状态已更新"
+        )
+    }
+
+    /**
+     * 删除路线（管理端，软删除）
+     */
+    @DeleteMapping("/{id}")
+    @Operation(
+        summary = "删除路线（软删除）",
+        description = "分析中的路线不可删除；被未取消行程引用时默认拒绝，force=true 强制删除"
+    )
+    fun deleteRoute(
+        @Parameter(description = "路线ID") @PathVariable id: String,
+        @Parameter(description = "强制删除（忽略行程引用检查）") @RequestParam("force", required = false, defaultValue = "false") force: Boolean
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        routeApplicationService.deleteRoute(id, force)
+        return ResponseUtil.success(null, "路线已删除")
+    }
+
+    /**
      * 合并多个路段为一个
      */
     @PostMapping("/{id}/segments/merge")

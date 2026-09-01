@@ -32,7 +32,11 @@ data class RouteBasicResponse(
     @JsonProperty("created_at")
     val createdAt: Long,
     @JsonProperty("created_by")
-    val createdBy: String?
+    val createdBy: String?,
+    /** 0: 规划中, 1: 已发布, 2: 已关闭, 3: 分析中 */
+    val status: Int = 0,
+    @JsonProperty("updated_at")
+    val updatedAt: Long = 0L
 ) {
     companion object {
         /**
@@ -63,7 +67,9 @@ data class RouteBasicResponse(
                 tags = emptyList(),
                 ratings = null,
                 createdAt = route.createdAt.epochSecond,
-                createdBy = route.createdBy
+                createdBy = route.createdBy,
+                status = route.status,
+                updatedAt = route.updatedAt.epochSecond
             )
         }
     }

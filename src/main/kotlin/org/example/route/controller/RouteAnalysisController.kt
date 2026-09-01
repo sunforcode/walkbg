@@ -1,17 +1,22 @@
 package org.example.route.controller
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.example.common.dto.ApiResponse
+import org.example.common.exception.BusinessException
 import org.example.common.util.ResponseUtil
 import org.example.route.dto.KmlAnalysisSubmitRequest
+import org.example.route.dto.KmlUploadResponse
 import org.example.route.dto.TaskStatusResponse
 import org.example.route.dto.TaskSubmitResponse
 import org.example.route.service.KmlAnalysisClientService
+import org.example.route.service.KmlStorageService
 import org.example.route.service.RouteAnalysisOrchestrationService
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import reactor.core.publisher.Mono
 
 @RestController
@@ -19,7 +24,8 @@ import reactor.core.publisher.Mono
 @Tag(name = "KML分析服务", description = "通过后端代理调用 KML Agent Service 进行路线分析")
 class RouteAnalysisController(
     private val kmlAnalysisClientService: KmlAnalysisClientService,
-    private val routeAnalysisOrchestrationService: RouteAnalysisOrchestrationService
+    private val routeAnalysisOrchestrationService: RouteAnalysisOrchestrationService,
+    private val kmlStorageService: org.example.route.service.KmlStorageService
 ) {
     private val logger = LoggerFactory.getLogger(RouteAnalysisController::class.java)
 
@@ -49,6 +55,27 @@ class RouteAnalysisController(
                     )
                 )
             }
+    }
+
+    /**
+     * KML 文件上传（管理端新建路线向导用）
+     *
+     * 返回的 kml_url 为相对路径，前端拼接 origin 后
+     * 作为 kml_source 传给 /analyze，分析链路零改动。
+     */
+    @PostMapping("/kml/upload")
+    @Operation(summary = "上传 KML 文件", description = "multipart 上传，落盘后返回可访问的相对 URL，限 .kml/.xml、20MB")
+    fun uploadKml(
+        @Parameter(description = "KML 文件") @RequestParam("file") file: MultipartFile
+    ): ResponseEntity<ApiResponse<KmlUploadResponse>> {
+        return try {
+            ResponseUtil.success(kmlStorageService.store(file), "KML 上传成功")
+        } catch (e: BusinessException) {
+            throw e
+        } catch (e: Exception) {
+            logger.error("KML 上传失败", e)
+            ResponseUtil.error("KML 上传失败: ${e.message}", 500)
+        }
     }
 
     /**

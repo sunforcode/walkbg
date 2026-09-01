@@ -2,6 +2,7 @@ package org.example.route.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.persistence.*
+import org.hibernate.annotations.SQLRestriction
 import java.time.Instant
 
 /**
@@ -13,6 +14,7 @@ import java.time.Instant
  * 3. 富领域模型：包含业务行为，而不仅仅是数据容器
  */
 @Entity
+@SQLRestriction("is_deleted = false")
 @Table(
     name = "routes",
     indexes = [
@@ -20,7 +22,8 @@ import java.time.Instant
         Index(name = "idx_routes_status", columnList = "status"),
         Index(name = "idx_routes_region", columnList = "region"),
         Index(name = "idx_routes_difficulty", columnList = "difficulty"),
-        Index(name = "idx_routes_created_at", columnList = "created_at")
+        Index(name = "idx_routes_created_at", columnList = "created_at"),
+        Index(name = "idx_routes_is_deleted", columnList = "is_deleted")
     ]
 )
 data class Route(
@@ -88,7 +91,15 @@ data class Route(
     var updatedAt: Instant = Instant.now(),
 
     @Column(name = "created_by", length = 64, nullable = false)
-    var createdBy: String
+    var createdBy: String,
+
+    /**
+     * 软删除标记
+     * 实体级 @SQLRestriction 保证所有查询（含 JPQL）自动过滤已删除路线，
+     * 无需逐个修改 Repository 查询方法
+     */
+    @Column(name = "is_deleted", nullable = false)
+    var isDeleted: Boolean = false
 ) {
     /**
      * 注意：不再持有以下关联关系的集合引用
@@ -148,6 +159,25 @@ data class Route(
     fun close() {
         require(status == 1) { "只有已发布的路线才能关闭" }
         status = 2
+        updatedAt = Instant.now()
+    }
+
+    /**
+     * 领域行为：下线（已发布 → 规划中）
+     * 管理端主动撤回发布，回到规划中可继续编辑
+     */
+    fun unpublish() {
+        require(status == 1) { "只有已发布的路线才能下线" }
+        status = 0
+        updatedAt = Instant.now()
+    }
+
+    /**
+     * 领域行为：重新开启（已关闭 → 规划中）
+     */
+    fun reopen() {
+        require(status == 2) { "只有已关闭的路线才能重新开启" }
+        status = 0
         updatedAt = Instant.now()
     }
 

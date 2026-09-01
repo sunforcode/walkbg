@@ -2,6 +2,7 @@ package org.example.route.service
 
 import org.example.route.dto.RouteBasicResponse
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.example.route.dto.RouteUpdateRequest
 import org.example.route.dto.toRoute
 import org.example.route.model.Route
 import org.example.route.model.Waypoint
@@ -9,8 +10,11 @@ import org.example.route.model.Segment
 import org.example.route.dto.PoiPointDto
 import org.example.route.dto.SegmentSchemeDto
 import org.example.route.repository.*
+import org.example.common.exception.BusinessException
 import org.example.route.util.RouteQueryParamMapper
 import org.example.common.util.IdGenerator
+import org.example.trip.repository.TripRepository
+import org.example.trip.repository.TripRouteAssociationRepository
 import org.example.user.repository.UserRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -37,6 +41,9 @@ class RouteApplicationService(
     private val userRepository: UserRepository,
     private val segmentSchemeRepository: SegmentSchemeRepository,
     private val poiPointRepository: PoiPointRepository,
+    private val routeRepository: org.example.route.repository.RouteRepository,
+    private val tripRouteAssociationRepository: TripRouteAssociationRepository,
+    private val tripRepository: TripRepository,
     private val objectMapper: ObjectMapper
 ) {
 
@@ -223,8 +230,158 @@ class RouteApplicationService(
             tags = tags,
             ratings = ratings,
             createdAt = route.createdAt.epochSecond,
-            createdBy = route.createdBy
+            createdBy = route.createdBy,
+            status = route.status,
+            updatedAt = route.updatedAt.epochSecond
         )
+    }
+
+    /**
+     * 业务用例：更新路线基本信息（管理端）
+     *
+     * 规则：
+     * - 仅更新请求中出现的字段（null 表示不修改）
+     * - 分析中（status=3）的路线不可编辑，避免与分析回调写入的数据竞争
+     */
+    @Transactional
+    fun updateRouteBasic(routeId: String, request: RouteUpdateRequest): org.example.route.dto.RouteDetailResponse {
+        val route = routeRepository.findById(routeId)
+            .orElseThrow { BusinessException.notFound("路线不存在") }
+
+        if (route.status == 3) {
+            throw BusinessException.conflict("路线分析中，暂不可编辑，请等待分析完成或失败")
+        }
+
+        request.name?.takeIf { it.isNotBlank() }?.let { route.name = it.trim() }
+        request.description?.let { route.description = it }
+        request.region?.let { route.region = it }
+        request.regionId?.let { route.regionId = it }
+        request.difficulty?.let { route.difficulty = it }
+        request.routeType?.let { route.routeType = it }
+        request.isLoop?.let { route.isLoop = it }
+        request.coverUrl?.let { route.coverUrl = it }
+        route.updatedAt = Instant.now()
+        routeRepository.save(route)
+
+        // 返回更新后的完整详情（enrichRouteDetail 为私有方法，通过 getRouteFullDetails 走同一聚合逻辑）
+        return getRouteFullDetails(routeId, null)
+            ?: throw BusinessException.internalError("路线更新后详情加载失败")
+    }
+
+    /**
+     * 业务用例：路线状态流转（管理端）
+     *
+     * 合法迁移矩阵（复用 Route 领域方法，非法迁移抛业务异常）：
+     * - 0 → 1 publish（含发布前检查）
+     * - 1 → 0 unpublish；1 → 2 close
+     * - 2 → 0 reopen；2 → 1 reopen + publish
+     * - 3 分析中 → 不可手动变更
+     */
+    @Transactional
+    fun changeRouteStatus(routeId: String, targetStatus: Int, reason: String?): org.example.route.dto.RouteDetailResponse {
+        val route = routeRepository.findById(routeId)
+            .orElseThrow { BusinessException.notFound("路线不存在") }
+
+        if (route.status == 3) {
+            throw BusinessException.conflict("路线分析中，状态由分析回调自动流转，暂不可手动变更")
+        }
+        if (route.status == targetStatus) {
+            throw BusinessException.badRequest("路线已处于目标状态")
+        }
+
+        when (targetStatus) {
+            0 -> when (route.status) {
+                1 -> route.unpublish()
+                2 -> route.reopen()
+                else -> throw BusinessException.badRequest("不支持的状态迁移: ${route.status} → $targetStatus")
+            }
+
+            1 -> {
+                if (route.status == 2) {
+                    route.reopen()
+                }
+                // 此时 status 必为 0，否则 publish() 领域校验会拦截
+                if (route.status == 0) {
+                    validatePublishReadiness(route)
+                }
+                route.publish()
+            }
+
+            2 -> if (route.status == 1) {
+                route.close()
+            } else {
+                throw BusinessException.badRequest("不支持的状态迁移: ${route.status} → $targetStatus")
+            }
+
+            else -> throw BusinessException.badRequest("目标状态不合法: $targetStatus")
+        }
+
+        route.updatedAt = Instant.now()
+        routeRepository.save(route)
+        // reason 仅作运营记录，P1 引入审计表时落库
+        return getRouteFullDetails(routeId, null)
+            ?: throw BusinessException.internalError("路线状态流转后详情加载失败")
+    }
+
+    /**
+     * 发布前检查：基础信息完整、轨迹数据已回填、无未采纳草稿
+     */
+    private fun validatePublishReadiness(route: Route) {
+        if (route.name.isBlank()) {
+            throw BusinessException.unprocessableEntity("发布前检查未通过：路线名称为空")
+        }
+        val mapData = routeMapDataRepository.findById(route.id).orElse(null)
+        if (mapData?.distance == null) {
+            throw BusinessException.unprocessableEntity(
+                "发布前检查未通过：路线缺少轨迹距离数据，请先导入 KML 并完成分析"
+            )
+        }
+        val draftSegments = segmentRepository.findByRouteId(route.id).count { it.status == "draft" }
+        if (draftSegments > 0) {
+            throw BusinessException.unprocessableEntity(
+                "发布前检查未通过：仍有 $draftSegments 个分段草稿未采纳，请先在路线工作台处理"
+            )
+        }
+        val draftPois = poiPointRepository.findByRouteId(route.id).count { it.status == "draft" }
+        if (draftPois > 0) {
+            throw BusinessException.unprocessableEntity(
+                "发布前检查未通过：仍有 $draftPois 个 POI 草稿未采纳，请先在路线工作台处理"
+            )
+        }
+    }
+
+    /**
+     * 业务用例：删除路线（管理端，软删除）
+     *
+     * 规则：
+     * - 分析中（status=3）不可删除
+     * - 被非已取消行程引用时默认拒绝，force=true 可强制软删
+     * - 已入全局 POI 库的条目不受影响（全局资产，仅来源路线指向已删路线）
+     */
+    @Transactional
+    fun deleteRoute(routeId: String, force: Boolean) {
+        val route = routeRepository.findById(routeId)
+            .orElseThrow { BusinessException.notFound("路线不存在") }
+
+        if (route.status == 3) {
+            throw BusinessException.conflict("路线分析进行中，请等待分析完成或失败后再删除")
+        }
+
+        val associations = tripRouteAssociationRepository.findByRouteId(routeId)
+        if (associations.isNotEmpty()) {
+            val tripIds = associations.map { it.tripId }
+            val activeTrips = tripRepository.findAllById(tripIds).filter { it.status != 3 }
+            if (activeTrips.isNotEmpty() && !force) {
+                throw BusinessException.conflict(
+                    "路线被 ${activeTrips.size} 个未取消的行程引用（如：${activeTrips.first().name}），删除将影响这些行程；如确认删除请使用强制删除",
+                    details = mapOf("referenced_trip_ids" to activeTrips.map { it.id })
+                )
+            }
+        }
+
+        route.isDeleted = true
+        route.updatedAt = Instant.now()
+        routeRepository.save(route)
     }
 
     /**

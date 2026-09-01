@@ -55,8 +55,12 @@ private val objectMapper: ObjectMapper = ObjectMapper()
             throw IllegalArgumentException("routeId 不能为空")
         }
 
-        val route = routeRepository.findById(routeId).orElseThrow {
-            IllegalArgumentException("路线不存在: $routeId")
+        // 容错：路线可能已被删除（软删后 findById 因 @SQLRestriction 返回空）。
+        // 回调不应因此抛异常导致 agent 侧重试风暴，记录日志后直接返回。
+        val route = routeRepository.findById(routeId).orElse(null)
+        if (route == null) {
+            logger.warn("收到 KML 分析回调，但路线不存在或已删除，忽略本次回调。routeId: $routeId, taskId: ${request.taskId}, status: ${request.status}")
+            return
         }
 
         if (request.status == "failed") {

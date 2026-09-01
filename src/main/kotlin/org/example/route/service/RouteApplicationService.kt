@@ -416,6 +416,27 @@ class RouteApplicationService(
     }
     
     /**
+     * 业务用例：管理端路线搜索（全状态，可按状态筛选）
+     * 仅限后台使用；C 端一律走 searchRoutes（只返回已发布）
+     */
+    fun searchRoutesForAdmin(
+        keyword: String? = null,
+        difficulty: Int? = null,
+        status: Int? = null,
+        pageable: Pageable
+    ): Page<RouteBasicResponse> {
+        val routes = routeRepository.searchRoutes(
+            keyword = keyword,
+            region = null,
+            difficulty = difficulty,
+            routeType = null,
+            status = status,
+            pageable = pageable
+        )
+        return routes.map { enrichRouteBasic(it) }
+    }
+
+    /**
      * 业务用例：创建完整路线（重构版 - 单向关联）
      * 使用单向关联的方式创建路线及其关联对象
      */

@@ -318,13 +318,14 @@ class RouteServiceImpl(
             return routeRepository.findUserFavoriteRoutes(userId, pageable)
         }
 
-        // 多条件搜索，应用业务规则：只查询已发布的路线
+        // 多条件搜索，应用业务规则：公共接口只返回已发布的路线（C 端可见性由发布状态控制）
+        // 管理端全状态查询走 RouteApplicationService.searchRoutesForAdmin（/api/v1/admin/routes）
         return routeRepository.searchRoutes(
             keyword = keyword,
             region = regionId,
             difficulty = difficulty,
             routeType = routeType,
-            status = null, // 只查询已发布的路线（业务规则）
+            status = 1, // 只查询已发布的路线（业务规则）
             pageable = pageable
         )
     }

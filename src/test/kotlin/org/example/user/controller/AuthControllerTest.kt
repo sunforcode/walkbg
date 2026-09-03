@@ -36,7 +36,19 @@ class AuthControllerTest {
     @MockBean
     private lateinit var jwtAuthenticationFilter: JwtAuthenticationFilter
 
-    // ========== POST /api/v1/auth/login 测试 ==========
+    @Test
+    fun `legacy password routes are not exposed in target auth namespace`() {
+        listOf("login", "register", "refresh", "logout").forEach { operation ->
+            mockMvc.perform(
+                post("/api/v1/auth/$operation")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}")
+            )
+                .andExpect(status().isNotFound)
+        }
+    }
+
+    // ========== POST /api/v1/legacy/auth/login 测试 ==========
 
     @Test
     fun `POST - api v1 auth login - 有效凭证返回200和token`() {
@@ -49,7 +61,7 @@ class AuthControllerTest {
         whenever(authApplicationService.login(any())).thenReturn(response)
 
         mockMvc.perform(
-            post("/api/v1/auth/login")
+            post("/api/v1/legacy/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -70,7 +82,7 @@ class AuthControllerTest {
         whenever(authApplicationService.login(any())).thenThrow(BusinessException.unauthorized("用户名或密码错误"))
 
         mockMvc.perform(
-            post("/api/v1/auth/login")
+            post("/api/v1/legacy/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -87,7 +99,7 @@ class AuthControllerTest {
         whenever(authApplicationService.login(any())).thenThrow(BusinessException.unauthorized("用户名或密码错误"))
 
         mockMvc.perform(
-            post("/api/v1/auth/login")
+            post("/api/v1/legacy/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -102,14 +114,14 @@ class AuthControllerTest {
         )
 
         mockMvc.perform(
-            post("/api/v1/auth/login")
+            post("/api/v1/legacy/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
             .andExpect(status().isBadRequest)
     }
 
-    // ========== POST /api/v1/auth/register 测试 ==========
+    // ========== POST /api/v1/legacy/auth/register 测试 ==========
 
     @Test
     fun `POST - api v1 auth register - 有效请求返回201`() {
@@ -129,7 +141,7 @@ class AuthControllerTest {
         whenever(authApplicationService.register(any())).thenReturn(response)
 
         mockMvc.perform(
-            post("/api/v1/auth/register")
+            post("/api/v1/legacy/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -152,7 +164,7 @@ class AuthControllerTest {
         whenever(authApplicationService.register(any())).thenThrow(BusinessException.conflict("用户名已存在"))
 
         mockMvc.perform(
-            post("/api/v1/auth/register")
+            post("/api/v1/legacy/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -170,7 +182,7 @@ class AuthControllerTest {
         whenever(authApplicationService.register(any())).thenThrow(BusinessException.conflict("邮箱已被注册"))
 
         mockMvc.perform(
-            post("/api/v1/auth/register")
+            post("/api/v1/legacy/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -186,14 +198,14 @@ class AuthControllerTest {
         )
 
         mockMvc.perform(
-            post("/api/v1/auth/register")
+            post("/api/v1/legacy/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
             .andExpect(status().isBadRequest)
     }
 
-    // ========== POST /api/v1/auth/refresh 测试 ==========
+    // ========== POST /api/v1/legacy/auth/refresh 测试 ==========
 
     @Test
     fun `POST - api v1 auth refresh - 有效refresh token返回新token`() {
@@ -207,7 +219,7 @@ class AuthControllerTest {
         whenever(authApplicationService.refreshToken(any())).thenReturn(response)
 
         mockMvc.perform(
-            post("/api/v1/auth/refresh")
+            post("/api/v1/legacy/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -223,7 +235,7 @@ class AuthControllerTest {
         whenever(authApplicationService.refreshToken(any())).thenThrow(BusinessException.badRequest("刷新Token不能为空"))
 
         mockMvc.perform(
-            post("/api/v1/auth/refresh")
+            post("/api/v1/legacy/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -237,7 +249,7 @@ class AuthControllerTest {
         whenever(authApplicationService.refreshToken(any())).thenThrow(BusinessException.unauthorized("刷新Token已过期"))
 
         mockMvc.perform(
-            post("/api/v1/auth/refresh")
+            post("/api/v1/legacy/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
@@ -251,19 +263,19 @@ class AuthControllerTest {
         whenever(authApplicationService.refreshToken(any())).thenThrow(BusinessException.unauthorized("无效的刷新Token"))
 
         mockMvc.perform(
-            post("/api/v1/auth/refresh")
+            post("/api/v1/legacy/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
             .andExpect(status().isUnauthorized)
     }
 
-    // ========== POST /api/v1/auth/logout 测试 ==========
+    // ========== POST /api/v1/legacy/auth/logout 测试 ==========
 
     @Test
     fun `POST - api v1 auth logout - 成功返回200`() {
         mockMvc.perform(
-            post("/api/v1/auth/logout")
+            post("/api/v1/legacy/auth/logout")
                 .contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isOk)
@@ -271,7 +283,7 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.message").value("登出成功"))
     }
 
-    // ========== GET /api/v1/auth/check-username 测试 ==========
+    // ========== GET /api/v1/legacy/auth/check-username 测试 ==========
 
     @Test
     fun `GET - api v1 auth check-username - 可用返回true`() {
@@ -280,7 +292,7 @@ class AuthControllerTest {
         whenever(authApplicationService.checkUsernameAvailability(username)).thenReturn(true)
 
         mockMvc.perform(
-            get("/api/v1/auth/check-username/{username}", username)
+            get("/api/v1/legacy/auth/check-username/{username}", username)
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.code").value(200))
@@ -295,13 +307,13 @@ class AuthControllerTest {
         whenever(authApplicationService.checkUsernameAvailability(username)).thenReturn(false)
 
         mockMvc.perform(
-            get("/api/v1/auth/check-username/{username}", username)
+            get("/api/v1/legacy/auth/check-username/{username}", username)
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.available").value(false))
     }
 
-    // ========== GET /api/v1/auth/check-email 测试 ==========
+    // ========== GET /api/v1/legacy/auth/check-email 测试 ==========
 
     @Test
     fun `GET - api v1 auth check-email - 可用返回true`() {
@@ -310,7 +322,7 @@ class AuthControllerTest {
         whenever(authApplicationService.checkEmailAvailability(email)).thenReturn(true)
 
         mockMvc.perform(
-            get("/api/v1/auth/check-email/{email}", email)
+            get("/api/v1/legacy/auth/check-email/{email}", email)
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.available").value(true))
@@ -323,7 +335,7 @@ class AuthControllerTest {
         whenever(authApplicationService.checkEmailAvailability(email)).thenReturn(false)
 
         mockMvc.perform(
-            get("/api/v1/auth/check-email/{email}", email)
+            get("/api/v1/legacy/auth/check-email/{email}", email)
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.available").value(false))

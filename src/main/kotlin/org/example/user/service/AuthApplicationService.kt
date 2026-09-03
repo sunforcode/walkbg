@@ -99,6 +99,9 @@ class AuthApplicationService(
         if (refreshToken.isNullOrBlank()) {
             throw BusinessException.badRequest("刷新Token不能为空")
         }
+        if (jwtTokenUtil.getTokenTypeFromToken(refreshToken) != "refresh") {
+            throw BusinessException.unauthorized("无效的刷新Token")
+        }
 
         val username = jwtTokenUtil.getUsernameFromToken(refreshToken)
             ?: throw BusinessException.unauthorized("无效的刷新Token")

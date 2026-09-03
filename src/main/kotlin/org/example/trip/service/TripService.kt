@@ -23,11 +23,28 @@ interface TripService {
      * 创建新行程
      */
     fun createTrip(trip: Trip): Trip
-    
+
+    /**
+     * 创建新行程并建立与路线的关联。
+     *
+     * 行程记录与关联记录写入同一事务，不会出现行程已创建但关联缺失的中间状态。
+     *
+     * @param routeIds 行程包含的路线集合，已由调用方归一化且非空
+     * @param primaryRouteId 主路线标识，必为 [routeIds] 成员
+     */
+    fun createTrip(trip: Trip, routeIds: List<String>, primaryRouteId: String): Trip
+
     /**
      * 更新行程
      */
     fun updateTrip(id: String, trip: Trip): Trip?
+
+    /**
+     * 更新行程，并在主路线发生变更时同步维护关联记录。
+     *
+     * @param newPrimaryRouteId 本次请求显式指定的新主路线；null 表示本次更新不涉及主路线，关联保持不变
+     */
+    fun updateTrip(id: String, trip: Trip, newPrimaryRouteId: String?): Trip?
     
     /**
      * 删除行程
@@ -103,4 +120,19 @@ interface TripService {
      * 获取计划中的行程
      */
     fun getPlannedTrips(pageable: Pageable): Page<Trip>
+
+    /**
+     * 查询行程关联的路线标识集合。
+     *
+     * 关联记录是行程所含路线的权威来源。主路线排在首位。
+     * 对于无关联记录的历史行程返回空列表，由调用方决定是否回退推导。
+     */
+    fun getRouteIds(tripId: String): List<String>
+
+    /**
+     * 批量查询多个行程关联的路线标识，用于列表场景避免 N+1。
+     *
+     * 返回的 Map 仅包含存在关联记录的行程；无关联的行程不会出现在键集中。
+     */
+    fun getRouteIdsByTripIds(tripIds: List<String>): Map<String, List<String>>
 }

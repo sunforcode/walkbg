@@ -25,7 +25,7 @@ import java.time.Instant
 import java.util.*
 
 @RestController
-@RequestMapping("/api/v1/equipment-lists")
+@RequestMapping("/api/v1/legacy/equipment-lists")
 @Tag(name = "装备清单管理", description = "装备清单相关的API接口")
 @Validated
 class EquipmentListController(
@@ -97,12 +97,15 @@ class EquipmentListController(
     fun createEquipmentList(
         @Valid @RequestBody request: EquipmentListCreateRequest
     ): ResponseEntity<ApiResponse<EquipmentListResponse>> {
-        val requestMap = mapOf(
+        val requestMap = mutableMapOf<String, Any>(
             "name" to request.name,
             "type" to request.type,
             "personCount" to request.personCount,
             "description" to (request.description ?: "")
         )
+        if (request.tripId != null) {
+            requestMap["tripId"] = request.tripId
+        }
         
         val currentUserId = getCurrentUserId()
         val currentUsername = getCurrentUsername()

@@ -262,7 +262,14 @@ class GlobalExceptionHandler {
     fun handleUnsupportedMediaType(
         ex: HttpMediaTypeNotSupportedException,
         request: HttpServletRequest
-    ): ResponseEntity<ApiResponse<ErrorData>> {
+    ): ResponseEntity<*> {
+        if (isTargetApiRequest(request)) {
+            val avatarRequest = request.requestURI == "/api/v1/account/profile/avatar-media"
+            val code = if (avatarRequest) "avatar_media_type_unsupported" else "media_type_unsupported"
+            val message = if (avatarRequest) "不支持该头像媒体类型" else "请求媒体类型不受支持"
+            return targetError(HttpStatus.UNSUPPORTED_MEDIA_TYPE, code, message)
+        }
+
         val traceId = generateTraceId()
         logException("WARN", "不支持的媒体类型", ex, request)
 
@@ -293,7 +300,10 @@ class GlobalExceptionHandler {
     fun handleNoHandlerFound(
         ex: NoHandlerFoundException,
         request: HttpServletRequest
-    ): ResponseEntity<ApiResponse<ErrorData>> {
+    ): ResponseEntity<*> {
+        if (isTargetApiRequest(request)) {
+            return targetError(HttpStatus.NOT_FOUND, "resource_not_found", "资源不存在")
+        }
         val traceId = generateTraceId()
         logException("WARN", "API接口不存在", ex, request, includeStackTrace = false)
 
@@ -321,7 +331,10 @@ class GlobalExceptionHandler {
     fun handleNoResourceFound(
         ex: NoResourceFoundException,
         request: HttpServletRequest
-    ): ResponseEntity<ApiResponse<ErrorData>> {
+    ): ResponseEntity<*> {
+        if (isTargetApiRequest(request)) {
+            return targetError(HttpStatus.NOT_FOUND, "resource_not_found", "资源不存在")
+        }
         val traceId = generateTraceId()
         logException("WARN", "资源不存在", ex, request, includeStackTrace = false)
 
@@ -349,7 +362,10 @@ class GlobalExceptionHandler {
     fun handleMethodNotSupported(
         ex: HttpRequestMethodNotSupportedException,
         request: HttpServletRequest
-    ): ResponseEntity<ApiResponse<ErrorData>> {
+    ): ResponseEntity<*> {
+        if (isTargetApiRequest(request)) {
+            return targetError(HttpStatus.METHOD_NOT_ALLOWED, "method_not_allowed", "请求方法不受支持")
+        }
         val traceId = generateTraceId()
         logException("WARN", "请求方法不支持", ex, request, includeStackTrace = false)
 
@@ -453,4 +469,22 @@ class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response)
     }
+
+    private fun isTargetApiRequest(request: HttpServletRequest): Boolean {
+        val path = request.requestURI
+        if (path.startsWith("/api/v1/legacy/")) return false
+        return path == "/api/v1/auth" || path.startsWith("/api/v1/auth/") ||
+            path == "/api/v1/account" || path.startsWith("/api/v1/account/") ||
+            path == "/api/v1/public-routes" || path.startsWith("/api/v1/public-routes/") ||
+            path == "/api/v1/personal-equipment" || path.startsWith("/api/v1/personal-equipment/") ||
+            path == "/api/v1/equipment-lists" || path.startsWith("/api/v1/equipment-lists/") ||
+            path == "/api/v1/trips" || path.startsWith("/api/v1/trips/")
+    }
+
+    private fun targetError(status: HttpStatus, code: String, message: String): ResponseEntity<org.example.common.contract.ErrorResponse> =
+        ResponseEntity.status(status).body(
+            org.example.common.contract.ErrorResponse(
+                org.example.common.contract.ApiError(code, message, retryable = false)
+            )
+        )
 }

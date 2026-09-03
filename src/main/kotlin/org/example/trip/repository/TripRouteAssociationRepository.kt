@@ -26,6 +26,13 @@ interface TripRouteAssociationRepository : JpaRepository<TripRouteAssociation, T
     fun findByTripId(tripId: String, pageable: Pageable): Page<TripRouteAssociation>
 
     /**
+     * 批量根据行程ID集合查找关联的路线
+     *
+     * 用于列表场景一次性取回全部关联，避免逐个行程查询造成的 N+1。
+     */
+    fun findByTripIdIn(tripIds: List<String>): List<TripRouteAssociation>
+
+    /**
      * 根据路线ID查找关联的行程
      */
     fun findByRouteId(routeId: String): List<TripRouteAssociation>

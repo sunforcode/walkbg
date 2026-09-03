@@ -27,6 +27,11 @@ interface UserRepository : JpaRepository<User, String> {
     fun findByUsername(username: String): User?
 
     /**
+     * 根据认证手机号查找账号
+     */
+    fun findByPhone(phone: String): User?
+
+    /**
      * 检查邮箱是否存在
      */
     fun existsByEmail(email: String): Boolean

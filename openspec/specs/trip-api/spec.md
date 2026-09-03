@@ -1,5 +1,8 @@
-## MODIFIED Requirements
+# trip-api Specification
 
+## Purpose
+TBD - created by archiving change add-guide-trip-apis. Update Purpose after archive.
+## Requirements
 ### Requirement: Trip API路径规范
 Trip相关API的路径 SHALL 使用版本化的RESTful格式:
 - 基础路径: `/api/v1/trips` (修改自 `/api/trips`)
@@ -20,10 +23,6 @@ Trip相关API的路径 SHALL 使用版本化的RESTful格式:
 - **WHEN** 前端请求 `GET /walkbg/api/trips` (旧路径)
 - **THEN** 后端返回状态码 404
 - **AND** 提示路径已变更
-
----
-
-## ADDED Requirements
 
 ### Requirement: Planned Trips API
 系统 SHALL 提供获取计划中行程的专用API端点:

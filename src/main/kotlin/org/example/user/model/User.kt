@@ -27,8 +27,8 @@ data class User(
     @Column(nullable = false, unique = true, length = 50)
     var username: String = "",
 
-    @Column(nullable = false, length = 50)
-    var nickname: String = "",
+    @Column(length = 50)
+    var nickname: String? = null,
 
     @Column(nullable = false, unique = true, length = 100)
     var email: String = "",

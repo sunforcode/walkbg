@@ -1,13 +1,19 @@
 package org.example.security
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.example.account.repository.AccountSessionRepository
 import org.example.common.BaseUnitTest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.util.ReflectionTestUtils
 import java.util.*
-import kotlin.concurrent.thread
 
 class JwtTokenUtilTest : BaseUnitTest() {
 
@@ -46,6 +52,22 @@ class JwtTokenUtilTest : BaseUnitTest() {
 
         assertEquals(testUsername, username)
         assertEquals(testUserId, userId)
+    }
+
+    @Test
+    fun `generateToken marks new legacy access tokens explicitly`() {
+        val token = jwtTokenUtil.generateToken(testUserId, testUsername)
+
+        assertEquals("legacy_access", jwtTokenUtil.getTokenTypeFromToken(token))
+    }
+
+    @Test
+    fun `account session and refresh tokens remain distinguishable`() {
+        val accountSession = jwtTokenUtil.generateAccountSessionToken(testUserId, "session-1")
+        val refreshToken = jwtTokenUtil.generateRefreshToken(testUserId, testUsername)
+
+        assertEquals("account_session", jwtTokenUtil.getTokenTypeFromToken(accountSession))
+        assertEquals("refresh", jwtTokenUtil.getTokenTypeFromToken(refreshToken))
     }
 
     // ========== generateRefreshToken 测试 ==========
@@ -252,5 +274,148 @@ class JwtTokenUtilTest : BaseUnitTest() {
 
         assertEquals(testUsername, username)
         assertEquals(testUserId, userId)
+    }
+
+    @Test
+    fun `JWT filter rejects an invalid bearer token before a public endpoint`() {
+        val sessionRepository = mock<AccountSessionRepository>()
+        val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+        val request = MockHttpServletRequest("GET", "/api/v1/public-routes/featured").apply {
+            addHeader("Authorization", "Bearer invalid-token")
+        }
+        val response = MockHttpServletResponse()
+        val chain = mock<jakarta.servlet.FilterChain>()
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals(401, response.status)
+        assertEquals(
+            "authentication_required",
+            ObjectMapper().readTree(response.contentAsString).path("error").path("code").asText()
+        )
+        assertFalse(ObjectMapper().readTree(response.contentAsString).path("error").path("retryable").asBoolean(true))
+        verify(chain, never()).doFilter(request, response)
+    }
+
+    @Test
+    fun `JWT filter rejects an account session not bound to the token account`() {
+        val sessionRepository = mock<AccountSessionRepository>()
+        whenever(sessionRepository.existsByIdAndAccountIdAndRevokedAtIsNull("session-1", testUserId)).thenReturn(false)
+        val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+        val request = MockHttpServletRequest("GET", "/api/v1/public-routes/featured").apply {
+            addHeader("Authorization", "Bearer ${jwtTokenUtil.generateAccountSessionToken(testUserId, "session-1")}")
+        }
+        val response = MockHttpServletResponse()
+        val chain = mock<jakarta.servlet.FilterChain>()
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals(401, response.status)
+        verify(sessionRepository).existsByIdAndAccountIdAndRevokedAtIsNull("session-1", testUserId)
+        verify(chain, never()).doFilter(request, response)
+    }
+
+    @Test
+    fun `JWT filter accepts account session only when session and account are active together`() {
+        val sessionRepository = mock<AccountSessionRepository>()
+        whenever(sessionRepository.existsByIdAndAccountIdAndRevokedAtIsNull("session-1", testUserId)).thenReturn(true)
+        val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+        val request = MockHttpServletRequest("GET", "/api/v1/account/profile").apply {
+            addHeader("Authorization", "Bearer ${jwtTokenUtil.generateAccountSessionToken(testUserId, "session-1")}")
+        }
+        val response = MockHttpServletResponse()
+        val chain = mock<jakarta.servlet.FilterChain>()
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals(200, response.status)
+        verify(chain).doFilter(request, response)
+    }
+
+    @Test
+    fun `JWT filter rejects a bearer scheme without a token`() {
+        val sessionRepository = mock<AccountSessionRepository>()
+        val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+        val request = MockHttpServletRequest("GET", "/api/v1/public-routes/featured").apply {
+            addHeader("Authorization", "Bearer ")
+        }
+        val response = MockHttpServletResponse()
+        val chain = mock<jakarta.servlet.FilterChain>()
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals(401, response.status)
+        verify(chain, never()).doFilter(request, response)
+    }
+
+    @Test
+    fun `JWT filter accepts a valid legacy access token only on the legacy namespace`() {
+        val sessionRepository = mock<AccountSessionRepository>()
+        val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+        val request = MockHttpServletRequest("GET", "/api/v1/legacy/trips").apply {
+            addHeader("Authorization", "Bearer ${jwtTokenUtil.generateToken(testUserId, testUsername)}")
+        }
+        val response = MockHttpServletResponse()
+        val chain = mock<jakarta.servlet.FilterChain>()
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals(200, response.status)
+        verify(sessionRepository, never()).existsByIdAndAccountIdAndRevokedAtIsNull(org.mockito.kotlin.any(), org.mockito.kotlin.any())
+        verify(chain).doFilter(request, response)
+    }
+
+    @Test
+    fun `JWT filter rejects refresh tokens on legacy paths`() {
+        val sessionRepository = mock<AccountSessionRepository>()
+        val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+        val request = MockHttpServletRequest("GET", "/api/v1/legacy/trips").apply {
+            addHeader("Authorization", "Bearer ${jwtTokenUtil.generateRefreshToken(testUserId, testUsername)}")
+        }
+        val response = MockHttpServletResponse()
+        val chain = mock<jakarta.servlet.FilterChain>()
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals(401, response.status)
+        verify(chain, never()).doFilter(request, response)
+    }
+
+    @Test
+    fun `JWT filter rejects a legacy token on every target namespace including public reads`() {
+        listOf(
+            "/api/v1/account/profile",
+            "/api/v1/public-routes/featured",
+            "/api/v1/personal-equipment",
+            "/api/v1/equipment-lists",
+            "/api/v1/trips"
+        ).forEach { path ->
+            val sessionRepository = mock<AccountSessionRepository>()
+            val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+            val request = MockHttpServletRequest("GET", path).apply {
+                addHeader("Authorization", "Bearer ${jwtTokenUtil.generateToken(testUserId, testUsername)}")
+            }
+            val response = MockHttpServletResponse()
+            val chain = mock<jakarta.servlet.FilterChain>()
+
+            filter.doFilter(request, response, chain)
+
+            assertEquals(401, response.status, path)
+            verify(chain, never()).doFilter(request, response)
+        }
+    }
+
+    @Test
+    fun `JWT filter allows a public request without authorization`() {
+        val sessionRepository = mock<AccountSessionRepository>()
+        val filter = JwtAuthenticationFilter(jwtTokenUtil, sessionRepository, ObjectMapper())
+        val request = MockHttpServletRequest("GET", "/api/v1/public-routes/featured")
+        val response = MockHttpServletResponse()
+        val chain = mock<jakarta.servlet.FilterChain>()
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals(200, response.status)
+        verify(chain).doFilter(request, response)
     }
 }

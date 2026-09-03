@@ -1,0 +1,19 @@
+# 构建上下文排除项
+# target 必须排除：本地编译产物会覆盖镜像内的构建结果，
+# 导致镜像里跑的是本地 jar 而非容器内重新编译的版本。
+target
+
+.git
+.gitignore
+.idea
+*.iml
+
+# 本地日志与环境文件
+logs
+*.log
+.env
+.env.*
+
+.DS_Store
+Dockerfile
+.dockerignore

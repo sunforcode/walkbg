@@ -37,14 +37,31 @@ class EquipmentServiceImpl(
         return equipmentListRepository.findById(listId).orElse(null)
     }
 
+    /**
+     * 将 Map 中的字段解析为 Int。
+     *
+     * 调用方（Controller）既可能传入原生 Int（来自强类型 DTO 字段），
+     * 也可能传入 String（来自通用 Map<String, Any> 请求体的字符串数字），
+     * 因此这里同时兼容两种来源，避免 `as? String` 单一类型转换导致的静默丢失。
+     */
+    private fun parseIntField(value: Any?): Int? {
+        return when (value) {
+            is Int -> value
+            is Number -> value.toInt()
+            is String -> value.toIntOrNull()
+            else -> null
+        }
+    }
+
     override fun createEquipmentList(request: Map<String, Any>, userId: String, userName: String): EquipmentList {
         val equipmentList = EquipmentList(
             id = UUID.randomUUID().toString(),
             name = request["name"] as String,
-            type = (request["type"] as? String)?.toIntOrNull() ?: 0, // 转换为Int类型
+            type = parseIntField(request["type"]) ?: 0,
+            tripId = request["tripId"] as? String,
             creatorId = userId,
-            personCount = request["personCount"] as? Int ?: 1,
-            status = (request["status"] as? String)?.toIntOrNull() ?: 0 // 转换为Int类型
+            personCount = parseIntField(request["personCount"]) ?: 1,
+            status = parseIntField(request["status"]) ?: 0
         )
         return equipmentListRepository.save(equipmentList)
     }
@@ -71,7 +88,9 @@ class EquipmentServiceImpl(
         val list = equipmentListRepository.findById(listId).orElse(null) ?: return null
         list.apply {
             name = request["name"] as? String ?: name
-            status = (request["status"] as? String)?.toIntOrNull() ?: status // 转换为Int类型
+            personCount = parseIntField(request["personCount"]) ?: personCount
+            status = parseIntField(request["status"]) ?: status
+            tripId = request["tripId"] as? String ?: tripId
             updatedAt = Instant.now()
         }
         return equipmentListRepository.save(list)

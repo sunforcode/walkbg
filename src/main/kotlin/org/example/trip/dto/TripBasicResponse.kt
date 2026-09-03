@@ -49,8 +49,25 @@ data class TripBasicResponse(
     companion object {
         /**
          * 从Trip实体创建基础响应DTO
+         *
+         * [equipmentListId] 由调用方（Controller）解析后传入，默认为 null。
+         * 列表类接口（如 `GET /trips`）保持默认 null 以避免逐条查询装备清单造成的
+         * N+1 问题；单个行程详情类接口应通过
+         * [org.example.equipment.repository.EquipmentListRepository.findByTripId]
+         * 解析出真实值后传入。
+         *
+         * [routeIds] 由调用方从行程-路线关联表查询后传入，是行程所含路线的权威来源。
+         * 传入 null 或空列表时，会回退为由 [Trip.primaryRouteId] 推导单元素集合——
+         * 该回退**仅用于兼容改造前创建的、没有任何关联记录的历史行程**，
+         * 不得作为常规读取路径。列表场景应通过
+         * [org.example.trip.service.TripService.getRouteIdsByTripIds] 批量取回后传入，
+         * 避免逐条查询造成的 N+1。
          */
-        fun fromTrip(trip: Trip): TripBasicResponse {
+        fun fromTrip(
+            trip: Trip,
+            equipmentListId: String? = null,
+            routeIds: List<String>? = null
+        ): TripBasicResponse {
             return TripBasicResponse(
                 id = trip.id,
                 name = trip.name,
@@ -58,12 +75,12 @@ data class TripBasicResponse(
                 startDate = trip.startDate?.epochSecond,
                 endDate = trip.endDate?.epochSecond,
                 status = trip.status,
-                routeIds = if (trip.primaryRouteId != null) listOf(trip.primaryRouteId!!) else emptyList(),
+                routeIds = resolveRouteIds(trip, routeIds),
                 primaryRouteId = trip.primaryRouteId,
                 participants = emptyList(), // 需要通过Repository查询
                 participantCount = 0, // 需要通过Repository查询
                 organizerId = trip.organizerId,
-                equipmentListId = null,
+                equipmentListId = equipmentListId,
                 mealPlanId = null,
                 waterPlanId = null,
                 itinerary = emptyList(), // 需要通过Repository查询
@@ -81,6 +98,22 @@ data class TripBasicResponse(
                 createdAt = trip.createdAt.epochSecond,
                 updatedAt = trip.updatedAt.epochSecond
             )
+        }
+
+        /**
+         * 解析响应中的路线集合。
+         *
+         * 关联记录存在时直接采用，此时结果不受 [Trip.primaryRouteId] 影响。
+         *
+         * 仅当行程不存在任何关联记录时（即改造前创建的历史行程），才回退为由
+         * [Trip.primaryRouteId] 推导的单元素集合。新建行程必定写入关联记录，
+         * 因此不会走到回退分支。
+         */
+        private fun resolveRouteIds(trip: Trip, routeIds: List<String>?): List<String> {
+            if (!routeIds.isNullOrEmpty()) {
+                return routeIds
+            }
+            return trip.primaryRouteId?.let { listOf(it) } ?: emptyList()
         }
     }
 }

@@ -15,7 +15,8 @@ data class CustomUserDetails(
     private val accountNonExpired: Boolean = true,
     private val accountNonLocked: Boolean = true,
     private val credentialsNonExpired: Boolean = true,
-    private val enabled: Boolean = true
+    private val enabled: Boolean = true,
+    val sessionId: String? = null
 ) : UserDetails {
 
     override fun getAuthorities(): Collection<GrantedAuthority> = authorities

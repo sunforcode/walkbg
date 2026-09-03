@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*
  * 严格遵循分层架构，所有业务逻辑都通过 ApplicationService
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/v1/legacy/auth")
 @Tag(name = "认证管理", description = "用户认证相关的API接口")
 @Validated
 class AuthController(

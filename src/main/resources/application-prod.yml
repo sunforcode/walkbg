@@ -1,26 +1,46 @@
 # 生产环境配置
+#
+# 设计前提：本服务可能与其他服务部署在不同主机上，
+# 所有环境相关地址与凭证均从环境变量注入，且不提供可用的默认值
+# （缺失时应启动失败，而不是默默连到 localhost）。
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+  # 优雅停机：容器收到 SIGTERM 后先处理完在途请求
+  shutdown: graceful
   compression:
     enabled: true
 
 spring:
-  # 使用环境变量配置数据库
+  # 数据库连接：全部必填，无默认值
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/walkbg?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai}
-    username: ${DB_USERNAME:root}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: 30
-      minimum-idle: 10
+      # 连接池上限需与数据库 max_connections 及容器内存匹配，
+      # 小内存单机部署不宜过大。
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
 
+  # Flyway 数据库迁移 - 表结构的唯一来源
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true      # 允许对已有表的旧库接入迁移体系
+    baseline-version: 0            # 基线设为 0，使 V1 在旧库上也会执行
+    validate-on-migrate: true
+
   # JPA配置 - 生产环境
   jpa:
     hibernate:
-      ddl-auto: validate  # 生产环境不自动修改表结构
+      ddl-auto: validate  # 生产环境不自动修改表结构，由 Flyway 负责
+    # 必须为 false：基础配置中该项为 true，会与 Flyway 的 bean 依赖顺序
+    # 形成 flyway <-> entityManagerFactory 循环依赖导致启动失败。
+    # 生产环境 sql.init.mode 为 never，无需延迟初始化。
+    defer-datasource-initialization: false
     show-sql: false
     properties:
       hibernate:
@@ -41,6 +61,32 @@ spring:
     restart:
       enabled: false
 
+# Agent 服务地址：跨服务调用，必须显式注入
+# 单机 Compose 部署时为服务名（如 http://kml-agent:8001），
+# 拆分主机后改为对应的内网地址，代码无需变更。
+kml-agent:
+  base-url: ${KML_AGENT_BASE_URL}
+  timeout: ${KML_AGENT_TIMEOUT:30}
+  enabled: ${KML_AGENT_ENABLED:true}
+
+# JWT 签名密钥：必须注入，不允许使用源码中的默认值
+# （默认值已随代码公开，可被任何人伪造 Token）
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+# 允许的跨域来源：生产环境应收敛为具体域名
+# 同源反向代理部署时前端与后端同域，无需跨域
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+# 账号媒体位于运行数据目录；生产部署应将该目录挂载为持久卷。
+account:
+  avatar-media:
+    directory: ${ACCOUNT_AVATAR_MEDIA_DIRECTORY:/var/lib/walkbg/avatar-media}
+    max-size-bytes: ${ACCOUNT_AVATAR_MEDIA_MAX_SIZE_BYTES:5242880}
+
 # 关闭Swagger UI（生产环境）
 springdoc:
   api-docs:
@@ -49,13 +95,11 @@ springdoc:
     enabled: false
 
 # 日志配置
+# 容器化部署统一输出到 stdout，由容器运行时负责采集与轮转；
+# 写容器内文件会落在可写层且无法被外部采集。
 logging:
   level:
     root: WARN
     org.springframework.web: INFO
     org.example: INFO
     org.hibernate.SQL: WARN
-  file:
-    name: logs/walkbg.log
-    max-size: 10MB
-    max-history: 30

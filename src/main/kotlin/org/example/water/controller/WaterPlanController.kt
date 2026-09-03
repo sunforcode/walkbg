@@ -13,7 +13,8 @@ import org.example.water.model.WaterPlan
  */
 @RestController
 @RequestMapping("/api/water-plans")
-@CrossOrigin(origins = ["*"])
+// 跨域策略统一由全局 CORS 配置（cors.allowed-origins）控制，
+// 不在 Controller 上写死 @CrossOrigin，否则会覆盖全局配置。
 class WaterPlanController(
     private val waterPlanService: WaterPlanService
 ) {

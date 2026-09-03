@@ -16,14 +16,19 @@ import javax.crypto.SecretKey
 @Component
 class JwtTokenUtil {
 
-    @Value("\${jwt.secret:walkbg-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}")
+    /**
+     * 签名密钥，必须由配置提供，源码内不保留默认值。
+     * 写死在源码里的密钥会随仓库公开，任何人都能据此伪造 Token；
+     * 缺失配置时应启动失败，而不是退化为使用公开密钥。
+     */
+    @Value("\${jwt.secret}")
     private lateinit var secret: String
 
-    @Value("\${jwt.expiration:86400000}")
-    private var expiration: Long = 86400000
+    @Value("\${jwt.expiration}")
+    private var expiration: Long = 0
 
-    @Value("\${jwt.refresh-expiration:604800000}")
-    private var refreshExpiration: Long = 604800000
+    @Value("\${jwt.refresh-expiration}")
+    private var refreshExpiration: Long = 0
 
     private val signingKey: SecretKey by lazy {
         Keys.hmacShaKeyFor(secret.toByteArray(Charsets.UTF_8))
@@ -41,6 +46,17 @@ class JwtTokenUtil {
      */
     fun getUserIdFromToken(token: String): String? {
         return getClaimFromToken(token) { it["userId", String::class.java] }
+    }
+
+    fun getSessionIdFromToken(token: String): String? {
+        return getClaimFromToken(token) { it["sessionId", String::class.java] }
+    }
+
+    fun getTokenTypeFromToken(token: String): String? {
+        return getClaimFromToken(token) { claims ->
+            claims["tokenType", String::class.java]
+                ?: claims["type", String::class.java]
+        }
     }
 
     /**
@@ -92,7 +108,16 @@ class JwtTokenUtil {
         val claims = mutableMapOf<String, Any>()
         claims["userId"] = userId
         claims["username"] = username
+        claims["tokenType"] = "legacy_access"
         return doGenerateToken(claims, username, expiration)
+    }
+
+    fun generateAccountSessionToken(accountId: String, sessionId: String): String {
+        val claims = mutableMapOf<String, Any>()
+        claims["userId"] = accountId
+        claims["sessionId"] = sessionId
+        claims["tokenType"] = "account_session"
+        return doGenerateToken(claims, accountId, expiration)
     }
 
     /**

@@ -50,7 +50,7 @@ class JwtAuthenticationFilter(
             return
         }
         val jwt = authorizationParts.getOrNull(1)?.takeIf(StringUtils::hasText)
-        val credential = jwt?.let { validCredential(it, request.requestURI) }
+        val credential = jwt?.let { validCredential(it, request.requestURI, request.contextPath) }
         if (credential == null) {
             rejectAuthentication(response)
             return
@@ -76,7 +76,7 @@ class JwtAuthenticationFilter(
         filterChain.doFilter(request, response)
     }
 
-    private fun validCredential(jwt: String, requestPath: String): ValidCredential? {
+    private fun validCredential(jwt: String, requestPath: String, contextPath: String): ValidCredential? {
         return try {
             if (!jwtTokenUtil.isTokenValidFormat(jwt) || jwtTokenUtil.isTokenExpired(jwt)) {
                 null
@@ -85,7 +85,10 @@ class JwtAuthenticationFilter(
                 val userId = jwtTokenUtil.getUserIdFromToken(jwt)?.takeIf(StringUtils::hasText) ?: return null
                 val tokenType = jwtTokenUtil.getTokenTypeFromToken(jwt)
                 val sessionId = jwtTokenUtil.getSessionIdFromToken(jwt)
-                if (requestPath.startsWith(LEGACY_API_PREFIX)) {
+                // requestURI 包含 servlet context-path（部署为 /walkbg），
+                // 须剥离后才能与 API 路径前缀比较，否则 legacy 分支永不命中。
+                val path = requestPath.removePrefix(contextPath)
+                if (path.startsWith(LEGACY_API_PREFIX)) {
                     if (tokenType != null && tokenType != "legacy_access") return null
                     ValidCredential(username, userId, null)
                 } else {

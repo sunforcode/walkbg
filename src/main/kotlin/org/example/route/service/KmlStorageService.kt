@@ -60,4 +60,17 @@ class KmlStorageService(
             fileSize = file.size
         )
     }
+
+    /**
+     * 读取已落盘 KML 文件内容（重新分析已存路线时使用，避免要求重新上传）
+     *
+     * @param kmlUrl 上传接口返回的相对路径（/static/kml-upload/<file>.kml）
+     * @return 文件内容；路径非法或文件不存在时返回 null
+     */
+    fun readStoredContent(kmlUrl: String): String? {
+        val filename = kmlUrl.substringAfterLast('/').trim()
+        if (filename.isEmpty() || filename.contains("..")) return null
+        val path = Paths.get(uploadDir).resolve(filename)
+        return if (Files.exists(path)) Files.readString(path) else null
+    }
 }

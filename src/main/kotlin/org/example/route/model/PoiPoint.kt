@@ -99,6 +99,13 @@ data class PoiPoint(
     @Column(length = 20)
     var status: String = "confirmed",
 
+    /**
+     * 命中的全局 POI 库条目 id（分析回调时 AI 判定为同一位置）
+     * null 表示新点（未命中库内条目或判定回退）
+     */
+    @Column(name = "matched_library_id", length = 64)
+    val matchedLibraryId: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now()
 ) {

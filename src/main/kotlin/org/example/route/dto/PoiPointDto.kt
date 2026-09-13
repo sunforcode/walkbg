@@ -31,7 +31,12 @@ data class PoiPointDto(
     /**
      * 数据状态: draft(分析建议草稿) | confirmed(人工确认)
      */
-    val status: String = "confirmed"
+    val status: String = "confirmed",
+    /**
+     * 命中的全局 POI 库条目 id；null 表示新点
+     */
+    @JsonProperty("matched_library_id")
+    val matchedLibraryId: String? = null
 ) {
     companion object {
         private val mapper = ObjectMapper()
@@ -58,7 +63,8 @@ data class PoiPointDto(
                 description = poi.description,
                 confidence = poi.confidence,
                 cardData = cardData,
-                status = poi.status
+                status = poi.status,
+                matchedLibraryId = poi.matchedLibraryId
             )
         }
     }

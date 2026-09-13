@@ -6,10 +6,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 data class KmlAnalysisSubmitRequest(
     @JsonProperty("route_id")
     val routeId: String? = null,
-    
+
     @JsonProperty("kml_source")
-    val kmlSource: String,
-    
+    val kmlSource: String? = null,
+
     @JsonProperty("kml_content")
     val kmlContent: String? = null,
     

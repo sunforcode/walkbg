@@ -351,6 +351,9 @@ logger.warn("POI 位置 AI 判定失败，本批全部保持草稿: ${e.message}
 
 poiPoints.forEachIndexed { index, dto ->
 val cardDataJson = dto.cardData?.let { objectMapper.writeValueAsString(it) }
+val matched = matchedIds[index]?.let { libId ->
+sameRegionLibrary.firstOrNull { it.id == libId }
+}
 val poi = PoiPoint(
 id = "poi_${idGenerator.generateShortId()}",
 routeId = routeId,
@@ -364,11 +367,9 @@ source = dto.source,
 description = dto.description,
 confidence = dto.confidence,
 cardData = cardDataJson,
-status = "draft"  // 分析结果写入为草稿，AI 判定命中库内条目才自动采纳
+status = "draft",  // 分析结果写入为草稿，AI 判定命中库内条目才自动采纳
+matchedLibraryId = matched?.id
 )
-val matched = matchedIds[index]?.let { libId ->
-sameRegionLibrary.firstOrNull { it.id == libId }
-}
 if (matched != null) {
 poi.status = "confirmed"
 logger.info(

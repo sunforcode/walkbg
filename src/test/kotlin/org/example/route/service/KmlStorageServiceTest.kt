@@ -19,4 +19,14 @@ class KmlStorageServiceTest {
         assertNotNull(content)
         assertTrue(content!!.contains("<kml", ignoreCase = true))
     }
+
+    @Test
+    fun `readStoredContent reads legacy bare classpath filename`() {
+        val service = KmlStorageService(uploadDir.toString())
+
+        val content = service.readStoredContent("wutaishan.kml")
+
+        assertNotNull(content)
+        assertTrue(content!!.contains("<kml", ignoreCase = true))
+    }
 }

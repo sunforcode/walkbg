@@ -75,7 +75,8 @@ class KmlStorageService(
         val uploadedPath = Paths.get(uploadDir).resolve(filename)
         if (Files.exists(uploadedPath)) return Files.readString(uploadedPath)
 
-        if (kmlUrl.startsWith("/static/kml/")) {
+        val isBuiltInKml = kmlUrl.startsWith("/static/kml/") || '/' !in kmlUrl
+        if (isBuiltInKml) {
             val resource = ClassPathResource("static/kml/$filename")
             if (resource.exists()) {
                 return resource.inputStream.bufferedReader().use { it.readText() }

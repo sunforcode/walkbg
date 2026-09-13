@@ -77,9 +77,10 @@ data class Route(
 
     /**
      * 完整轨迹路径 JSON: [[lat, lng, elev], ...]
-     * 由 KML 分析回调写入，索引与分段 track_start/end_index 对齐
+     * 由 KML 分析回调写入，索引与分段 track_start/end_index 对齐。
+     * 轨迹点数可能达到数千，必须使用 LONGTEXT，避免超过 TEXT 的 64KB 上限。
      */
-    @Column(name = "track_geo_json", columnDefinition = "TEXT")
+    @Column(name = "track_geo_json", columnDefinition = "LONGTEXT")
     var trackGeoJson: String? = null,
 
     @JsonProperty("created_at")

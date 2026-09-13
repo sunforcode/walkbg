@@ -1,0 +1,2 @@
+ALTER TABLE routes
+    MODIFY COLUMN track_geo_json LONGTEXT NULL;

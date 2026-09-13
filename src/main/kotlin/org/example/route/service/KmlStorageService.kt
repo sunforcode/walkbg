@@ -4,6 +4,7 @@ import org.example.common.exception.BusinessException
 import org.example.route.dto.KmlUploadResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Files
@@ -62,15 +63,24 @@ class KmlStorageService(
     }
 
     /**
-     * 读取已落盘 KML 文件内容（重新分析已存路线时使用，避免要求重新上传）
+     * 读取已存 KML 文件内容（重新分析已存路线时使用，避免要求重新上传）
      *
-     * @param kmlUrl 上传接口返回的相对路径（/static/kml-upload/<file>.kml）
+     * @param kmlUrl 上传接口返回的相对路径，或内置样例的 /static/kml/<file>.kml 路径
      * @return 文件内容；路径非法或文件不存在时返回 null
      */
     fun readStoredContent(kmlUrl: String): String? {
         val filename = kmlUrl.substringAfterLast('/').trim()
         if (filename.isEmpty() || filename.contains("..")) return null
-        val path = Paths.get(uploadDir).resolve(filename)
-        return if (Files.exists(path)) Files.readString(path) else null
+
+        val uploadedPath = Paths.get(uploadDir).resolve(filename)
+        if (Files.exists(uploadedPath)) return Files.readString(uploadedPath)
+
+        if (kmlUrl.startsWith("/static/kml/")) {
+            val resource = ClassPathResource("static/kml/$filename")
+            if (resource.exists()) {
+                return resource.inputStream.bufferedReader().use { it.readText() }
+            }
+        }
+        return null
     }
 }

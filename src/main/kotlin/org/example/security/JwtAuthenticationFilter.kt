@@ -1,13 +1,9 @@
 package org.example.security
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.example.account.repository.AccountSessionRepository
-import org.example.common.contract.ApiError
-import org.example.common.contract.ErrorResponse
-import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
@@ -23,8 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 @Component
 class JwtAuthenticationFilter(
     private val jwtTokenUtil: JwtTokenUtil,
-    private val accountSessionRepository: AccountSessionRepository,
-    private val objectMapper: ObjectMapper
+    private val accountSessionRepository: AccountSessionRepository
 ) : OncePerRequestFilter() {
 
     companion object {
@@ -52,7 +47,10 @@ class JwtAuthenticationFilter(
         val jwt = authorizationParts.getOrNull(1)?.takeIf(StringUtils::hasText)
         val credential = jwt?.let { validCredential(it, request.requestURI, request.contextPath) }
         if (credential == null) {
-            rejectAuthentication(response)
+            // 认证与授权分离：凭证无效或缺失时不注入上下文，匿名继续，
+            // 由授权层决定公开接口放行、受保护接口经 entryPoint 返回 401。
+            SecurityContextHolder.clearContext()
+            filterChain.doFilter(request, response)
             return
         }
 
@@ -101,17 +99,6 @@ class JwtAuthenticationFilter(
             logger.debug("Bearer credential validation failed", exception)
             null
         }
-    }
-
-    private fun rejectAuthentication(response: HttpServletResponse) {
-        SecurityContextHolder.clearContext()
-        response.status = HttpServletResponse.SC_UNAUTHORIZED
-        response.contentType = MediaType.APPLICATION_JSON_VALUE
-        response.characterEncoding = Charsets.UTF_8.name()
-        objectMapper.writeValue(
-            response.writer,
-            ErrorResponse(ApiError("authentication_required", "需要有效的认证会话", retryable = false))
-        )
     }
 
     private data class ValidCredential(

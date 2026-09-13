@@ -7,7 +7,7 @@ class RouteTrackStorageMigrationContractTest {
     @Test
     fun `route track storage supports full analyzed kml path`() {
         val migration = requireNotNull(
-            javaClass.classLoader.getResource("db/migration/V11__expand_route_track_geo_json.sql")
+            javaClass.classLoader.getResource("db/migration/V12__expand_route_track_geo_json.sql")
         ).readText()
 
         assertTrue(

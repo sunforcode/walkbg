@@ -17,7 +17,8 @@ import reactor.core.scheduler.Schedulers
  * 1. 若请求不携带 route_id，委托 RouteBindingService 创建 Route（状态: 3=分析中）
  * 2. 将 route_id 注入 agent 调用请求
  * 3. 分析输入源解析：请求未携带 KML 文件时，回退使用该路线已存的位置数据
- *    （RouteMapData.kml_url：绝对 URL 直接透传，相对路径读取本机落盘文件作为 kml_content），
+ *    （① RouteMapData.kml_url：绝对 URL 直接透传，相对路径读取本机落盘文件作为 kml_content；
+ *    ② 原始文件缺失或不可读时，由 RouteTrackKmlFactory 用有效主轨迹点合成 KML 内容），
  *    两者皆无则拒绝提交
  * 4. 调用 KmlAnalysisClientService 提交分析任务
  * 5. 任务提交成功后向 SseTaskEventBus 发布 processing 事件
@@ -31,7 +32,8 @@ class RouteAnalysisOrchestrationService(
     private val kmlAnalysisClientService: KmlAnalysisClientService,
     private val routeMapDataRepository: RouteMapDataRepository,
     private val kmlStorageService: KmlStorageService,
-    private val sseTaskEventBus: SseTaskEventBus
+    private val sseTaskEventBus: SseTaskEventBus,
+    private val routeTrackKmlFactory: RouteTrackKmlFactory
 ) {
     private val logger = LoggerFactory.getLogger(RouteAnalysisOrchestrationService::class.java)
 
@@ -83,9 +85,10 @@ class RouteAnalysisOrchestrationService(
     /**
      * 解析分析输入源：
      * - 请求已携带 kml_content 或 kml_source：原样使用
-     * - 均未携带且请求绑定已有路线：从该路线已存的 RouteMapData.kml_url 回退
-     *   （绝对 URL → kml_source；相对路径 → 读取本机落盘文件 → kml_content）
-     * - 路线无已存位置数据：拒绝（IllegalArgumentException，由调用方转为错误响应）
+     * - 均未携带且请求绑定已有路线：优先从该路线已存的 RouteMapData.kml_url 回退
+     *   （绝对 URL → kml_source；相对路径 → 读取本机落盘文件 → kml_content）；
+     *   原始文件缺失或不可读时，回退用有效主轨迹点合成 KML 内容（RouteTrackKmlFactory）
+     * - 两种来源都不可用：拒绝（IllegalArgumentException，由调用方转为错误响应）
      */
     private fun resolveAnalysisInput(request: KmlAnalysisSubmitRequest, routeId: String): KmlAnalysisSubmitRequest {
         if (!request.kmlContent.isNullOrBlank() || !request.kmlSource.isNullOrBlank()) {
@@ -94,22 +97,27 @@ class RouteAnalysisOrchestrationService(
 
         val mapData = routeMapDataRepository.findById(routeId).orElse(null)
         val kmlUrl = mapData?.kmlUrl?.trim()
-        if (kmlUrl.isNullOrEmpty()) {
-            throw IllegalArgumentException(
-                "路线 $routeId 没有已存的 KML 数据，无法重新分析；请上传 KML 文件后重试"
-            )
+        val storedContent = when {
+            kmlUrl.isNullOrEmpty() -> null
+            kmlUrl.startsWith("http://") || kmlUrl.startsWith("https://") -> return request.copy(
+                routeId = routeId,
+                kmlSource = kmlUrl
+            ).also { logger.info("重新分析使用已存 KML URL: routeId=$routeId, kmlUrl=$kmlUrl") }
+            else -> kmlStorageService.readStoredContent(kmlUrl)
+        }
+        if (storedContent != null) {
+            logger.info("重新分析使用已存 KML 文件内容: routeId=$routeId, kmlUrl=$kmlUrl")
+            return request.copy(routeId = routeId, kmlSource = kmlUrl, kmlContent = storedContent)
         }
 
-        return if (kmlUrl.startsWith("http://") || kmlUrl.startsWith("https://")) {
-            logger.info("重新分析使用已存 KML URL: routeId=$routeId, kmlUrl=$kmlUrl")
-            request.copy(routeId = routeId, kmlSource = kmlUrl)
-        } else {
-            val content = kmlStorageService.readStoredContent(kmlUrl)
-                ?: throw IllegalArgumentException(
-                    "路线 $routeId 的 KML 文件不存在或不可读: $kmlUrl"
-                )
-            logger.info("重新分析使用已存 KML 文件内容: routeId=$routeId, kmlUrl=$kmlUrl")
-            request.copy(routeId = routeId, kmlSource = kmlUrl, kmlContent = content)
+        val synthesizedKml = routeTrackKmlFactory.synthesizeCurrentTrackKml(routeId)
+        if (synthesizedKml != null) {
+            logger.info("原始 KML 文件不可用，回退使用已存轨迹点合成 KML: routeId=$routeId, kmlUrl=$kmlUrl")
+            return request.copy(routeId = routeId, kmlContent = synthesizedKml)
         }
+
+        throw IllegalArgumentException(
+            "路线 $routeId 没有可用的位置数据（KML 文件或有效轨迹点），无法重新分析；请上传 KML 文件后重试"
+        )
     }
 }

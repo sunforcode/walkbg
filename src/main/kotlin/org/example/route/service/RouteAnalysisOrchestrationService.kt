@@ -113,7 +113,8 @@ class RouteAnalysisOrchestrationService(
         val synthesizedKml = routeTrackKmlFactory.synthesizeCurrentTrackKml(routeId)
         if (synthesizedKml != null) {
             logger.info("原始 KML 文件不可用，回退使用已存轨迹点合成 KML: routeId=$routeId, kmlUrl=$kmlUrl")
-            return request.copy(routeId = routeId, kmlContent = synthesizedKml)
+            // Agent 合同要求 kml_source 必填；此处携带标识来源的伪 URL 供结果元数据追溯
+            return request.copy(routeId = routeId, kmlSource = "db-track://$routeId", kmlContent = synthesizedKml)
         }
 
         throw IllegalArgumentException(

@@ -126,6 +126,8 @@ class RouteAnalysisOrchestrationServiceTest {
         verify(client).submitAnalysis(captor.capture())
         assertEquals("route-1", captor.firstValue.routeId)
         assertEquals("<kml><LineString/></kml>", captor.firstValue.kmlContent)
+        // Agent 合同要求 kml_source 必填，回退时携带标识来源的伪 URL
+        assertEquals("db-track://route-1", captor.firstValue.kmlSource)
     }
 
     @Test
@@ -154,6 +156,7 @@ class RouteAnalysisOrchestrationServiceTest {
         val captor = argumentCaptor<KmlAnalysisSubmitRequest>()
         verify(client).submitAnalysis(captor.capture())
         assertEquals("<kml><LineString/></kml>", captor.firstValue.kmlContent)
+        assertEquals("db-track://route-1", captor.firstValue.kmlSource)
     }
 
     @Test

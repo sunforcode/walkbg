@@ -126,3 +126,6 @@ account:
   avatar-media:
     directory: ${ACCOUNT_AVATAR_MEDIA_DIRECTORY:data/avatar-media}
     max-size-bytes: ${ACCOUNT_AVATAR_MEDIA_MAX_SIZE_BYTES:5242880}
+  verification-code:
+    # true 时跳过短信下发与验证码比对（短信服务商接入前的过渡开关，默认关闭）
+    bypass: ${ACCOUNT_VERIFICATION_CODE_BYPASS:false}

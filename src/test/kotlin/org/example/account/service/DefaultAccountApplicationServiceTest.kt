@@ -1,5 +1,7 @@
 package org.example.account.service
 
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.example.account.dto.AuthSessionResponse
 import org.example.account.dto.ProfileUpdateRequest
 import org.example.account.model.AccountAvatarMedia
@@ -60,7 +62,10 @@ class DefaultAccountApplicationServiceTest {
     @TempDir
     lateinit var avatarDirectory: Path
 
-    private fun service(maxSizeBytes: Long = 5L * 1024 * 1024) = DefaultAccountApplicationService(
+    private fun service(
+        maxSizeBytes: Long = 5L * 1024 * 1024,
+        verificationCodeProperties: VerificationCodeProperties = VerificationCodeProperties()
+    ) = DefaultAccountApplicationService(
         userRepository,
         verificationRepository,
         sessionRepository,
@@ -72,6 +77,7 @@ class DefaultAccountApplicationServiceTest {
             directory = avatarDirectory.toString()
             this.maxSizeBytes = maxSizeBytes
         },
+        verificationCodeProperties,
         Clock.fixed(now, ZoneOffset.UTC)
     )
 
@@ -114,6 +120,55 @@ class DefaultAccountApplicationServiceTest {
 
         assertEquals("verification_send_throttled", exception.code)
         assertEquals(retryAt, (exception.details as VerificationThrottleDetails).retryAvailableAt)
+    }
+
+    @Test
+    fun `verification code bypass skips delivery and accepts any code`() {
+        val properties = VerificationCodeProperties().apply { bypass = true }
+        whenever(verificationRepository.findFirstByPhoneOrderByCreatedAtDesc("+8613800138000")).thenReturn(null)
+        doAnswer { it.arguments[0] }.whenever(verificationRepository).save(any<AccountVerification>())
+
+        val response = service(verificationCodeProperties = properties).sendVerificationCode("+8613800138000")
+
+        verify(delivery, never()).send(any(), any())
+        assertTrue(response.verificationId.startsWith("verification"))
+
+        val verification = AccountVerification(
+            id = response.verificationId,
+            phone = "+8613800138000",
+            codeHash = encoder.encode("999999"),
+            expiresAt = now.plusSeconds(300),
+            resendAvailableAt = now,
+            createdAt = now
+        )
+        whenever(verificationRepository.findByIdForUpdate(response.verificationId)).thenReturn(verification)
+        doAnswer { it.arguments[0] }.whenever(verificationRepository).save(any<AccountVerification>())
+        whenever(userRepository.findByPhone(verification.phone)).thenReturn(null)
+        doAnswer { it.arguments[0] }.whenever(userRepository).save(any<User>())
+        doAnswer { it.arguments[0] }.whenever(sessionRepository).save(any<org.example.account.model.AccountSession>())
+        whenever(jwtTokenUtil.generateAccountSessionToken(any(), any())).thenReturn("access-token")
+
+        val session = service(verificationCodeProperties = properties).createSession(response.verificationId, "000000")
+        assertEquals(AuthSessionResponse("access-token"), session)
+    }
+
+    @Test
+    fun `verification code bypass disabled still rejects wrong code`() {
+        val verification = AccountVerification(
+            id = "verification-1",
+            phone = "+8613800138000",
+            codeHash = encoder.encode("123456"),
+            expiresAt = now.plusSeconds(300),
+            resendAvailableAt = now,
+            createdAt = now
+        )
+        whenever(verificationRepository.findByIdForUpdate("verification-1")).thenReturn(verification)
+
+        val exception = assertThrows<ApiContractException> {
+            service().createSession("verification-1", "000000")
+        }
+
+        assertEquals("verification_code_invalid", exception.code)
     }
 
     @Test
@@ -189,7 +244,7 @@ class DefaultAccountApplicationServiceTest {
     }
 
     @Test
-    fun `production profile starts account service with an explicitly unavailable verification delivery`() {
+    fun `production profile starts account service with tencent sms delivery that fails without credentials`() {
         ApplicationContextRunner()
             .withInitializer { it.environment.setActiveProfiles("prod") }
             .withPropertyValues(
@@ -300,8 +355,12 @@ class DefaultAccountApplicationServiceTest {
 }
 
 @TestConfiguration(proxyBeanMethods = false)
-@Import(LoggingVerificationCodeDelivery::class, UnavailableVerificationCodeDelivery::class, DefaultAccountApplicationService::class)
+@Import(LoggingVerificationCodeDelivery::class, DefaultAccountApplicationService::class)
 private class ProductionDeliveryTestConfiguration {
+    @Bean
+    fun verificationCodeDelivery(): VerificationCodeDelivery =
+        TencentCloudSmsVerificationCodeDelivery(TencentSmsProperties())
+
     @Bean
     fun userRepository(): UserRepository = mock()
 
@@ -353,8 +412,14 @@ class ProductionAccountApplicationContextTest {
     private lateinit var verificationCodeDelivery: VerificationCodeDelivery
 
     @Test
-    fun `production application context supplies unavailable verification delivery`() {
-        assertTrue(verificationCodeDelivery is UnavailableVerificationCodeDelivery)
+    fun `production application context supplies tencent sms verification delivery`() {
+        assertTrue(verificationCodeDelivery is TencentCloudSmsVerificationCodeDelivery)
+        val properties = TencentSmsProperties()
+        assertThat(properties.isConfigured()).isFalse()
+        assertThatThrownBy {
+            verificationCodeDelivery.send("+8613800138000", "123456")
+        }.isInstanceOf(IllegalStateException::class.java)
+            .hasMessageContaining("not configured")
     }
 }
 

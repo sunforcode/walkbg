@@ -66,6 +66,14 @@ services:
       KML_AGENT_BASE_URL: http://kml-agent:8001
       KML_AGENT_ENABLED: "true"
       JWT_SECRET: ${JWT_SECRET:?必须设置}
+      # 腾讯云短信验证码（可选：未配置时发码明确失败但不阻塞启动）
+      TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}
+      TENCENT_SMS_SECRET_KEY: ${TENCENT_SMS_SECRET_KEY:-}
+      TENCENT_SMS_SDK_APP_ID: ${TENCENT_SMS_SDK_APP_ID:-}
+      TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-}
+      TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-}
+      # 验证码放行开关（短信服务商接入前的过渡措施，默认关闭）
+      ACCOUNT_VERIFICATION_CODE_BYPASS: ${ACCOUNT_VERIFICATION_CODE_BYPASS:-false}
       # 前后端同源（都经 web 的 Nginx），浏览器不发跨域请求，
       # 这里留空表示不额外放开任何来源。
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}

@@ -158,6 +158,9 @@ jobs:
           MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # 验证码放行开关：GitHub 仓库 Variables（非 Secret）。未设置时为 false。
+          # 开关只需在 Settings → Secrets and variables → Actions → Variables 修改后重新部署。
+          ACCOUNT_VERIFICATION_CODE_BYPASS: ${{ vars.ACCOUNT_VERIFICATION_CODE_BYPASS || 'false' }}
         run: |
           # 在 runner 临时目录组装 .env，再 scp 到服务器：避免秘钥出现在 ssh 命令行/进程列表。
           # printf + 双引号取环境变量值：shell 不对已替换的值做二次解释，秘钥含 $/特殊字符也原样写入。
@@ -166,6 +169,7 @@ jobs:
             "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" \
             "JWT_SECRET=${JWT_SECRET}" \
             "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+            "ACCOUNT_VERIFICATION_CODE_BYPASS=${ACCOUNT_VERIFICATION_CODE_BYPASS}" \
             "CORS_ALLOWED_ORIGINS=http://vialu.cn,http://www.vialu.cn,https://vialu.cn,https://www.vialu.cn" \
             > /tmp/.env
           scp /tmp/.env "$WALK_SERVER:$WALK_REMOTE_DIR/deploy/.env"

@@ -29,7 +29,10 @@ data class KmlAnalysisSubmitRequest(
     val estimatedDifficulty: Int? = null,
     
     @JsonProperty("user_notes")
-    val userNotes: String? = null
+    val userNotes: String? = null,
+
+    @JsonProperty("task_id")
+    val taskId: String? = null
 )
 
 data class TaskSubmitResponse(
@@ -41,7 +44,10 @@ data class TaskSubmitResponse(
     val message: String,
     
     @JsonProperty("estimated_seconds")
-    val estimatedSeconds: Int
+    val estimatedSeconds: Int,
+
+    @JsonProperty("route_id")
+    val routeId: String? = null
 )
 
 data class TaskStatusResponse(

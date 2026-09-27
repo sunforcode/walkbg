@@ -52,6 +52,21 @@ data class Route(
     @Column(nullable = false)
     var status: Int = 0, // 0: 规划中, 1: 已发布, 2: 已关闭, 3: 分析中
 
+    @Column(name = "analysis_task_id", length = 64, unique = true)
+    var analysisTaskId: String? = null,
+
+    @Column(name = "analysis_status", length = 20)
+    var analysisStatus: String? = null,
+
+    @Column(name = "analysis_previous_status")
+    var analysisPreviousStatus: Int? = null,
+
+    @Column(name = "analysis_started_at")
+    var analysisStartedAt: Instant? = null,
+
+    @Column(name = "analysis_error", columnDefinition = "TEXT")
+    var analysisError: String? = null,
+
     @JsonProperty("cover_url")
     @Column(name = "cover_url", length = 500)
     var coverUrl: String? = null,
@@ -180,6 +195,32 @@ data class Route(
         require(status == 2) { "只有已关闭的路线才能重新开启" }
         status = 0
         updatedAt = Instant.now()
+    }
+
+    /** 调用方必须持有路线写锁；终态身份保留，防止重复回调再次写入。 */
+    fun beginAnalysis(taskId: String) {
+        check(!hasActiveAnalysis()) { "路线已有未结束分析任务" }
+        analysisPreviousStatus = status
+        analysisTaskId = taskId
+        analysisStatus = "submitting"
+        analysisStartedAt = Instant.now()
+        analysisError = null
+        markAnalyzing()
+    }
+
+    fun hasActiveAnalysis(): Boolean =
+        status == 3 || analysisStatus in setOf("submitting", "processing")
+
+    fun acceptsAnalysisResult(taskId: String): Boolean =
+        analysisTaskId == taskId && analysisStatus in setOf("submitting", "processing")
+
+    fun finishAnalysis(taskId: String, succeeded: Boolean, error: String? = null): Boolean {
+        if (!acceptsAnalysisResult(taskId)) return false
+        analysisStatus = if (succeeded) "completed" else "failed"
+        analysisError = if (succeeded) null else error
+        status = if (succeeded) 0 else checkNotNull(analysisPreviousStatus) { "分析前状态缺失" }
+        updatedAt = Instant.now()
+        return true
     }
 
     /**

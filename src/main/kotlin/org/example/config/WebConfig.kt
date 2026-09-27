@@ -1,9 +1,19 @@
 package org.example.config
 
+import jakarta.servlet.MultipartConfigElement
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
+import org.springframework.boot.autoconfigure.web.servlet.MultipartProperties
+import org.springframework.boot.context.properties.bind.Bindable
+import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import org.springframework.http.converter.HttpMessageConverter
 import org.springframework.http.converter.StringHttpMessageConverter
+import org.springframework.util.unit.DataSize
 import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
@@ -24,6 +34,20 @@ class WebConfig(
      */
     @Value("\${app.kml.upload-dir:\${user.dir}/uploads/kml}")
     private lateinit var kmlUploadDir: String
+
+    @Bean
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+    @ConditionalOnProperty(prefix = "spring.servlet.multipart", name = ["enabled"], matchIfMissing = true)
+    @ConditionalOnMissingBean(MultipartConfigElement::class)
+    fun multipartConfigElement(environment: Environment): MultipartConfigElement {
+        // Application defaults admit a 20MB KML plus multipart overhead; explicit configuration wins.
+        val properties = MultipartProperties().apply {
+            maxFileSize = DataSize.ofMegabytes(20)
+            maxRequestSize = DataSize.ofMegabytes(21)
+        }
+        Binder.get(environment).bind("spring.servlet.multipart", Bindable.ofInstance(properties))
+        return properties.createMultipartConfig()
+    }
 
     /**
      * 配置CORS跨域请求，允许的来源由配置项 cors.allowed-origins 决定。

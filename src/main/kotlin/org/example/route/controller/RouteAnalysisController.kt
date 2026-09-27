@@ -99,11 +99,13 @@ class RouteAnalysisController(
             .map { response ->
                 ResponseUtil.success(response, "分析任务提交成功")
             }
-            .onErrorResume { error ->
-                logger.error("提交分析任务失败: ${error.message}", error)
-                Mono.just(
-                    ResponseUtil.error("提交分析任务失败: ${error.message}")
-                )
+            .onErrorMap { error ->
+                // BusinessException由全局处理器输出data.details，保留路线/任务身份。
+                when (error) {
+                    is BusinessException -> error
+                    is IllegalArgumentException -> BusinessException.badRequest(error.message ?: "分析输入无效")
+                    else -> BusinessException.internalError("分析提交失败", cause = error)
+                }
             }
     }
 
@@ -114,15 +116,7 @@ class RouteAnalysisController(
     ): Mono<ResponseEntity<ApiResponse<TaskStatusResponse>>> {
         logger.info("查询任务状态: taskId=$taskId")
 
-        return kmlAnalysisClientService.getTaskStatus(taskId)
-            .map { response ->
-                ResponseUtil.success(response)
-            }
-            .onErrorResume { error ->
-                logger.error("查询任务状态失败: ${error.message}", error)
-                Mono.just(
-                    ResponseUtil.error("查询任务状态失败: ${error.message}")
-                )
-            }
+        return routeAnalysisOrchestrationService.getTaskStatus(taskId)
+            .map { response -> ResponseUtil.success(response) }
     }
 }

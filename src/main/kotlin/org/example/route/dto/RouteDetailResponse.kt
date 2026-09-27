@@ -68,7 +68,11 @@ data class RouteDetailResponse(
     @JsonProperty("hitchhike_contacts")
     val hitchhikeContacts: List<HitchhikeContactDto> = emptyList(),
     @JsonProperty("track_points")
-    val trackPoints: List<TrackPointDto> = emptyList()
+    val trackPoints: List<TrackPointDto> = emptyList(),
+    @JsonProperty("published_version_id")
+    val publishedVersionId: String? = null,
+    @JsonProperty("is_public")
+    val isPublic: Boolean = false
 ) {
     companion object {
         /**

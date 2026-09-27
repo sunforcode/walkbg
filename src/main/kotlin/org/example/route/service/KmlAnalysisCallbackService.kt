@@ -11,6 +11,7 @@ import org.example.route.dto.PoiResolveAgentPoi
 import org.example.route.dto.PoiResolveAgentRequest
 import org.example.route.sse.SseProgressEvent
 import org.example.route.sse.SseTaskEventBus
+import org.example.route.sse.publishAnalysisEventAfterCommit
 import org.example.route.model.PoiPoint
 import org.example.route.model.Route
 import org.example.route.model.RouteMapData
@@ -55,11 +56,14 @@ private val objectMapper: ObjectMapper = ObjectMapper()
             throw IllegalArgumentException("routeId 不能为空")
         }
 
-        // 容错：路线可能已被删除（软删后 findById 因 @SQLRestriction 返回空）。
-        // 回调不应因此抛异常导致 agent 侧重试风暴，记录日志后直接返回。
-        val route = routeRepository.findById(routeId).orElse(null)
-        if (route == null) {
-            logger.warn("收到 KML 分析回调，但路线不存在或已删除，忽略本次回调。routeId: $routeId, taskId: ${request.taskId}, status: ${request.status}")
+        val taskId = request.taskId
+        require(!taskId.isNullOrBlank()) { "taskId 不能为空" }
+        require(request.status in setOf("completed", "failed")) { "回调状态必须是 completed 或 failed" }
+
+        // 与提交、发布使用相同路线锁；旧任务和终态重放必须在任何结果写入之前退出。
+        val route = routeRepository.findByIdForUpdate(routeId)
+        if (route == null || !route.acceptsAnalysisResult(taskId)) {
+            logger.info("忽略已删除路线、旧任务或终态重放: routeId=$routeId, taskId=$taskId")
             return
         }
 
@@ -85,13 +89,8 @@ private val objectMapper: ObjectMapper = ObjectMapper()
             logger.info("已保存路线 $routeId 的完整轨迹路径（${request.trackPath.size} 个点）")
         }
 
-        // 分析完成后，将状态从"分析中"恢复为"规划中"，等待管理员发布
-        if (route.status == 3) {
-            route.markAnalysisComplete()
-            logger.info("路线 $routeId 分析完成，状态更新为规划中")
-        }
-
-        route.updatedAt = Instant.now()
+        // 结果与终态处于同一事务；后续任何写入失败将整体回滚。
+        check(route.finishAnalysis(taskId, succeeded = true))
         routeRepository.save(route)
 
         // 更新/创建 RouteMapData 记录
@@ -101,7 +100,8 @@ private val objectMapper: ObjectMapper = ObjectMapper()
                 distance = request.totalDistanceKm?.let { BigDecimal.valueOf(it) },
                 elevationGain = request.totalElevationGainM?.let { BigDecimal.valueOf(it) },
                 elevationLoss = request.totalElevationLossM?.let { BigDecimal.valueOf(it) },
-                kmlUrl = request.sourceKmlUrl ?: mapData.kmlUrl,
+                // 原文来源由提交预占事务绑定，回调元数据无权覆盖。
+                kmlUrl = mapData.kmlUrl,
                 updatedAt = Instant.now()
             )
             routeMapDataRepository.save(updatedMapData)
@@ -111,7 +111,8 @@ private val objectMapper: ObjectMapper = ObjectMapper()
                 distance = request.totalDistanceKm?.let { BigDecimal.valueOf(it) },
                 elevationGain = request.totalElevationGainM?.let { BigDecimal.valueOf(it) },
                 elevationLoss = request.totalElevationLossM?.let { BigDecimal.valueOf(it) },
-                kmlUrl = request.sourceKmlUrl,
+                // 预占记录缺失时也不能把回调声明当作已留存的来源。
+                kmlUrl = null,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
@@ -139,24 +140,17 @@ private val objectMapper: ObjectMapper = ObjectMapper()
             "poiPoints: ${request.poiPoints.size}"
         )
 
-        // 落库成功后向 SSE 总线发布 completed 事件
-        val taskId = request.taskId
-        if (!taskId.isNullOrBlank()) {
-            logger.info("向 SSE 总线发布 completed 事件，taskId=$taskId, routeId=$routeId")
-            sseTaskEventBus.publish(
-                taskId,
-                SseProgressEvent(
-                    taskId = taskId,
-                    status = "completed",
-                    progress = 100,
-                    routeId = routeId,
-                    currentStep = "分析完成",
-                    degraded = request.degraded
-                )
+        publishAnalysisEventAfterCommit(
+            sseTaskEventBus,
+            SseProgressEvent(
+                taskId = taskId,
+                status = "completed",
+                progress = 100,
+                routeId = routeId,
+                currentStep = "分析完成",
+                degraded = request.degraded
             )
-        } else {
-            logger.warn("回调中 taskId 为空，无法向 SSE 总线发布 completed 事件")
-        }
+        )
     }
 
     /**
@@ -172,30 +166,21 @@ private val objectMapper: ObjectMapper = ObjectMapper()
         val routeId = request.routeId
         logger.warn("KML 分析失败回调，routeId: $routeId, taskId: ${request.taskId}")
 
-        if (route.status == 3) {
-            route.markAnalysisFailed()
-            logger.info("路线 $routeId 分析失败，状态恢复为规划中，允许重新发起分析")
-        }
-        route.updatedAt = Instant.now()
+        val taskId = requireNotNull(request.taskId)
+        val error = request.error ?: "分析失败"
+        check(route.finishAnalysis(taskId, succeeded = false, error = error))
         routeRepository.save(route)
-
-        val taskId = request.taskId
-        if (!taskId.isNullOrBlank()) {
-            logger.info("向 SSE 总线发布 failed 事件，taskId=$taskId, routeId=$routeId")
-            sseTaskEventBus.publish(
-                taskId,
-                SseProgressEvent(
-                    taskId = taskId,
-                    status = "failed",
-                    progress = 100,
-                    routeId = routeId,
-                    currentStep = "分析失败",
-                    error = request.error ?: "分析失败"
-                )
+        publishAnalysisEventAfterCommit(
+            sseTaskEventBus,
+            SseProgressEvent(
+                taskId = taskId,
+                status = "failed",
+                progress = 100,
+                routeId = routeId,
+                currentStep = "分析失败",
+                error = error
             )
-        } else {
-            logger.warn("回调中 taskId 为空，无法向 SSE 总线发布 failed 事件")
-        }
+        )
     }
 
     /**

@@ -79,9 +79,18 @@ class KmlAnalysisCallbackController(
         } catch (e: IllegalArgumentException) {
             logger.warn("KML 分析回调参数错误: ${e.message}")
             ResponseUtil.error(e.message ?: "参数错误", 400)
+        } catch (e: org.springframework.dao.TransientDataAccessException) {
+            logger.warn("KML 分析回调暂时无法写入", e)
+            ResponseUtil.error("分析结果暂时无法保存，请重试", 503)
+        } catch (e: org.springframework.dao.DataAccessResourceFailureException) {
+            logger.warn("KML 分析回调数据库不可用", e)
+            ResponseUtil.error("分析结果暂时无法保存，请重试", 503)
+        } catch (e: org.springframework.transaction.CannotCreateTransactionException) {
+            logger.warn("KML 分析回调事务暂不可用", e)
+            ResponseUtil.error("分析结果暂时无法保存，请重试", 503)
         } catch (e: Exception) {
             logger.error("KML 分析回调处理失败", e)
-            ResponseUtil.error("处理回调失败: ${e.message}")
+            ResponseUtil.error("处理回调失败", 500)
         }
     }
 

@@ -1,6 +1,8 @@
 package org.example.route.repository
 
 import org.example.route.model.Route
+import jakarta.persistence.LockModeType
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -14,7 +16,12 @@ import java.math.BigDecimal
  */
 @Repository
 interface RouteRepository : JpaRepository<Route, String> {
-    
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Route r WHERE r.id = :routeId")
+    fun findByIdForUpdate(@Param("routeId") routeId: String): Route?
+
+    fun findByAnalysisTaskId(taskId: String): Route?
+
     /**
      * 根据名称查找路线
      */

@@ -46,6 +46,7 @@ class KmlAnalysisClientService(
             .bodyValue(request)
             .retrieve()
             .bodyToMono(TaskSubmitResponse::class.java)
+            .timeout(Duration.ofSeconds(properties.timeout.toLong()))
             .doOnSuccess { response ->
                 logger.info("KML 分析任务提交成功: taskId=${response.taskId}")
             }

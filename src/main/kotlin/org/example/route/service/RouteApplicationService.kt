@@ -44,7 +44,8 @@ class RouteApplicationService(
     private val routeRepository: org.example.route.repository.RouteRepository,
     private val tripRouteAssociationRepository: TripRouteAssociationRepository,
     private val tripRepository: TripRepository,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val routePublicationService: RoutePublicationService
 ) {
 
     /**
@@ -150,6 +151,7 @@ class RouteApplicationService(
         // 查询 KML/GPX URL
         val kmlUrl = mapData?.kmlUrl
         val gpxUrl = mapData?.gpxUrl
+        val publishedVersionId = routePublicationService.publishedVersionId(route.id)
         
         // 构建完整的RouteDetailResponse
         return org.example.route.dto.RouteDetailResponse(
@@ -189,7 +191,9 @@ class RouteApplicationService(
             imageUrls = imageUrls,
             ratings = ratings,
             weatherInfo = null,
-            trackPoints = trackPoints
+            trackPoints = trackPoints,
+            publishedVersionId = publishedVersionId,
+            isPublic = publishedVersionId != null
         )
     }
 
@@ -245,8 +249,8 @@ class RouteApplicationService(
      */
     @Transactional
     fun updateRouteBasic(routeId: String, request: RouteUpdateRequest): org.example.route.dto.RouteDetailResponse {
-        val route = routeRepository.findById(routeId)
-            .orElseThrow { BusinessException.notFound("路线不存在") }
+        val route = routeRepository.findByIdForUpdate(routeId)
+            ?: throw BusinessException.notFound("路线不存在")
 
         if (route.status == 3) {
             throw BusinessException.conflict("路线分析中，暂不可编辑，请等待分析完成或失败")
@@ -268,86 +272,48 @@ class RouteApplicationService(
             ?: throw BusinessException.internalError("路线更新后详情加载失败")
     }
 
-    /**
-     * 业务用例：路线状态流转（管理端）
-     *
-     * 合法迁移矩阵（复用 Route 领域方法，非法迁移抛业务异常）：
-     * - 0 → 1 publish（含发布前检查）
-     * - 1 → 0 unpublish；1 → 2 close
-     * - 2 → 0 reopen；2 → 1 reopen + publish
-     * - 3 分析中 → 不可手动变更
-     */
+    /** 管理发布写入公共快照；撤回只移除公开关系，不修改历史版本。 */
     @Transactional
-    fun changeRouteStatus(routeId: String, targetStatus: Int, reason: String?): org.example.route.dto.RouteDetailResponse {
-        val route = routeRepository.findById(routeId)
-            .orElseThrow { BusinessException.notFound("路线不存在") }
-
+    fun changeRouteStatus(
+        routeId: String,
+        targetStatus: Int,
+        reason: String?,
+        publicRouteType: String? = null,
+        publicationId: String? = null
+    ): org.example.route.dto.RouteDetailResponse {
+        if (targetStatus !in 0..2) throw BusinessException.badRequest("目标状态不合法: $targetStatus")
+        if (targetStatus != 1 && (publicRouteType != null || publicationId != null)) {
+            throw BusinessException.badRequest("下线或关闭不接受发布参数")
+        }
+        val route = routeRepository.findByIdForUpdate(routeId)
+            ?: throw BusinessException.notFound("路线不存在")
         if (route.status == 3) {
             throw BusinessException.conflict("路线分析中，状态由分析回调自动流转，暂不可手动变更")
         }
-        if (route.status == targetStatus) {
-            throw BusinessException.badRequest("路线已处于目标状态")
-        }
-
         when (targetStatus) {
-            0 -> when (route.status) {
-                1 -> route.unpublish()
-                2 -> route.reopen()
-                else -> throw BusinessException.badRequest("不支持的状态迁移: ${route.status} → $targetStatus")
-            }
-
             1 -> {
-                if (route.status == 2) {
-                    route.reopen()
-                }
-                // 此时 status 必为 0，否则 publish() 领域校验会拦截
-                if (route.status == 0) {
-                    validatePublishReadiness(route)
-                }
-                route.publish()
+                routePublicationService.publish(routeId, publicRouteType, publicationId)
+                if (route.status == 2) route.reopen()
+                if (route.status == 0) route.publish()
             }
-
-            2 -> if (route.status == 1) {
-                route.close()
-            } else {
-                throw BusinessException.badRequest("不支持的状态迁移: ${route.status} → $targetStatus")
+            0 -> {
+                routePublicationService.withdraw(routeId)
+                when (route.status) {
+                    1 -> route.unpublish()
+                    2 -> route.reopen()
+                }
             }
-
-            else -> throw BusinessException.badRequest("目标状态不合法: $targetStatus")
+            2 -> {
+                if (route.status !in listOf(1, 2)) {
+                    throw BusinessException.badRequest("不支持的状态迁移: ${route.status} → $targetStatus")
+                }
+                routePublicationService.withdraw(routeId)
+                if (route.status == 1) route.close()
+            }
         }
-
         route.updatedAt = Instant.now()
-        routeRepository.save(route)
-        // reason 仅作运营记录，P1 引入审计表时落库
-        return getRouteFullDetails(routeId, null)
-            ?: throw BusinessException.internalError("路线状态流转后详情加载失败")
-    }
-
-    /**
-     * 发布前检查：基础信息完整、轨迹数据已回填、无未采纳草稿
-     */
-    private fun validatePublishReadiness(route: Route) {
-        if (route.name.isBlank()) {
-            throw BusinessException.unprocessableEntity("发布前检查未通过：路线名称为空")
-        }
-        val mapData = routeMapDataRepository.findById(route.id).orElse(null)
-        if (mapData?.distance == null) {
-            throw BusinessException.unprocessableEntity(
-                "发布前检查未通过：路线缺少轨迹距离数据，请先导入 KML 并完成分析"
-            )
-        }
-        val draftSegments = segmentRepository.findByRouteId(route.id).count { it.status == "draft" }
-        if (draftSegments > 0) {
-            throw BusinessException.unprocessableEntity(
-                "发布前检查未通过：仍有 $draftSegments 个分段草稿未采纳，请先在路线工作台处理"
-            )
-        }
-        val draftPois = poiPointRepository.findByRouteId(route.id).count { it.status == "draft" }
-        if (draftPois > 0) {
-            throw BusinessException.unprocessableEntity(
-                "发布前检查未通过：仍有 $draftPois 个 POI 草稿未采纳，请先在路线工作台处理"
-            )
-        }
+        routeRepository.saveAndFlush(route)
+        return enrichRouteDetail(route, null)
     }
 
     /**
@@ -360,8 +326,8 @@ class RouteApplicationService(
      */
     @Transactional
     fun deleteRoute(routeId: String, force: Boolean) {
-        val route = routeRepository.findById(routeId)
-            .orElseThrow { BusinessException.notFound("路线不存在") }
+        val route = routeRepository.findByIdForUpdate(routeId)
+            ?: throw BusinessException.notFound("路线不存在")
 
         if (route.status == 3) {
             throw BusinessException.conflict("路线分析进行中，请等待分析完成或失败后再删除")
@@ -379,6 +345,7 @@ class RouteApplicationService(
             }
         }
 
+        routePublicationService.withdraw(routeId)
         route.isDeleted = true
         route.updatedAt = Instant.now()
         routeRepository.save(route)

@@ -11,6 +11,9 @@ import org.example.route.model.RouteVersionPoint
 import org.example.route.model.RouteVersionPublicationOrder
 import org.example.route.model.RouteVersionPublicationOrderKey
 import org.example.route.model.RouteVersionSegment
+import org.example.route.model.RoutePublicationConfiguration
+import org.example.route.model.RoutePublicationRequestKey
+import org.example.route.model.RoutePublicationRequestReceipt
 import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
@@ -62,4 +65,14 @@ interface LogicalEquipmentSuggestionIdentityRepository :
 @Repository
 interface RouteVersionEquipmentSuggestionRepository : JpaRepository<RouteVersionEquipmentSuggestion, String> {
     fun findByRouteVersionIdOrderByDisplayOrderAsc(routeVersionId: String): List<RouteVersionEquipmentSuggestion>
+}
+
+@Repository
+interface RoutePublicationRequestRepository : JpaRepository<RoutePublicationRequestReceipt, RoutePublicationRequestKey>
+
+@Repository
+interface RoutePublicationConfigurationRepository : JpaRepository<RoutePublicationConfiguration, Int> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select configuration from RoutePublicationConfiguration configuration where configuration.id = 1")
+    fun findForUpdate(): RoutePublicationConfiguration?
 }

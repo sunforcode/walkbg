@@ -186,3 +186,22 @@ class SseTaskEventBus internal constructor(
         internal val TASK_TTL: Duration = Duration.ofHours(1)
     }
 }
+
+/** Register before returning from a transactional service; delivery cannot affect its outcome. */
+internal fun publishAnalysisEventAfterCommit(eventBus: SseTaskEventBus, event: SseProgressEvent) {
+    check(org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+        "Analysis terminal events require a transaction"
+    }
+    org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+        object : org.springframework.transaction.support.TransactionSynchronization {
+            override fun afterCommit() {
+                try {
+                    eventBus.publish(event.taskId, event)
+                } catch (error: Exception) {
+                    LoggerFactory.getLogger(SseTaskEventBus::class.java)
+                        .warn("Committed analysis event delivery failed: taskId=${event.taskId}", error)
+                }
+            }
+        }
+    )
+}

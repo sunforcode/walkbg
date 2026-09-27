@@ -157,7 +157,7 @@ class RouteController(
         @RequestBody @Valid request: org.example.route.dto.RouteStatusUpdateRequest
     ): ResponseEntity<ApiResponse<RouteDetailResponse>> {
         return ResponseUtil.success(
-            routeApplicationService.changeRouteStatus(id, request.targetStatus, request.reason),
+            routeApplicationService.changeRouteStatus(id, request.targetStatus, request.reason, request.publicRouteType, request.publicationId),
             "路线状态已更新"
         )
     }

@@ -78,5 +78,12 @@ data class RouteStatusUpdateRequest(
     val targetStatus: Int,
 
     /** 流转原因，仅作运营记录 */
-    val reason: String? = null
+    val reason: String? = null,
+
+    @JsonProperty("public_route_type")
+    val publicRouteType: String? = null,
+
+    @JsonProperty("publication_id")
+    @field:Size(max = 64)
+    val publicationId: String? = null
 )

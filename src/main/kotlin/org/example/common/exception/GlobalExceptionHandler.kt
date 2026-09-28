@@ -471,12 +471,14 @@ class GlobalExceptionHandler {
     }
 
     private fun isTargetApiRequest(request: HttpServletRequest): Boolean {
-        val path = request.requestURI
+        val path = request.requestURI.removePrefix(request.contextPath)
+        if (path == "/api/v1/equipment-catalog" || path.startsWith("/api/v1/equipment-catalog/")) return true
         if (path.startsWith("/api/v1/legacy/")) return false
         return path == "/api/v1/auth" || path.startsWith("/api/v1/auth/") ||
             path == "/api/v1/account" || path.startsWith("/api/v1/account/") ||
             path == "/api/v1/public-routes" || path.startsWith("/api/v1/public-routes/") ||
             path == "/api/v1/personal-equipment" || path.startsWith("/api/v1/personal-equipment/") ||
+            path == "/api/v1/personal-equipment:from-catalog" ||
             path == "/api/v1/equipment-lists" || path.startsWith("/api/v1/equipment-lists/") ||
             path == "/api/v1/trips" || path.startsWith("/api/v1/trips/")
     }

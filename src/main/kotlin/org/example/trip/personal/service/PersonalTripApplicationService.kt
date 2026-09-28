@@ -7,6 +7,8 @@ import org.example.common.util.IdGenerator
 import org.example.equipment.dto.EquipmentListSummary
 import org.example.equipment.dto.PersonalEquipmentSummary
 import org.example.equipment.dto.WeightProjection
+import org.example.equipment.support.EquipmentCommandStore
+import org.example.trip.personal.dto.TripItemConfiguration
 import org.example.equipment.model.PersonalEquipmentRecord
 import org.example.equipment.repository.EquipmentListMemberRepository
 import org.example.equipment.repository.EquipmentListOwnershipRepository
@@ -123,6 +125,7 @@ class PersonalTripApplicationService(
     private val migrationEquipmentMerger: TripMigrationEquipmentMerger,
     private val planner: TripGenerationPlanner,
     private val objectMapper: ObjectMapper,
+    private val equipmentCommandStore: EquipmentCommandStore,
     private val clock: Clock = Clock.systemUTC()
 ) {
     @Transactional(readOnly = true)
@@ -169,7 +172,7 @@ class PersonalTripApplicationService(
                 equipmentItemCount = ownedEquipment.size,
                 equipmentListCount = listOwnerships.size,
                 knownTotalWeight = WeightProjection(
-                    ownedEquipment.sumOf { (it.unitWeightGrams ?: 0L) * it.ownedQuantity.toLong() }
+                    ownedEquipment.sumOf { (it.unitWeightGrams ?: 0.0) * it.ownedQuantity }
                 ),
                 missingWeightItemCount = ownedEquipment.count { it.unitWeightGrams == null }
             ),
@@ -192,7 +195,7 @@ class PersonalTripApplicationService(
                         itemCount = equipment.size,
                         knownTotalWeight = WeightProjection(
                             equipment.sumOf { (member, item) ->
-                                (item.unitWeightGrams ?: 0L) * member.quantity.toLong()
+                                (item.unitWeightGrams ?: 0.0) * member.quantity
                             }
                         ),
                         missingWeightItemCount = equipment.count { (_, item) -> item.unitWeightGrams == null }
@@ -204,6 +207,7 @@ class PersonalTripApplicationService(
 
     @Transactional
     fun generate(accountId: String, idempotencyKey: String, command: GenerateTripCommand): GenerateTripResult {
+        equipmentCommandStore.lockAccount(accountId)
         requireNonBlank(idempotencyKey, "Idempotency-Key")
         val requestHash = requestHash(command)
         replayGenerate(accountId, idempotencyKey, requestHash)?.let { return it }
@@ -340,6 +344,7 @@ class PersonalTripApplicationService(
         idempotencyKey: String,
         command: MigrateTripCommand
     ): PersonalTripDetailProjection {
+        equipmentCommandStore.lockAccount(accountId)
         requireNonBlank(idempotencyKey, "Idempotency-Key")
         val operation = "migrate_trip:$tripId"
         val requestHash = requestHash(command)
@@ -443,8 +448,12 @@ class PersonalTripApplicationService(
                 unitWeightGrams = item.unitWeightGrams,
                 source = item.source,
                 ownershipStatus = item.ownershipStatus,
-                note = item.note
-            )
+                note = item.note,
+                packedQuantity = 0
+            ).also {
+                TripPreparationRules.apply(it, item.configuration)
+                TripPreparationRules.validate(it)
+            }
         }
         val derivations = mergedItems.zip(items).mapNotNull { (merged, item) ->
             merged.logicalSuggestionId?.let { logicalId ->
@@ -550,7 +559,10 @@ class PersonalTripApplicationService(
                 source = item.source,
                 ownershipStatus = ownershipStatus(allOwnedEquipment[item.normalizedName], item.quantity),
                 note = item.note
-            )
+            ).also {
+                TripPreparationRules.apply(it, item.configuration)
+                TripPreparationRules.validate(it)
+            }
         }
         val derivations = initialEquipment.zip(itemRecords).mapNotNull { (source, item) ->
             source.logicalSuggestionId?.let { logicalSuggestionId ->
@@ -743,7 +755,7 @@ class PersonalTripApplicationService(
                     name = normalized.display,
                     normalizedName = normalized.comparison,
                     quantity = suggestion.quantity,
-                    unitWeightGrams = suggestion.unitWeightGrams,
+                    unitWeightGrams = suggestion.unitWeightGrams?.toDouble(),
                     note = suggestion.note,
                     source = "system_suggestion",
                     logicalSuggestionId = suggestion.logicalSuggestionId,
@@ -760,7 +772,9 @@ class PersonalTripApplicationService(
                 normalizedName = normalized.comparison,
                 quantity = selected.quantity,
                 unitWeightGrams = selected.record.unitWeightGrams,
-                source = "user_added"
+                source = "user_added",
+                configuration = TripItemConfiguration(selected.record.category, selected.record.equipmentType,
+                    selected.record.variant, selected.record.unitLabel, selected.record.weightScope)
             )
         }
         return items
@@ -781,6 +795,9 @@ class PersonalTripApplicationService(
                 (record.unitWeightGrams != null && record.unitWeightGrams!! <= 0)
             ) {
                 throw tripGenerationFailure()
+            }
+            if (record.category in TripPreparationRules.supplyKinds) {
+                throw ApiContractException.unprocessable("validation_failed", "请在生成后的本次装备中填写实际补给量")
             }
             SelectedEquipment(record, member.quantity)
         }
@@ -1040,18 +1057,18 @@ class PersonalTripApplicationService(
     private fun snapshotReference(
         snapshot: PersonalTripEquipmentSnapshotRecord,
         items: List<PersonalTripEquipmentItemRecord>
-    ) = TripEquipmentSnapshotSummaryReference(
+    ) = try { TripEquipmentSnapshotSummaryReference(
         snapshotId = snapshot.id,
         summary = TripEquipmentSummaryProjection(
             itemCount = items.size,
             knownTotalWeight = WeightProjection(
-                items.sumOf { (it.unitWeightGrams ?: 0L) * it.quantity.toLong() }
+                TripPreparationRules.totalWeight(items)
             ),
             missingWeightItemCount = items.count { it.unitWeightGrams == null },
             ownedItemCount = items.count { it.ownershipStatus == "owned" },
             unconfirmedOwnedItemCount = items.count { it.ownershipStatus == "unconfirmed_owned" }
         )
-    )
+    ) } catch (_: ApiContractException) { throw personalTripReadFailure() }
 
     private fun ownedTrips(accountId: String): List<PersonalTripRecord> =
         ownershipRepository.findByAccountIdOrderByTripIdAsc(accountId).map { ownership ->
@@ -1219,7 +1236,7 @@ class PersonalTripApplicationService(
         id = snapshotId,
         tripId = tripId,
         itemCount = items.size,
-        knownTotalWeightGrams = items.sumOf { (it.unitWeightGrams ?: 0L) * it.quantity.toLong() },
+        knownTotalWeightGrams = TripPreparationRules.totalWeight(items),
         missingWeightItemCount = items.count { it.unitWeightGrams == null },
         ownedItemCount = items.count { it.ownershipStatus == "owned" },
         unconfirmedOwnedItemCount = items.count { it.ownershipStatus == "unconfirmed_owned" }
@@ -1241,11 +1258,12 @@ class PersonalTripApplicationService(
         val name: String,
         val normalizedName: String,
         val quantity: Int,
-        val unitWeightGrams: Long?,
+        val unitWeightGrams: Double?,
         val note: String? = null,
         val source: String,
         val logicalSuggestionId: String? = null,
-        val suggestionOccurrenceId: String? = null
+        val suggestionOccurrenceId: String? = null,
+        val configuration: TripItemConfiguration = TripItemConfiguration()
     )
 
     private data class TripMigrationCandidate(

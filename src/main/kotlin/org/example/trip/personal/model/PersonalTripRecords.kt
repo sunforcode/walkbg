@@ -134,7 +134,7 @@ data class PersonalTripEquipmentSnapshotRecord(
     var itemCount: Int,
 
     @Column(name = "known_total_weight_grams", nullable = false)
-    var knownTotalWeightGrams: Long,
+    var knownTotalWeightGrams: Double,
 
     @Column(name = "missing_weight_item_count", nullable = false)
     var missingWeightItemCount: Int,
@@ -179,7 +179,7 @@ data class PersonalTripEquipmentItemRecord(
     var quantity: Int,
 
     @Column(name = "unit_weight_grams")
-    var unitWeightGrams: Long? = null,
+    var unitWeightGrams: Double? = null,
 
     @Column(nullable = false, length = 32)
     var source: String,
@@ -188,7 +188,21 @@ data class PersonalTripEquipmentItemRecord(
     var ownershipStatus: String,
 
     @Column(columnDefinition = "TEXT")
-    var note: String? = null
+    var note: String? = null,
+
+    @Column(length = 32) var category: String? = null,
+    @Column(name = "equipment_type", length = 64) var equipmentType: String? = null,
+    @Column(columnDefinition = "TEXT") var variant: String? = null,
+    @Column(name = "unit_label", length = 8) var unitLabel: String? = null,
+    @Column(name = "weight_scope", columnDefinition = "TEXT") var weightScope: String? = null,
+    @Column(name = "backpack_quantity") var backpackQuantity: Int? = null,
+    @Column(name = "worn_quantity") var wornQuantity: Int? = null,
+    @Column(name = "handheld_quantity") var handheldQuantity: Int? = null,
+    @Column(name = "supply_kind", length = 32) var supplyKind: String? = null,
+    @Column(name = "supply_amount") var supplyAmount: Double? = null,
+    @Column(name = "supply_amount_unit", length = 16) var supplyAmountUnit: String? = null,
+    @Column(name = "supply_container_mode", length = 16) var supplyContainerMode: String? = null,
+    @Column(name = "packed_quantity") var packedQuantity: Int? = null
 )
 
 @Entity

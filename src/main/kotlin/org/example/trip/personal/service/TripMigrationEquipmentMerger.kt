@@ -1,6 +1,7 @@
 package org.example.trip.personal.service
 
 import org.example.common.contract.ApiContractException
+import org.example.trip.personal.dto.TripItemConfiguration
 import org.example.equipment.service.PersonalEquipmentDomainService
 import org.example.route.model.RouteVersionEquipmentSuggestion
 import org.example.trip.personal.model.PersonalTripEquipmentItemDerivedFromSuggestion
@@ -45,6 +46,7 @@ class TripMigrationEquipmentMerger(
         suppressions: List<TripSuppressesEquipmentSuggestion>,
         ownedQuantitiesByNormalizedName: Map<String, Int>
     ): List<MigrationEquipmentItem> {
+        oldItems.forEach(TripPreparationRules::validate)
         val derivationByItemId = oldDerivations.associateByUnique { it.itemId }
         val oldItemIds = oldItems.map { it.id }.toSet()
         if (oldDerivations.any { it.itemId !in oldItemIds || it.routeId != routeId }) {
@@ -67,7 +69,7 @@ class TripMigrationEquipmentMerger(
                 name = normalized.display,
                 normalizedName = normalized.comparison,
                 quantity = suggestion.quantity,
-                unitWeightGrams = suggestion.unitWeightGrams,
+                unitWeightGrams = suggestion.unitWeightGrams?.toDouble(),
                 note = suggestion.note,
                 source = "system_suggestion",
                 ownershipStatus = "unconfirmed_owned",
@@ -88,7 +90,8 @@ class TripMigrationEquipmentMerger(
                 source = "user_adjusted",
                 ownershipStatus = "unconfirmed_owned",
                 logicalSuggestionId = derivation.logicalSuggestionId,
-                suggestionOccurrenceId = candidatesByLogical[derivation.logicalSuggestionId]?.suggestionOccurrenceId
+                suggestionOccurrenceId = candidatesByLogical[derivation.logicalSuggestionId]?.suggestionOccurrenceId,
+                configuration = TripPreparationRules.configuration(item)
             )
         }
 
@@ -103,7 +106,8 @@ class TripMigrationEquipmentMerger(
                 unitWeightGrams = item.unitWeightGrams?.let(equipmentDomainService::requirePositiveWeight),
                 note = item.note?.trim()?.takeIf { it.isNotEmpty() } ?: item.note?.let { throw migrationFailure() },
                 source = "user_added",
-                ownershipStatus = "unconfirmed_owned"
+                ownershipStatus = "unconfirmed_owned",
+                configuration = TripPreparationRules.configuration(item)
             )
         }
 
@@ -122,7 +126,7 @@ class TripMigrationEquipmentMerger(
 
         return visible.map { item ->
             item.copy(
-                ownershipStatus = if ((ownedQuantitiesByNormalizedName[item.normalizedName] ?: 0) >= item.quantity) {
+                ownershipStatus = if (item.configuration.supply == null && (ownedQuantitiesByNormalizedName[item.normalizedName] ?: 0) >= item.quantity) {
                     "owned"
                 } else {
                     "unconfirmed_owned"
@@ -153,10 +157,11 @@ data class MigrationEquipmentItem(
     val name: String,
     val normalizedName: String,
     val quantity: Int,
-    val unitWeightGrams: Long?,
+    val unitWeightGrams: Double?,
     val note: String?,
     val source: String,
     val ownershipStatus: String,
     val logicalSuggestionId: String? = null,
-    val suggestionOccurrenceId: String? = null
+    val suggestionOccurrenceId: String? = null,
+    val configuration: TripItemConfiguration = TripItemConfiguration()
 )

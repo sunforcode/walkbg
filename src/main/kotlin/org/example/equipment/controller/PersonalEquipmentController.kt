@@ -4,16 +4,8 @@ import jakarta.servlet.http.HttpServletRequest
 import org.example.account.controller.accountPrincipal
 import org.example.common.contract.ApiContractException
 import org.example.common.contract.DataResponse
-import org.example.equipment.dto.CreatePersonalEquipmentRequest
-import org.example.equipment.dto.PersonalEquipmentCollectionResponse
-import org.example.equipment.dto.PersonalEquipmentDeletionImpact
-import org.example.equipment.dto.PersonalEquipmentDeletionResponse
-import org.example.equipment.dto.PersonalEquipmentMutationResponse
-import org.example.equipment.dto.PersonalEquipmentProjection
-import org.example.equipment.dto.UpdatePersonalEquipmentRequest
-import org.example.equipment.service.CreatePersonalEquipmentCommand
-import org.example.equipment.service.PersonalEquipmentApplicationService
-import org.example.equipment.service.UpdatePersonalEquipmentCommand
+import org.example.equipment.dto.*
+import org.example.equipment.service.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -27,20 +19,29 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/v1/personal-equipment")
+@RequestMapping("/api/v1")
 class PersonalEquipmentController(
     private val service: PersonalEquipmentApplicationService
 ) {
-    @GetMapping
+    @GetMapping("/personal-equipment")
     fun collection(
         authentication: Authentication?,
         servletRequest: HttpServletRequest
     ): DataResponse<PersonalEquipmentCollectionResponse> {
-        rejectUnknownQuery(servletRequest)
-        return DataResponse(service.getEquipmentCollection(authentication.accountPrincipal().userId))
+        rejectUnknownQuery(servletRequest, setOf("keyword", "category", "equipmentType", "missingWeight"))
+        if (servletRequest.parameterMap.any { it.value.size != 1 || it.value[0].isBlank() }) {
+            throw ApiContractException.invalidRequest("筛选参数不得重复或为空")
+        }
+        val missingWeight = servletRequest.getParameter("missingWeight")?.let {
+            when (it) { "true" -> true; "false" -> false; else -> throw ApiContractException.invalidRequest("missingWeight 必须为 true 或 false") }
+        }
+        return DataResponse(service.getEquipmentCollection(authentication.accountPrincipal().userId, PersonalEquipmentFilter(
+            keyword = servletRequest.getParameter("keyword"), category = servletRequest.getParameter("category"),
+            equipmentType = servletRequest.getParameter("equipmentType"), missingWeight = missingWeight
+        )))
     }
 
-    @PostMapping
+    @PostMapping("/personal-equipment")
     fun create(
         authentication: Authentication?,
         @RequestBody request: CreatePersonalEquipmentRequest,
@@ -51,25 +52,46 @@ class PersonalEquipmentController(
         if (!request.hasName || !request.hasOwnedQuantity || request.name == null || request.ownedQuantity == null) {
             throw ApiContractException.invalidRequest("新增装备必须包含 name 和 ownedQuantity")
         }
-        if (request.hasUnitWeight && request.unitWeight == null) {
-            throw ApiContractException.invalidRequest("新增装备的 unitWeight 不能为 null")
-        }
-        request.unitWeight?.let {
-            rejectUnknownFields(it)
-            requireWeightGrams(it)
+        if (request.hasUnitWeight && request.unitWeight == null || request.hasCategory && request.category == null ||
+            request.hasEquipmentType && request.equipmentType == null || request.hasVariant && request.variant == null ||
+            request.hasUnitLabel && request.unitLabel == null || request.hasWeightScope && request.weightScope == null) {
+            throw ApiContractException.invalidRequest("新增装备的可选字段不能为 null")
         }
         val response = service.createEquipment(
             authentication.accountPrincipal().userId,
             CreatePersonalEquipmentCommand(
                 request.name,
                 request.ownedQuantity,
-                request.unitWeight?.grams
+                request.unitWeight?.grams, request.category, request.equipmentType,
+                request.variant, request.unitLabel, request.weightScope
             )
         )
         return ResponseEntity.status(HttpStatus.CREATED).body(DataResponse(response))
     }
 
-    @GetMapping("/{personalEquipmentId}")
+    @PostMapping("/personal-equipment:from-catalog")
+    fun adoptCatalog(
+        authentication: Authentication?,
+        @RequestBody request: AdoptCatalogEquipmentRequest,
+        servletRequest: HttpServletRequest
+    ): ResponseEntity<DataResponse<PersonalEquipmentMutationResponse>> {
+        rejectUnknownQuery(servletRequest)
+        rejectUnknownFields(request)
+        val accountId = authentication.accountPrincipal().userId
+        val key = equipmentIdempotencyKey(servletRequest)
+        val catalogId = request.catalogEquipmentId?.takeUnless { it.isBlank() }
+            ?: throw ApiContractException.invalidRequest("必须指定 catalogEquipmentId")
+        val quantity = request.ownedQuantity ?: throw ApiContractException.invalidRequest("必须指定 ownedQuantity")
+        if (request.hasName && request.name == null) throw ApiContractException.invalidRequest("name 不能为 null")
+        val result = service.adoptCatalogEquipment(accountId, key, AdoptCatalogEquipmentCommand(
+            catalogId, quantity, request.name, request.unitWeight?.grams,
+            request.variant, request.unitLabel, request.weightScope,
+            request.hasUnitWeight, request.hasVariant, request.hasUnitLabel, request.hasWeightScope
+        ))
+        return ResponseEntity.status(HttpStatus.CREATED).body(DataResponse(result))
+    }
+
+    @GetMapping("/personal-equipment/{personalEquipmentId}")
     fun detail(
         authentication: Authentication?,
         @PathVariable personalEquipmentId: String,
@@ -79,7 +101,7 @@ class PersonalEquipmentController(
         return DataResponse(service.getEquipment(authentication.accountPrincipal().userId, personalEquipmentId))
     }
 
-    @PatchMapping("/{personalEquipmentId}")
+    @PatchMapping("/personal-equipment/{personalEquipmentId}")
     fun update(
         authentication: Authentication?,
         @PathVariable personalEquipmentId: String,
@@ -88,15 +110,12 @@ class PersonalEquipmentController(
     ): DataResponse<PersonalEquipmentMutationResponse> {
         rejectUnknownQuery(servletRequest)
         rejectUnknownFields(request)
-        if (!request.hasName && !request.hasOwnedQuantity && !request.hasUnitWeight) {
+        if (!request.hasName && !request.hasOwnedQuantity && !request.hasUnitWeight && !request.hasCategory &&
+            !request.hasEquipmentType && !request.hasVariant && !request.hasUnitLabel && !request.hasWeightScope) {
             throw ApiContractException.unprocessable("validation_failed", "至少提供一个可修改字段")
         }
         if (request.hasName && request.name == null || request.hasOwnedQuantity && request.ownedQuantity == null) {
             throw ApiContractException.invalidRequest("name 和 ownedQuantity 不能为 null")
-        }
-        request.unitWeight?.let {
-            rejectUnknownFields(it)
-            requireWeightGrams(it)
         }
         return DataResponse(
             service.updateEquipment(
@@ -109,13 +128,17 @@ class PersonalEquipmentController(
                     hasName = request.hasName,
                     hasOwnedQuantity = request.hasOwnedQuantity,
                     hasUnitWeight = request.hasUnitWeight,
-                    clearUnitWeight = request.hasUnitWeight && request.unitWeight == null
+                    clearUnitWeight = request.hasUnitWeight && request.unitWeight == null,
+                    category = request.category, equipmentType = request.equipmentType,
+                    variant = request.variant, unitLabel = request.unitLabel, weightScope = request.weightScope,
+                    hasCategory = request.hasCategory, hasEquipmentType = request.hasEquipmentType,
+                    hasVariant = request.hasVariant, hasUnitLabel = request.hasUnitLabel, hasWeightScope = request.hasWeightScope
                 )
             )
         )
     }
 
-    @GetMapping("/{personalEquipmentId}/deletion-impact")
+    @GetMapping("/personal-equipment/{personalEquipmentId}/deletion-impact")
     fun deletionImpact(
         authentication: Authentication?,
         @PathVariable personalEquipmentId: String,
@@ -125,7 +148,7 @@ class PersonalEquipmentController(
         return DataResponse(service.getDeletionImpact(authentication.accountPrincipal().userId, personalEquipmentId))
     }
 
-    @DeleteMapping("/{personalEquipmentId}")
+    @DeleteMapping("/personal-equipment/{personalEquipmentId}")
     fun delete(
         authentication: Authentication?,
         @PathVariable personalEquipmentId: String,
@@ -162,8 +185,8 @@ internal fun rejectUnknownFields(request: org.example.equipment.dto.EquipmentStr
     }
 }
 
-private fun requireWeightGrams(request: org.example.equipment.dto.UnitWeightRequest) {
-    if (request.grams == null) {
-        throw ApiContractException.invalidRequest("unitWeight 必须包含 grams")
-    }
+internal fun equipmentIdempotencyKey(request: HttpServletRequest): String {
+    val values = request.getHeaders("Idempotency-Key")?.toList().orEmpty()
+    if (values.size != 1 || values[0].isBlank()) throw ApiContractException.invalidRequest("必须提供唯一非空 Idempotency-Key")
+    return values[0]
 }

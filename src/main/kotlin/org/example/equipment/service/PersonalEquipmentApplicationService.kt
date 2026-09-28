@@ -29,24 +29,63 @@ import org.example.equipment.repository.EquipmentListOwnershipRepository
 import org.example.equipment.repository.PersonalEquipmentOwnershipRepository
 import org.example.equipment.repository.PersonalEquipmentRecordRepository
 import org.example.equipment.repository.UserEquipmentListRecordRepository
+import org.example.equipment.catalog.service.EquipmentCatalogApplicationService
+import org.example.equipment.support.EquipmentCommandStore
+import org.example.equipment.util.normalizeEquipmentSearchText
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
+data class PersonalEquipmentFilter(
+    val keyword: String? = null,
+    val category: String? = null,
+    val equipmentType: String? = null,
+    val missingWeight: Boolean? = null
+)
+
 data class CreatePersonalEquipmentCommand(
     val name: String?,
     val ownedQuantity: Int?,
-    val unitWeightGrams: Long?
+    val unitWeightGrams: Double?,
+    val category: String? = null,
+    val equipmentType: String? = null,
+    val variant: String? = null,
+    val unitLabel: String? = null,
+    val weightScope: String? = null
 )
 
 data class UpdatePersonalEquipmentCommand(
     val name: String? = null,
     val ownedQuantity: Int? = null,
-    val unitWeightGrams: Long? = null,
+    val unitWeightGrams: Double? = null,
     val clearUnitWeight: Boolean = false,
     val hasName: Boolean = name != null,
     val hasOwnedQuantity: Boolean = ownedQuantity != null,
-    val hasUnitWeight: Boolean = unitWeightGrams != null || clearUnitWeight
+    val hasUnitWeight: Boolean = unitWeightGrams != null || clearUnitWeight,
+    val category: String? = null,
+    val equipmentType: String? = null,
+    val variant: String? = null,
+    val unitLabel: String? = null,
+    val weightScope: String? = null,
+    val hasCategory: Boolean = category != null,
+    val hasEquipmentType: Boolean = equipmentType != null,
+    val hasVariant: Boolean = variant != null,
+    val hasUnitLabel: Boolean = unitLabel != null,
+    val hasWeightScope: Boolean = weightScope != null
+)
+
+data class AdoptCatalogEquipmentCommand(
+    val catalogEquipmentId: String,
+    val ownedQuantity: Int,
+    val name: String? = null,
+    val unitWeightGrams: Double? = null,
+    val variant: String? = null,
+    val unitLabel: String? = null,
+    val weightScope: String? = null,
+    val hasUnitWeight: Boolean = unitWeightGrams != null,
+    val hasVariant: Boolean = variant != null,
+    val hasUnitLabel: Boolean = unitLabel != null,
+    val hasWeightScope: Boolean = weightScope != null
 )
 
 @Service
@@ -56,28 +95,69 @@ class PersonalEquipmentApplicationService(
     private val listRepository: UserEquipmentListRecordRepository,
     private val listOwnershipRepository: EquipmentListOwnershipRepository,
     private val memberRepository: EquipmentListMemberRepository,
-    private val domainService: PersonalEquipmentDomainService
+    private val domainService: PersonalEquipmentDomainService,
+    private val commandStore: EquipmentCommandStore,
+    private val catalogService: EquipmentCatalogApplicationService
 ) {
     @Transactional(readOnly = true)
-    fun getEquipmentCollection(accountId: String): PersonalEquipmentCollectionResponse {
-        val items = ownedEquipment(accountId).map(::toEquipmentProjection)
-        return PersonalEquipmentCollectionResponse(items, personalSummary(accountId, items))
+    fun getEquipmentCollection(accountId: String, filter: PersonalEquipmentFilter = PersonalEquipmentFilter()): PersonalEquipmentCollectionResponse {
+        domainService.validateFilter(filter)
+        val all = ownedEquipment(accountId).map(::toEquipmentProjection)
+        val keyword = filter.keyword?.let(::normalizeEquipmentSearchText)
+        val items = all.filter {
+            (keyword == null || normalizeEquipmentSearchText(it.name).contains(keyword)) &&
+                (filter.category == null || it.category == filter.category) &&
+                (filter.equipmentType == null || it.equipmentType == filter.equipmentType) &&
+                (filter.missingWeight == null || (it.unitWeight == null) == filter.missingWeight)
+        }
+        return PersonalEquipmentCollectionResponse(items, personalSummary(accountId, all, writing = false))
     }
 
     @Transactional
     fun createEquipment(accountId: String, command: CreatePersonalEquipmentCommand): PersonalEquipmentMutationResponse {
+        commandStore.lockAccount(accountId)
         val normalized = domainService.normalizeEquipmentName(command.name)
-        val quantity = domainService.requirePositiveQuantity(command.ownedQuantity, "拥有数量")
-        val unitWeight = command.unitWeightGrams?.let(domainService::requirePositiveWeight)
-        ensureUniqueEquipmentName(accountId, normalized.comparison)
+        val record = PersonalEquipmentRecord(
+            IdGenerator.generateIdWithPrefix("pe"), normalized.display,
+            domainService.requirePositiveQuantity(command.ownedQuantity, "拥有数量"),
+            command.unitWeightGrams?.let(domainService::requirePositiveWeight),
+            category = command.category, equipmentType = command.equipmentType,
+            variant = domainService.optionalText(command.variant), unitLabel = command.unitLabel,
+            weightScope = domainService.optionalText(command.weightScope),
+            unitWeightSource = if (command.unitWeightGrams == null) null else "user_recorded"
+        )
+        return saveNewEquipment(accountId, normalized.comparison, record)
+    }
 
-        val id = IdGenerator.generateIdWithPrefix("pe")
-        val record = equipmentRepository.save(
-            PersonalEquipmentRecord(id, normalized.display, quantity, unitWeight)
-        )
-        equipmentOwnershipRepository.save(
-            PersonalEquipmentOwnership(id, accountId, normalized.comparison)
-        )
+    @Transactional
+    fun adoptCatalogEquipment(accountId: String, idempotencyKey: String, command: AdoptCatalogEquipmentCommand): PersonalEquipmentMutationResponse =
+        commandStore.execute(accountId, "personal-equipment:from-catalog", idempotencyKey, command, PersonalEquipmentMutationResponse::class.java) {
+            val source = catalogService.getRecord(command.catalogEquipmentId)
+            val spec = source.specifications
+            val normalized = domainService.normalizeEquipmentName(command.name ?: source.name)
+            val weight = if (command.hasUnitWeight) command.unitWeightGrams?.let(domainService::requirePositiveWeight) else spec?.unitWeightGrams
+            val variant = if (command.hasVariant) domainService.optionalText(command.variant) else spec?.variant
+            val unitLabel = if (command.hasUnitLabel) command.unitLabel else spec?.unitLabel
+            val scope = if (command.hasWeightScope) domainService.optionalText(command.weightScope) else spec?.weightScope
+            if (!command.hasUnitWeight && weight != null && (variant != spec?.variant || unitLabel != spec?.unitLabel || scope != spec?.weightScope)) {
+                throw ApiContractException.unprocessable("validation_failed", "修改参考配置时必须明确新重量或清除重量")
+            }
+            val record = PersonalEquipmentRecord(
+                IdGenerator.generateIdWithPrefix("pe"), normalized.display,
+                domainService.requirePositiveQuantity(command.ownedQuantity, "拥有数量"), weight,
+                category = source.category, equipmentType = source.equipmentType,
+                variant = variant, unitLabel = unitLabel, weightScope = scope,
+                unitWeightSource = if (weight == null) null else if (command.hasUnitWeight) "user_recorded" else "catalog_reference",
+                catalogEquipmentId = source.identity
+            )
+            saveNewEquipment(accountId, normalized.comparison, record)
+        }
+
+    private fun saveNewEquipment(accountId: String, normalizedName: String, record: PersonalEquipmentRecord): PersonalEquipmentMutationResponse {
+        domainService.validateConfiguration(record)
+        ensureUniqueEquipmentName(accountId, normalizedName)
+        equipmentRepository.save(record)
+        equipmentOwnershipRepository.save(PersonalEquipmentOwnership(record.id, accountId, normalizedName))
         return PersonalEquipmentMutationResponse(toEquipmentProjection(record), personalSummary(accountId))
     }
 
@@ -91,35 +171,36 @@ class PersonalEquipmentApplicationService(
         personalEquipmentId: String,
         command: UpdatePersonalEquipmentCommand
     ): PersonalEquipmentMutationResponse {
-        val record = requireOwnedEquipment(accountId, personalEquipmentId)
+        commandStore.lockAccount(accountId)
+        val previous = requireOwnedEquipment(accountId, personalEquipmentId)
         val ownership = requireEquipmentOwnership(accountId, personalEquipmentId)
-        if (command.hasName) {
-            val normalized = domainService.normalizeEquipmentName(command.name)
-            if (equipmentOwnershipRepository.existsByAccountIdAndNormalizedNameAndPersonalEquipmentIdNot(
-                    accountId,
-                    normalized.comparison,
-                    personalEquipmentId
-                )
-            ) {
-                throw ApiContractException.conflict("equipment_name_conflict", "当前账号已存在同名装备")
-            }
-            record.name = normalized.display
-            ownership.normalizedName = normalized.comparison
+        val normalized = if (command.hasName) domainService.normalizeEquipmentName(command.name) else null
+        if (normalized != null && equipmentOwnershipRepository.existsByAccountIdAndNormalizedNameAndPersonalEquipmentIdNot(
+                accountId, normalized.comparison, personalEquipmentId)) {
+            throw ApiContractException.conflict("equipment_name_conflict", "当前账号已存在同名装备")
         }
-        if (command.hasOwnedQuantity) {
-            record.ownedQuantity = domainService.requirePositiveQuantity(command.ownedQuantity, "拥有数量")
+        val weight = if (!command.hasUnitWeight) previous.unitWeightGrams else if (command.clearUnitWeight) null else domainService.requirePositiveWeight(command.unitWeightGrams)
+        val next = previous.copy(
+            name = normalized?.display ?: previous.name,
+            ownedQuantity = if (command.hasOwnedQuantity) domainService.requirePositiveQuantity(command.ownedQuantity, "拥有数量") else previous.ownedQuantity,
+            unitWeightGrams = weight,
+            unitWeightSource = if (!command.hasUnitWeight) previous.unitWeightSource else if (weight == null) null else "user_recorded",
+            category = if (command.hasCategory) command.category else previous.category,
+            equipmentType = if (command.hasEquipmentType) command.equipmentType else previous.equipmentType,
+            variant = if (command.hasVariant) domainService.optionalText(command.variant) else previous.variant,
+            unitLabel = if (command.hasUnitLabel) command.unitLabel else previous.unitLabel,
+            weightScope = if (command.hasWeightScope) domainService.optionalText(command.weightScope) else previous.weightScope,
+            updatedAt = Instant.now()
+        )
+        domainService.validateConfiguration(next)
+        if (!command.hasUnitWeight && (next.unitLabel != previous.unitLabel ||
+                (previous.unitWeightSource == "catalog_reference" && (next.category != previous.category ||
+                    next.equipmentType != previous.equipmentType || next.variant != previous.variant || next.weightScope != previous.weightScope)))) {
+            throw ApiContractException.unprocessable("validation_failed", "修改计量单位或参考配置时必须明确新重量或清除重量")
         }
-        if (command.hasUnitWeight) {
-            record.unitWeightGrams = if (command.clearUnitWeight) {
-                null
-            } else {
-                domainService.requirePositiveWeight(command.unitWeightGrams)
-            }
-        }
-        record.updatedAt = Instant.now()
-        equipmentRepository.save(record)
-        equipmentOwnershipRepository.save(ownership)
-        return PersonalEquipmentMutationResponse(toEquipmentProjection(record), personalSummary(accountId))
+        equipmentRepository.save(next)
+        if (normalized != null) equipmentOwnershipRepository.save(ownership.copy(normalizedName = normalized.comparison))
+        return PersonalEquipmentMutationResponse(toEquipmentProjection(next), personalSummary(accountId))
     }
 
     @Transactional(readOnly = true)
@@ -142,6 +223,7 @@ class PersonalEquipmentApplicationService(
         personalEquipmentId: String,
         confirmListRemoval: Boolean
     ): PersonalEquipmentDeletionResponse {
+        commandStore.lockAccount(accountId)
         if (!confirmListRemoval) {
             throw ApiContractException.conflict(
                 "deletion_confirmation_required",
@@ -163,13 +245,14 @@ class PersonalEquipmentApplicationService(
     @Transactional(readOnly = true)
     fun getEquipmentLists(accountId: String): EquipmentListCollectionResponse = EquipmentListCollectionResponse(
         ownedLists(accountId).map { list ->
-            val detail = toListDetail(list)
+            val detail = toListDetail(list, writing = false)
             EquipmentListSummaryProjection(detail.identity, detail.name, detail.summary)
         }
     )
 
     @Transactional
     fun createEquipmentList(accountId: String, name: String?): EquipmentListCreateResponse {
+        commandStore.lockAccount(accountId)
         val normalizedName = domainService.normalizeListName(name)
         val id = IdGenerator.generateIdWithPrefix("el")
         val list = listRepository.save(UserEquipmentListRecord(id, normalizedName))
@@ -177,9 +260,23 @@ class PersonalEquipmentApplicationService(
         return EquipmentListCreateResponse(toListDetail(list), personalSummary(accountId))
     }
 
+    @Transactional
+    fun copyEquipmentList(accountId: String, equipmentListId: String, idempotencyKey: String, name: String): EquipmentListCreateResponse =
+        commandStore.execute(accountId, "equipment-lists/$equipmentListId:copy", idempotencyKey, mapOf("name" to name), EquipmentListCreateResponse::class.java) {
+            requireOwnedList(accountId, equipmentListId)
+            val normalizedName = domainService.normalizeListName(name)
+            val members = memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc(equipmentListId)
+            members.forEach { requireOwnedEquipment(accountId, it.personalEquipmentId) }
+            val id = IdGenerator.generateIdWithPrefix("el")
+            val list = listRepository.save(UserEquipmentListRecord(id, normalizedName))
+            listOwnershipRepository.save(EquipmentListOwnership(id, accountId))
+            members.forEach { memberRepository.save(EquipmentListMember(id, it.personalEquipmentId, it.quantity)) }
+            EquipmentListCreateResponse(toListDetail(list), personalSummary(accountId))
+        }
+
     @Transactional(readOnly = true)
     fun getEquipmentList(accountId: String, equipmentListId: String): EquipmentListDetailProjection =
-        toListDetail(requireOwnedList(accountId, equipmentListId))
+        toListDetail(requireOwnedList(accountId, equipmentListId), writing = false)
 
     @Transactional
     fun renameEquipmentList(
@@ -187,6 +284,7 @@ class PersonalEquipmentApplicationService(
         equipmentListId: String,
         name: String?
     ): EquipmentListMutationResponse {
+        commandStore.lockAccount(accountId)
         val list = requireOwnedList(accountId, equipmentListId)
         list.name = domainService.normalizeListName(name)
         list.updatedAt = Instant.now()
@@ -195,6 +293,7 @@ class PersonalEquipmentApplicationService(
 
     @Transactional
     fun deleteEquipmentList(accountId: String, equipmentListId: String): EquipmentListDeletionResponse {
+        commandStore.lockAccount(accountId)
         requireOwnedList(accountId, equipmentListId)
         memberRepository.deleteByEquipmentListId(equipmentListId)
         listOwnershipRepository.deleteById(equipmentListId)
@@ -209,6 +308,7 @@ class PersonalEquipmentApplicationService(
         personalEquipmentId: String,
         quantity: Int?
     ): EquipmentListMutationResponse {
+        commandStore.lockAccount(accountId)
         val list = requireOwnedList(accountId, equipmentListId)
         requireOwnedEquipment(accountId, personalEquipmentId)
         val validatedQuantity = domainService.requirePositiveQuantity(quantity, "清单数量")
@@ -227,6 +327,7 @@ class PersonalEquipmentApplicationService(
         equipmentListId: String,
         personalEquipmentId: String
     ): EquipmentListMutationResponse {
+        commandStore.lockAccount(accountId)
         val list = requireOwnedList(accountId, equipmentListId)
         requireOwnedEquipment(accountId, personalEquipmentId)
         val id = EquipmentListMemberId(equipmentListId, personalEquipmentId)
@@ -237,7 +338,7 @@ class PersonalEquipmentApplicationService(
 
     private fun ownedEquipment(accountId: String): List<PersonalEquipmentRecord> =
         equipmentOwnershipRepository.findByAccountIdOrderByPersonalEquipmentIdAsc(accountId)
-            .mapNotNull { equipmentRepository.findById(it.personalEquipmentId).orElse(null) }
+            .mapNotNull { equipmentRepository.findById(it.personalEquipmentId).orElse(null) }.sortedBy { it.id }
 
     private fun ownedLists(accountId: String): List<UserEquipmentListRecord> =
         listOwnershipRepository.findByAccountIdOrderByEquipmentListIdAsc(accountId)
@@ -269,12 +370,13 @@ class PersonalEquipmentApplicationService(
 
     private fun personalSummary(
         accountId: String,
-        projections: List<PersonalEquipmentProjection> = ownedEquipment(accountId).map(::toEquipmentProjection)
+        projections: List<PersonalEquipmentProjection> = ownedEquipment(accountId).map(::toEquipmentProjection),
+        writing: Boolean = true
     ): PersonalEquipmentSummary = PersonalEquipmentSummary(
         equipmentItemCount = projections.size,
         equipmentListCount = listOwnershipRepository.countByAccountId(accountId).toInt(),
-        knownTotalWeight = WeightProjection(
-            projections.sumOf { item -> (item.unitWeight?.grams ?: 0L) * item.ownedQuantity.toLong() }
+        knownTotalWeight = totalWeight(
+            projections.sumOf { item -> (item.unitWeight?.grams ?: 0.0) * item.ownedQuantity }, writing
         ),
         missingWeightItemCount = projections.count { it.unitWeight == null }
     )
@@ -283,10 +385,13 @@ class PersonalEquipmentApplicationService(
         identity = record.id,
         name = record.name,
         ownedQuantity = record.ownedQuantity,
-        unitWeight = record.unitWeightGrams?.let(::WeightProjection)
+        unitWeight = record.unitWeightGrams?.let(::WeightProjection),
+        category = record.category, equipmentType = record.equipmentType, variant = record.variant,
+        unitLabel = record.unitLabel, weightScope = record.weightScope,
+        unitWeightSource = record.unitWeightGrams?.let { record.unitWeightSource }, catalogEquipmentId = record.catalogEquipmentId
     )
 
-    private fun toListDetail(list: UserEquipmentListRecord): EquipmentListDetailProjection {
+    private fun toListDetail(list: UserEquipmentListRecord, writing: Boolean = true): EquipmentListDetailProjection {
         val members = memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc(list.id).map { member ->
             val equipment = equipmentRepository.findById(member.personalEquipmentId)
                 .orElseThrow { ApiContractException.notFound() }
@@ -295,7 +400,10 @@ class PersonalEquipmentApplicationService(
                 name = equipment.name,
                 ownedQuantity = equipment.ownedQuantity,
                 unitWeight = equipment.unitWeightGrams?.let(::WeightProjection),
-                quantity = member.quantity
+                quantity = member.quantity,
+                category = equipment.category, equipmentType = equipment.equipmentType, variant = equipment.variant,
+                unitLabel = equipment.unitLabel, weightScope = equipment.weightScope,
+                unitWeightSource = equipment.unitWeightGrams?.let { equipment.unitWeightSource }, catalogEquipmentId = equipment.catalogEquipmentId
             )
         }
         return EquipmentListDetailProjection(
@@ -304,11 +412,19 @@ class PersonalEquipmentApplicationService(
             members = members,
             summary = EquipmentListSummary(
                 itemCount = members.size,
-                knownTotalWeight = WeightProjection(
-                    members.sumOf { item -> (item.unitWeight?.grams ?: 0L) * item.quantity.toLong() }
+                knownTotalWeight = totalWeight(
+                    members.sumOf { item -> (item.unitWeight?.grams ?: 0.0) * item.quantity }, writing
                 ),
                 missingWeightItemCount = members.count { it.unitWeight == null }
             )
         )
     }
+    private fun totalWeight(grams: Double, writing: Boolean): WeightProjection {
+        if (!grams.isFinite()) {
+            if (writing) throw ApiContractException.unprocessable("validation_failed", "汇总重量超出支持范围")
+            throw ApiContractException.serviceUnavailable("personal_equipment_unavailable", "个人装备服务暂不可用")
+        }
+        return WeightProjection(grams)
+    }
+
 }

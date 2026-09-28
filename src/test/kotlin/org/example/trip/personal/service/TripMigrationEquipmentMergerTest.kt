@@ -85,6 +85,23 @@ class TripMigrationEquipmentMergerTest {
         assertEquals(503, error.status.value())
     }
 
+    @Test
+    fun `migration retains supply and allocation and leaves old packing unchanged`() {
+        val old = item("food", 1, "食品", "食品", 1, "user_added").copy(
+            category = "food", equipmentType = "food", unitLabel = "份", weightScope = "含包装",
+            unitWeightGrams = 200.25, supplyKind = "food", supplyAmount = 0.5, supplyAmountUnit = "portion", supplyContainerMode = "included",
+            backpackQuantity = 1, wornQuantity = 0, handheldQuantity = 0, packedQuantity = 1)
+        val migrated = merger.merge("route-1", emptyList(), listOf(old), emptyList(), emptyList(), mapOf("食品" to 10)).single()
+        assertEquals(TripPreparationRules.configuration(old), migrated.configuration)
+        assertEquals(200.25, migrated.unitWeightGrams)
+        assertEquals("unconfirmed_owned", migrated.ownershipStatus)
+        assertEquals(1, old.packedQuantity)
+        assertThrows<ApiContractException> {
+            merger.merge("route-1", listOf(suggestion("new", "l", 1, "食品", 1)), listOf(old), emptyList(), emptyList(), emptyMap())
+        }
+        assertEquals(1, old.packedQuantity)
+    }
+
     private fun suggestion(
         id: String,
         logicalId: String,
@@ -118,7 +135,7 @@ class TripMigrationEquipmentMergerTest {
         name = name,
         normalizedName = normalized,
         quantity = quantity,
-        unitWeightGrams = 400,
+        unitWeightGrams = 400.0,
         source = source,
         ownershipStatus = "unconfirmed_owned"
     )

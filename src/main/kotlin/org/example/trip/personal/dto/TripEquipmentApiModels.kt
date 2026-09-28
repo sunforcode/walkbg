@@ -1,129 +1,38 @@
 package org.example.trip.personal.dto
 
-import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonSetter
 import org.example.equipment.dto.WeightProjection
 import java.time.LocalDate
 
-abstract class TripEquipmentStrictRequest {
-    private val unknownFields = linkedSetOf<String>()
+data class TripCarryAllocation(val backpackQuantity: Int, val wornQuantity: Int, val handheldQuantity: Int)
+data class TripSupplyAmount(val value: Double, val unit: String)
+data class TripSupply(val kind: String, val amount: TripSupplyAmount, val containerMode: String)
 
-    @JsonAnySetter
-    fun captureUnknownField(name: String, value: Any?) {
-        unknownFields += name
-    }
-
-    fun hasUnknownFields(): Boolean = unknownFields.isNotEmpty()
-}
-
-class TripEquipmentWeightRequest(
-    val grams: Long? = null
-) : TripEquipmentStrictRequest()
-
-class CreateTripEquipmentItemRequest : TripEquipmentStrictRequest() {
-    var name: String? = null
-        private set
-    var quantity: Int? = null
-        private set
-    var unitWeight: TripEquipmentWeightRequest? = null
-        private set
-    var note: String? = null
-        private set
-    var hasName = false
-        private set
-    var hasQuantity = false
-        private set
-    var hasUnitWeight = false
-        private set
-    var hasNote = false
-        private set
-
-    @JsonSetter("name")
-    fun assignName(value: String?) {
-        hasName = true
-        name = value
-    }
-
-    @JsonSetter("quantity")
-    fun assignQuantity(value: Int?) {
-        hasQuantity = true
-        quantity = value
-    }
-
-    @JsonSetter("unitWeight")
-    fun assignUnitWeight(value: TripEquipmentWeightRequest?) {
-        hasUnitWeight = true
-        unitWeight = value
-    }
-
-    @JsonSetter("note")
-    fun assignNote(value: String?) {
-        hasNote = true
-        note = value
-    }
-}
-
-class UpdateTripEquipmentItemRequest : TripEquipmentStrictRequest() {
-    var name: String? = null
-        private set
-    var quantity: Int? = null
-        private set
-    var unitWeight: TripEquipmentWeightRequest? = null
-        private set
-    var note: String? = null
-        private set
-    var hasName = false
-        private set
-    var hasQuantity = false
-        private set
-    var hasUnitWeight = false
-        private set
-    var hasNote = false
-        private set
-
-    @JsonSetter("name")
-    fun assignName(value: String?) {
-        hasName = true
-        name = value
-    }
-
-    @JsonSetter("quantity")
-    fun assignQuantity(value: Int?) {
-        hasQuantity = true
-        quantity = value
-    }
-
-    @JsonSetter("unitWeight")
-    fun assignUnitWeight(value: TripEquipmentWeightRequest?) {
-        hasUnitWeight = true
-        unitWeight = value
-    }
-
-    @JsonSetter("note")
-    fun assignNote(value: String?) {
-        hasNote = true
-        note = value
-    }
-}
+/** Optional concrete configuration copied into this trip; not a reference to personal equipment. */
+data class TripItemConfiguration(
+    val category: String? = null,
+    val equipmentType: String? = null,
+    val variant: String? = null,
+    val unitLabel: String? = null,
+    val weightScope: String? = null,
+    val carryAllocation: TripCarryAllocation? = null,
+    val supply: TripSupply? = null
+)
 
 data class CreateTripEquipmentItemCommand(
-    val name: String?,
-    val quantity: Int?,
-    val unitWeightGrams: Long?,
-    val note: String?
+    val name: String?, val quantity: Int?, val unitWeightGrams: Double?, val note: String?,
+    val configuration: TripItemConfiguration = TripItemConfiguration()
 )
 
 data class UpdateTripEquipmentItemCommand(
-    val name: String?,
-    val quantity: Int?,
-    val unitWeightGrams: Long?,
-    val note: String?,
-    val hasName: Boolean,
-    val hasQuantity: Boolean,
-    val hasUnitWeight: Boolean,
-    val hasNote: Boolean
+    val name: String?, val quantity: Int?, val unitWeightGrams: Double?, val note: String?,
+    val hasName: Boolean, val hasQuantity: Boolean, val hasUnitWeight: Boolean, val hasNote: Boolean,
+    val configuration: TripItemConfiguration = TripItemConfiguration(),
+    val configurationFields: Set<String> = emptySet()
 )
+
+data class SelectPersonalEquipmentCommand(val personalEquipmentId: String, val quantity: Int)
+data class AppendEquipmentListCommand(val equipmentListId: String)
 
 data class TripEquipmentTripProjection(
     val identity: String,
@@ -141,7 +50,16 @@ data class TripEquipmentItemProjection(
     val unitWeight: WeightProjection? = null,
     val note: String? = null,
     val source: String,
-    val ownershipStatus: String
+    val ownershipStatus: String,
+    val category: String? = null,
+    val equipmentType: String? = null,
+    val variant: String? = null,
+    val unitLabel: String? = null,
+    val weightScope: String? = null,
+    val carryAllocation: TripCarryAllocation? = null,
+    val supply: TripSupply? = null,
+    val packedQuantity: Int? = null,
+    val ownershipCheckApplicable: Boolean? = null
 )
 
 data class TripEquipmentSnapshotProjection(
@@ -155,4 +73,23 @@ data class TripEquipmentProjection(
     val revision: String,
     val editable: Boolean,
     val snapshot: TripEquipmentSnapshotProjection
+)
+
+data class EquipmentWeightBucket(val knownWeight: WeightProjection, val missingWeightItemCount: Int)
+data class TripWeightBreakdown(
+    val backpack: EquipmentWeightBucket, val worn: EquipmentWeightBucket,
+    val handheld: EquipmentWeightBucket, val unallocated: EquipmentWeightBucket
+)
+data class TripBackpackBreakdown(
+    val equipment: EquipmentWeightBucket, val food: EquipmentWeightBucket,
+    val drinkingWater: EquipmentWeightBucket, val fuel: EquipmentWeightBucket,
+    val unclassified: EquipmentWeightBucket
+)
+data class TripPackingProgress(
+    val backpackQuantity: Long, val packedQuantity: Long, val unpackedQuantity: Long,
+    val unallocatedItemCount: Int
+)
+data class TripPreparationProjection(
+    val tripId: String, val revision: String, val weightBreakdown: TripWeightBreakdown,
+    val backpackBreakdown: TripBackpackBreakdown, val packing: TripPackingProgress
 )

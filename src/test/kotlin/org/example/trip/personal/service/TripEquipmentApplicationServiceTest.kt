@@ -9,6 +9,10 @@ import org.example.equipment.repository.PersonalEquipmentRecordRepository
 import org.example.equipment.service.PersonalEquipmentDomainService
 import org.example.route.model.RouteVersion
 import org.example.route.repository.RouteVersionRepository
+import org.example.trip.personal.dto.*
+import org.example.equipment.model.EquipmentListOwnership
+import org.example.equipment.model.EquipmentListMember
+import org.example.equipment.model.UserEquipmentListRecord
 import org.example.trip.personal.dto.CreateTripEquipmentItemCommand
 import org.example.trip.personal.dto.FrozenRouteBasisProjection
 import org.example.trip.personal.dto.UpdateTripEquipmentItemCommand
@@ -63,6 +67,10 @@ class TripEquipmentApplicationServiceTest {
     private val suppressionRepository: PersonalTripEquipmentSuppressionRepository = org.mockito.kotlin.mock()
     private val equipmentRepository: PersonalEquipmentRecordRepository = org.mockito.kotlin.mock()
     private val equipmentOwnershipRepository: PersonalEquipmentOwnershipRepository = org.mockito.kotlin.mock()
+    private val commandStore: org.example.equipment.support.EquipmentCommandStore = org.mockito.kotlin.mock()
+    private val listRepository: org.example.equipment.repository.UserEquipmentListRecordRepository = org.mockito.kotlin.mock()
+    private val listOwnershipRepository: org.example.equipment.repository.EquipmentListOwnershipRepository = org.mockito.kotlin.mock()
+    private val memberRepository: org.example.equipment.repository.EquipmentListMemberRepository = org.mockito.kotlin.mock()
     private val clock = Clock.fixed(Instant.parse("2026-09-01T04:00:00Z"), ZoneId.of("UTC"))
     private val service = TripEquipmentApplicationService(
         tripRepository,
@@ -78,6 +86,10 @@ class TripEquipmentApplicationServiceTest {
         PersonalEquipmentDomainService(),
         PersonalTripDomainService(clock),
         ObjectMapper().findAndRegisterModules(),
+        commandStore,
+        listRepository,
+        listOwnershipRepository,
+        memberRepository,
         clock
     )
 
@@ -127,7 +139,7 @@ class TripEquipmentApplicationServiceTest {
 
         assertEquals(listOf("item-1", "item-2"), result.snapshot.items.map { it.identity })
         assertEquals(2, result.snapshot.summary.itemCount)
-        assertEquals(1000, result.snapshot.summary.knownTotalWeight.grams)
+        assertEquals(1000.0, result.snapshot.summary.knownTotalWeight.grams)
         assertEquals(1, result.snapshot.summary.missingWeightItemCount)
         assertEquals(1, result.snapshot.summary.ownedItemCount)
         assertEquals(1, result.snapshot.summary.unconfirmedOwnedItemCount)
@@ -157,7 +169,7 @@ class TripEquipmentApplicationServiceTest {
         val result = service.createItem(
             "account-1",
             "trip-1",
-            CreateTripEquipmentItemCommand("  Tent   Bag  ", 2, 300, "  dry bag  ")
+            CreateTripEquipmentItemCommand("  Tent   Bag  ", 2, 300.0, "  dry bag  ")
         )
 
         val saved = requireNotNull(savedItem)
@@ -250,10 +262,10 @@ class TripEquipmentApplicationServiceTest {
         )
 
         assertEquals("item-1", existing.id)
-        assertEquals("user_adjusted", existing.source)
+        assertEquals("user_adjusted", savedItem!!.source)
         assertEquals("owned", existing.ownershipStatus)
-        assertNull(existing.unitWeightGrams)
-        assertNull(existing.note)
+        assertNull(savedItem!!.unitWeightGrams)
+        assertNull(savedItem!!.note)
         assertEquals("logical-1", derivationRepository.findByItemId("item-1")?.logicalSuggestionId)
         assertEquals(1, result.snapshot.summary.missingWeightItemCount)
     }
@@ -382,16 +394,16 @@ class TripEquipmentApplicationServiceTest {
                 )
             )
         whenever(equipmentRepository.findById("equipment-1"))
-            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "Tent Bag", 2, 200)))
+            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "Tent Bag", 2, 200.0)))
         whenever(equipmentRepository.findById("equipment-2"))
-            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-2", "Gloves", 1, 50)))
+            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-2", "Gloves", 1, 50.0)))
 
         val result = service.recheckOwnership("account-1", "trip-1")
 
         assertEquals("owned", owned.ownershipStatus)
         assertEquals("unconfirmed_owned", short.ownershipStatus)
         assertEquals(" Tent  Bag ", owned.name)
-        assertEquals(300, owned.unitWeightGrams)
+        assertEquals(300.0, owned.unitWeightGrams)
         assertEquals("保留", owned.note)
         assertEquals("user_added", owned.source)
         assertEquals(1, result.snapshot.summary.ownedItemCount)
@@ -410,6 +422,229 @@ class TripEquipmentApplicationServiceTest {
         assertEquals("trip_equipment_read_only", error.code)
         verify(itemRepository, never()).saveAll(any<List<PersonalTripEquipmentItemRecord>>())
         verify(tripRepository, never()).save(any())
+    }
+
+    @Test
+    fun `preparation separates fractional split allocation unknowns and supplies`() {
+        val socks = item("socks", 1, "Socks", "socks", 2, null, "owned").copy(
+            unitWeightGrams = 50.25, category = "clothing", backpackQuantity = 1, wornQuantity = 1, handheldQuantity = 0, packedQuantity = 1
+        )
+        val unknown = item("unknown", 2, "Unknown", "unknown", 2, null, "unconfirmed_owned").copy(
+            backpackQuantity = 1, wornQuantity = 0, handheldQuantity = 1
+        )
+        val legacy = item("legacy", 3, "Legacy", "legacy", 1, 10, "owned")
+        val water = item("water", 4, "Water", "water", 1, null, "unconfirmed_owned").copy(
+            category = "drinking_water", equipmentType = "drinking_water", unitLabel = "份",
+            supplyKind = "drinking_water", supplyAmount = 1500.0, supplyAmountUnit = "milliliter", supplyContainerMode = "included",
+            backpackQuantity = 1, wornQuantity = 0, handheldQuantity = 0
+        )
+        whenever(itemRepository.findBySnapshotIdOrderByDisplayOrderAsc("snapshot-1")).thenReturn(listOf(socks, unknown, legacy, water))
+        val result = service.preparation("account-1", "trip-1")
+        assertEquals(50.25, result.weightBreakdown.backpack.knownWeight.grams)
+        assertEquals(50.25, result.weightBreakdown.worn.knownWeight.grams)
+        assertEquals(10.0, result.weightBreakdown.unallocated.knownWeight.grams)
+        assertEquals(2, result.weightBreakdown.backpack.missingWeightItemCount)
+        assertEquals(1, result.weightBreakdown.handheld.missingWeightItemCount)
+        assertEquals(1, result.backpackBreakdown.drinkingWater.missingWeightItemCount)
+        assertEquals(0.0, result.backpackBreakdown.drinkingWater.knownWeight.grams)
+        assertEquals(1, result.backpackBreakdown.unclassified.missingWeightItemCount)
+        assertEquals(TripPackingProgress(3, 1, 2, 1), result.packing)
+        assertEquals("revision-1", result.revision)
+        assertEquals(110.5, service.getEquipment("account-1", "trip-1").snapshot.summary.knownTotalWeight.grams)
+        verify(tripRepository, never()).save(any())
+    }
+
+    @Test
+    fun `quantity mismatch fails before changing packing item or revision`() {
+        val original = packedItem()
+        stubItem(original)
+        val error = assertThrows(ApiContractException::class.java) {
+            service.updateItem("account-1", "trip-1", original.id,
+                UpdateTripEquipmentItemCommand(null, 2, null, null, false, true, false, false), "revision-1")
+        }
+        assertEquals("validation_failed", error.code)
+        assertEquals(1, original.quantity)
+        assertEquals(1, original.packedQuantity)
+        assertEquals("revision-1", trip.revision)
+        verify(itemRepository, never()).save(any())
+    }
+
+    @Test
+    fun `same configuration and note preserve packing but a real weight change clears it`() {
+        val original = packedItem()
+        stubItem(original)
+        service.updateItem("account-1", "trip-1", original.id,
+            UpdateTripEquipmentItemCommand(null, null, 100.0, "note", false, false, true, true), "revision-1")
+        assertEquals(1, savedItem!!.packedQuantity)
+        service.updateItem("account-1", "trip-1", original.id,
+            UpdateTripEquipmentItemCommand(null, null, 100.5, null, false, false, true, false), trip.revision)
+        assertEquals(0, savedItem!!.packedQuantity)
+        assertEquals(100.5, savedItem!!.unitWeightGrams)
+    }
+
+    @Test
+    fun `changing unit or supply requires an explicit replacement weight`() {
+        val original = packedItem().copy(unitLabel = "双")
+        stubItem(original)
+        val error = assertThrows(ApiContractException::class.java) {
+            service.updateItem("account-1", "trip-1", original.id,
+                UpdateTripEquipmentItemCommand(null, null, null, null, false, false, false, false,
+                    TripItemConfiguration(unitLabel = "只"), setOf("unitLabel")), "revision-1")
+        }
+        assertEquals("validation_failed", error.code)
+        assertEquals("双", original.unitLabel)
+        assertEquals(1, original.packedQuantity)
+        verify(itemRepository, never()).save(any())
+    }
+
+    @Test
+    fun `supply amount change keeps old values on failure and explicit unknown clears weight`() {
+        val original = packedItem().copy(category = "food", equipmentType = "food", unitLabel = "份", weightScope = "含包装",
+            supplyKind = "food", supplyAmount = 1.0, supplyAmountUnit = "portion", supplyContainerMode = "included",
+            ownershipStatus = "unconfirmed_owned")
+        stubItem(original)
+        val changed = TripItemConfiguration(supply = TripSupply("food", TripSupplyAmount(0.5, "portion"), "included"))
+        val command = UpdateTripEquipmentItemCommand(null, null, null, null, false, false, false, false, changed, setOf("supply"))
+        assertEquals("validation_failed", assertThrows(ApiContractException::class.java) {
+            service.updateItem("account-1", "trip-1", original.id, command, "revision-1")
+        }.code)
+        assertEquals(1.0, original.supplyAmount)
+        val result = service.updateItem("account-1", "trip-1", original.id, command.copy(hasUnitWeight = true), "revision-1")
+        assertNull(result.snapshot.items.single().unitWeight)
+        assertEquals(0.5, result.snapshot.items.single().supply!!.amount.value)
+        assertEquals(0, result.snapshot.items.single().packedQuantity)
+        assertEquals(false, result.snapshot.items.single().ownershipCheckApplicable)
+    }
+
+    @Test
+    fun `supply must use exact configuration and may not be worn`() {
+        val command = CreateTripEquipmentItemCommand("Water", 1, null, null,
+            TripItemConfiguration("drinking_water", "drinking_water", unitLabel = "份",
+                carryAllocation = TripCarryAllocation(0, 1, 0),
+                supply = TripSupply("drinking_water", TripSupplyAmount(2000.0, "milliliter"), "excluded")))
+        assertEquals("validation_failed", assertThrows(ApiContractException::class.java) {
+            service.createItem("account-1", "trip-1", command, "revision-1")
+        }.code)
+        verify(itemRepository, never()).save(any())
+        val result = service.createItem("account-1", "trip-1", command.copy(configuration = command.configuration.copy(carryAllocation = null)), "revision-1")
+        assertNull(result.snapshot.items.single().unitWeight)
+        assertEquals(1, result.snapshot.summary.missingWeightItemCount)
+    }
+
+    @Test
+    fun `packing bounds source and current revision are enforced`() {
+        val original = packedItem().copy(packedQuantity = null)
+        stubItem(original)
+        assertEquals("concurrent_modification", assertThrows(ApiContractException::class.java) {
+            service.setPacking("account-1", "trip-1", original.id, 1, "stale")
+        }.code)
+        assertEquals("validation_failed", assertThrows(ApiContractException::class.java) {
+            service.setPacking("account-1", "trip-1", original.id, 2, "revision-1")
+        }.code)
+        val result = service.setPacking("account-1", "trip-1", original.id, 1, "revision-1")
+        assertEquals(1, result.snapshot.items.single().packedQuantity)
+        assertEquals(original.source, result.snapshot.items.single().source)
+        assertEquals(original.ownershipStatus, result.snapshot.items.single().ownershipStatus)
+        assertEquals(0, service.resetPacking("account-1", "trip-1", trip.revision).snapshot.items.single().packedQuantity)
+    }
+
+    @Test
+    fun `personal selection copies fractional weight configuration and checks ownership`() {
+        stubIdempotentExecution()
+        stubPersonal("personal-1", "Socks", 2, 20.25)
+        val result = service.fromPersonal("account-1", "trip-1", SelectPersonalEquipmentCommand("personal-1", 2), "revision-1", "key")
+        val selected = result.snapshot.items.single()
+        assertEquals(20.25, selected.unitWeight!!.grams)
+        assertEquals("clothing", selected.category)
+        assertEquals("owned", selected.ownershipStatus)
+        assertNull(selected.carryAllocation)
+        assertNull(selected.note)
+        verify(equipmentRepository, never()).save(any())
+        verify(commandStore, org.mockito.kotlin.atLeastOnce()).lockAccount("account-1")
+    }
+
+    @Test
+    fun `replacement preserves suggestion identity and note but clears configuration from old item`() {
+        stubPersonal("personal-1", "Socks", 1, 20.25)
+        val original = packedItem().copy(source = "system_suggestion", note = "keep", variant = "old")
+        stubItem(original)
+        whenever(derivationRepository.findByItemId(original.id)).thenReturn(PersonalTripEquipmentItemDerivedFromSuggestion(original.id, "trip-1", "logical-1"))
+        val result = service.replacePersonal("account-1", "trip-1", original.id, SelectPersonalEquipmentCommand("personal-1", 1), "revision-1")
+        val selected = result.snapshot.items.single()
+        assertEquals(original.id, selected.identity)
+        assertEquals("user_adjusted", selected.source)
+        assertEquals("keep", selected.note)
+        assertNull(selected.variant)
+        assertNull(selected.carryAllocation)
+        assertEquals(0, selected.packedQuantity)
+        assertEquals("logical-1", derivationRepository.findByItemId(original.id)!!.logicalSuggestionId)
+    }
+
+    @Test
+    fun `list conflict rejects entire batch and empty list still advances revision`() {
+        stubIdempotentExecution()
+        stubPersonal("personal-1", "Socks", 1, 20.25)
+        val original = packedItem().copy(name = "Socks", normalizedName = "socks")
+        stubItem(original)
+        whenever(listOwnershipRepository.findByEquipmentListIdAndAccountId("list-1", "account-1")).thenReturn(EquipmentListOwnership("list-1", "account-1"))
+        whenever(listRepository.findById("list-1")).thenReturn(Optional.of(UserEquipmentListRecord("list-1", "List")))
+        whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1")).thenReturn(listOf(EquipmentListMember("list-1", "personal-1", 1)))
+        assertEquals("equipment_name_conflict", assertThrows(ApiContractException::class.java) {
+            service.appendList("account-1", "trip-1", AppendEquipmentListCommand("list-1"), "revision-1", "key")
+        }.code)
+        verify(itemRepository, never()).saveAll(any<List<PersonalTripEquipmentItemRecord>>())
+        assertEquals("revision-1", trip.revision)
+        whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1")).thenReturn(emptyList())
+        val result = service.appendList("account-1", "trip-1", AppendEquipmentListCommand("list-1"), "revision-1", "empty")
+        assertEquals(1, result.snapshot.items.size)
+        assertTrue(result.revision != "revision-1")
+    }
+
+    @Test
+    fun `copy rejects foreign equipment and supply references before any writes`() {
+        stubIdempotentExecution()
+        assertEquals("resource_not_found", assertThrows(ApiContractException::class.java) {
+            service.fromPersonal("account-1", "trip-1", SelectPersonalEquipmentCommand("foreign", 1), "revision-1", "key")
+        }.code)
+        val personal = stubPersonal("personal-1", "Food", 1, 20.25)
+        personal.category = "food"; personal.equipmentType = "food"
+        assertEquals("validation_failed", assertThrows(ApiContractException::class.java) {
+            service.fromPersonal("account-1", "trip-1", SelectPersonalEquipmentCommand("personal-1", 1), "revision-1", "key2")
+        }.code)
+        verify(itemRepository, never()).save(any())
+    }
+
+    @Test
+    fun `ownership recheck leaves supply unconfirmed and preserves preparation facts`() {
+        stubPersonal("personal-1", "Food", 2, 20.25)
+        val original = packedItem().copy(name = "Food", normalizedName = "food", category = "food", equipmentType = "food", unitLabel = "份", weightScope = "含包装",
+            supplyKind = "food", supplyAmount = 1.0, supplyAmountUnit = "portion", supplyContainerMode = "included", ownershipStatus = "unconfirmed_owned")
+        stubItem(original)
+        val before = original.copy()
+        service.recheckOwnership("account-1", "trip-1", "revision-1")
+        assertEquals(before, original)
+    }
+
+    private fun packedItem() = item("item-1", 1, "Tent", "tent", 1, 100, "owned").copy(
+        backpackQuantity = 1, wornQuantity = 0, handheldQuantity = 0, packedQuantity = 1
+    )
+    private fun stubItem(item: PersonalTripEquipmentItemRecord) {
+        whenever(itemRepository.findByIdAndSnapshotId(item.id, "snapshot-1")).thenReturn(item)
+        whenever(itemRepository.findBySnapshotIdOrderByDisplayOrderAsc("snapshot-1")).thenReturn(listOf(item))
+    }
+    private fun stubPersonal(id: String, name: String, quantity: Int, weight: Double): PersonalEquipmentRecord {
+        val normalized = name.lowercase()
+        val personal = PersonalEquipmentRecord(id, name, quantity, weight, category = "clothing", equipmentType = "socks", unitLabel = "双")
+        val ownership = PersonalEquipmentOwnership(id, "account-1", normalized)
+        whenever(equipmentRepository.findById(id)).thenReturn(Optional.of(personal))
+        whenever(equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId(id, "account-1")).thenReturn(ownership)
+        whenever(equipmentOwnershipRepository.findByAccountIdOrderByPersonalEquipmentIdAsc("account-1")).thenReturn(listOf(ownership))
+        return personal
+    }
+    private fun stubIdempotentExecution() {
+        whenever(tripRepository.existsById("trip-1")).thenReturn(true)
+        whenever(commandStore.execute(eq("account-1"), any(), any(), any(), eq(TripEquipmentProjection::class.java), any()))
+            .thenAnswer { (it.arguments[5] as () -> TripEquipmentProjection).invoke() }
     }
 
     private var savedItem: PersonalTripEquipmentItemRecord? = null
@@ -441,7 +676,7 @@ class TripEquipmentApplicationServiceTest {
         id = "snapshot-1",
         tripId = "trip-1",
         itemCount = 99,
-        knownTotalWeightGrams = 99,
+        knownTotalWeightGrams = 99.0,
         missingWeightItemCount = 99,
         ownedItemCount = 99,
         unconfirmedOwnedItemCount = 0
@@ -464,7 +699,7 @@ class TripEquipmentApplicationServiceTest {
         name = name,
         normalizedName = normalized,
         quantity = quantity,
-        unitWeightGrams = weight,
+        unitWeightGrams = weight?.toDouble(),
         source = source,
         ownershipStatus = ownership,
         note = note

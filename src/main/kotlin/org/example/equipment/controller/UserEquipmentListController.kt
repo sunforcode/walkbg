@@ -52,6 +52,21 @@ class UserEquipmentListController(
         )
     }
 
+    @PostMapping("/{equipmentListId}:copy")
+    fun copy(
+        authentication: Authentication?,
+        @PathVariable equipmentListId: String,
+        @RequestBody request: EquipmentListNameRequest,
+        servletRequest: HttpServletRequest
+    ): ResponseEntity<DataResponse<EquipmentListCreateResponse>> {
+        rejectUnknownQuery(servletRequest)
+        validateNameRequest(request)
+        val key = equipmentIdempotencyKey(servletRequest)
+        return ResponseEntity.status(HttpStatus.CREATED).body(DataResponse(
+            service.copyEquipmentList(authentication.accountPrincipal().userId, equipmentListId, key, request.name!!)
+        ))
+    }
+
     @GetMapping("/{equipmentListId}")
     fun detail(
         authentication: Authentication?,

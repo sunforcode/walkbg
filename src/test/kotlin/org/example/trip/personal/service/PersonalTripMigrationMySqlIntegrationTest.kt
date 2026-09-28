@@ -5,6 +5,8 @@ import org.example.trip.personal.dto.MigrateTripCommand
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
@@ -120,7 +122,7 @@ class PersonalTripMigrationMySqlIntegrationTest {
             INSERT INTO personal_trip_equipment_snapshots (
                 id, trip_id, item_count, known_total_weight_grams,
                 missing_weight_item_count, owned_item_count, unconfirmed_owned_item_count
-            ) VALUES (?, ?, 1, 500, 0, 1, 0)
+            ) VALUES (?, ?, 1, 500.25, 0, 1, 0)
             """.trimIndent(),
             OLD_SNAPSHOT_ID,
             TRIP_ID
@@ -129,8 +131,11 @@ class PersonalTripMigrationMySqlIntegrationTest {
             """
             INSERT INTO personal_trip_equipment_items (
                 id, snapshot_id, display_order, name, normalized_name, quantity,
-                unit_weight_grams, source, ownership_status, note
-            ) VALUES (?, ?, 1, '旧背包', '旧背包', 1, 500, 'user_added', 'owned', NULL)
+                unit_weight_grams, source, ownership_status, note,
+                category, equipment_type, variant, unit_label, weight_scope,
+                backpack_quantity, worn_quantity, handheld_quantity, packed_quantity
+            ) VALUES (?, ?, 1, '旧背包', '旧背包', 1, 500.25, 'user_added', 'owned', NULL,
+                'backpack', 'backpack', 'M 码', '件', '包含腰带', 1, 0, 0, 1)
             """.trimIndent(),
             OLD_ITEM_ID,
             OLD_SNAPSHOT_ID
@@ -140,7 +145,11 @@ class PersonalTripMigrationMySqlIntegrationTest {
             CREATE TRIGGER fail_personal_trip_migration_update
             BEFORE UPDATE ON personal_trips
             FOR EACH ROW
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced migration write failure'
+            BEGIN
+                IF NEW.id = '$TRIP_ID' THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced migration write failure';
+                END IF;
+            END
             """.trimIndent()
         )
     }
@@ -153,7 +162,7 @@ class PersonalTripMigrationMySqlIntegrationTest {
 
     @Test
     fun `database restores the complete aggregate when migration fails after destructive writes`() {
-        assertThrows(RuntimeException::class.java) {
+        val failure = assertThrows(RuntimeException::class.java) {
             service.migrate(
                 ACCOUNT_ID,
                 TRIP_ID,
@@ -162,6 +171,13 @@ class PersonalTripMigrationMySqlIntegrationTest {
             )
         }
 
+        assertTrue(
+            generateSequence<Throwable>(failure) { it.cause }
+                .any { it.message?.contains("forced migration write failure") == true },
+            "The failure must reach the database trigger after migration writes: $failure"
+        )
+        assertPreparation(OLD_ITEM_ID, packedQuantity = 1)
+        assertEquals(500.25, snapshotWeight(OLD_SNAPSHOT_ID))
         assertEquals(
             OLD_REVISION,
             jdbcTemplate.queryForObject(
@@ -183,6 +199,53 @@ class PersonalTripMigrationMySqlIntegrationTest {
         assertEquals(1, count("personal_trip_equipment_items", "snapshot_id", OLD_SNAPSHOT_ID))
         assertEquals(0, count("personal_trip_idempotency", "account_id", ACCOUNT_ID))
     }
+
+    @Test
+    fun `successful migration preserves concrete preparation configuration and resets packing`() {
+        jdbcTemplate.execute("DROP TRIGGER IF EXISTS fail_personal_trip_migration_update")
+
+        val result = service.migrate(
+            ACCOUNT_ID,
+            TRIP_ID,
+            "successful-preparation-migration-key",
+            MigrateTripCommand(OLD_REVISION, TARGET_VERSION_ID)
+        )
+
+        assertNotEquals(OLD_REVISION, result.revision)
+        assertEquals(TARGET_VERSION_ID, result.routeReference.adoptedRouteVersionId)
+        val snapshotId = result.equipmentSnapshot.snapshotId
+        assertNotEquals(OLD_SNAPSHOT_ID, snapshotId)
+        val newItemId = requireNotNull(jdbcTemplate.queryForObject(
+            "SELECT id FROM personal_trip_equipment_items WHERE snapshot_id = ?", String::class.java, snapshotId
+        ))
+        assertNotEquals(OLD_ITEM_ID, newItemId)
+        assertPreparation(newItemId, packedQuantity = 0)
+        assertEquals(500.25, snapshotWeight(snapshotId))
+        assertEquals(500.25, result.equipmentSnapshot.summary.knownTotalWeight.grams)
+        assertEquals(1, result.equipmentSnapshot.summary.itemCount)
+        assertEquals(0, count("personal_trip_equipment_items", "snapshot_id", OLD_SNAPSHOT_ID))
+        assertEquals(0, count("personal_trip_equipment_snapshots", "id", OLD_SNAPSHOT_ID))
+        assertEquals(1, count("personal_trip_equipment_snapshots", "trip_id", TRIP_ID))
+        assertEquals(1, count("personal_trip_idempotency", "account_id", ACCOUNT_ID))
+    }
+
+    private fun assertPreparation(itemId: String, packedQuantity: Int) {
+        val state = jdbcTemplate.queryForMap(
+            """SELECT category, equipment_type, variant, unit_label, weight_scope, unit_weight_grams,
+                backpack_quantity, worn_quantity, handheld_quantity, packed_quantity
+                FROM personal_trip_equipment_items WHERE id = ?""", itemId
+        )
+        assertEquals(mapOf(
+            "category" to "backpack", "equipment_type" to "backpack", "variant" to "M 码",
+            "unit_label" to "件", "weight_scope" to "包含腰带", "unit_weight_grams" to 500.25,
+            "backpack_quantity" to 1, "worn_quantity" to 0, "handheld_quantity" to 0,
+            "packed_quantity" to packedQuantity
+        ), state)
+    }
+
+    private fun snapshotWeight(snapshotId: String): Double = requireNotNull(jdbcTemplate.queryForObject(
+        "SELECT known_total_weight_grams FROM personal_trip_equipment_snapshots WHERE id = ?", Double::class.java, snapshotId
+    ))
 
     private fun insertRouteVersion(id: String, label: String) {
         jdbcTemplate.update(
@@ -211,7 +274,11 @@ class PersonalTripMigrationMySqlIntegrationTest {
         jdbcTemplate.execute("DROP TRIGGER IF EXISTS fail_personal_trip_migration_update")
         jdbcTemplate.update("DELETE FROM personal_trip_idempotency WHERE account_id = ?", ACCOUNT_ID)
         jdbcTemplate.update("DELETE FROM personal_trip_equipment_item_derivations WHERE trip_id = ?", TRIP_ID)
-        jdbcTemplate.update("DELETE FROM personal_trip_equipment_items WHERE snapshot_id = ?", OLD_SNAPSHOT_ID)
+        jdbcTemplate.update(
+            """DELETE item FROM personal_trip_equipment_items item
+                JOIN personal_trip_equipment_snapshots snapshot ON snapshot.id = item.snapshot_id
+                WHERE snapshot.trip_id = ?""", TRIP_ID
+        )
         jdbcTemplate.update("DELETE FROM personal_trip_equipment_snapshots WHERE trip_id = ?", TRIP_ID)
         jdbcTemplate.update("DELETE FROM personal_trip_days WHERE trip_id = ?", TRIP_ID)
         jdbcTemplate.update("DELETE FROM trip_frozen_route_versions WHERE trip_id = ?", TRIP_ID)

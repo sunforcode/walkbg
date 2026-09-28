@@ -8,6 +8,11 @@ import org.example.equipment.model.PersonalEquipmentRecord
 import org.example.equipment.repository.PersonalEquipmentOwnershipRepository
 import org.example.equipment.repository.PersonalEquipmentRecordRepository
 import org.example.equipment.service.PersonalEquipmentDomainService
+import org.example.trip.personal.dto.*
+import org.example.equipment.repository.EquipmentListOwnershipRepository
+import org.example.equipment.repository.EquipmentListMemberRepository
+import org.example.equipment.repository.UserEquipmentListRecordRepository
+import org.example.equipment.support.EquipmentCommandStore
 import org.example.trip.personal.dto.CreateTripEquipmentItemCommand
 import org.example.trip.personal.dto.FrozenRouteBasisProjection
 import org.example.trip.personal.dto.TripEquipmentItemProjection
@@ -47,21 +52,27 @@ class TripEquipmentApplicationService(
     private val equipmentDomainService: PersonalEquipmentDomainService,
     private val tripDomainService: PersonalTripDomainService,
     private val objectMapper: ObjectMapper,
+    private val commandStore: EquipmentCommandStore,
+    private val listRepository: UserEquipmentListRecordRepository,
+    private val listOwnershipRepository: EquipmentListOwnershipRepository,
+    private val memberRepository: EquipmentListMemberRepository,
     private val clock: Clock = Clock.systemUTC()
 ) {
     @Transactional(readOnly = true)
     fun getEquipment(accountId: String, tripId: String): TripEquipmentProjection {
         val aggregate = requireAggregate(accountId, tripId)
-        return projection(aggregate.trip, aggregate.snapshot, aggregate.items)
+        return try { projection(aggregate.trip, aggregate.snapshot, aggregate.items) }
+        catch (_: ApiContractException) { throw equipmentUnavailable() }
     }
 
     @Transactional
     fun createItem(
         accountId: String,
         tripId: String,
-        command: CreateTripEquipmentItemCommand
+        command: CreateTripEquipmentItemCommand,
+        expectedRevision: String? = null
     ): TripEquipmentProjection {
-        val aggregate = requireEditableAggregate(accountId, tripId)
+        val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
         val normalizedName = equipmentDomainService.normalizeEquipmentName(command.name)
         val quantity = equipmentDomainService.requirePositiveQuantity(command.quantity)
         val unitWeight = command.unitWeightGrams?.let(equipmentDomainService::requirePositiveWeight)
@@ -82,6 +93,8 @@ class TripEquipmentApplicationService(
             ownershipStatus = "unconfirmed_owned",
             note = note
         )
+        TripPreparationRules.apply(item, command.configuration)
+        TripPreparationRules.validate(item)
         itemRepository.save(item)
         aggregate.items += item
         return completeMutation(aggregate, aggregate.items)
@@ -92,10 +105,12 @@ class TripEquipmentApplicationService(
         accountId: String,
         tripId: String,
         itemId: String,
-        command: UpdateTripEquipmentItemCommand
+        command: UpdateTripEquipmentItemCommand,
+        expectedRevision: String? = null
     ): TripEquipmentProjection {
-        val aggregate = requireEditableAggregate(accountId, tripId)
-        val item = requireCurrentItem(aggregate.snapshot.id, itemId)
+        val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
+        val original = requireCurrentItem(aggregate.snapshot.id, itemId)
+        val item = original.copy()
         if (command.hasName) {
             val normalizedName = equipmentDomainService.normalizeEquipmentName(command.name)
             if (itemRepository.existsBySnapshotIdAndNormalizedNameAndIdNot(
@@ -118,6 +133,28 @@ class TripEquipmentApplicationService(
         if (command.hasNote) {
             item.note = command.note?.let(::requireNote)
         }
+        val oldConfig = TripPreparationRules.configuration(original)
+        val incoming = command.configuration
+        val fields = command.configurationFields
+        val newConfig = TripItemConfiguration(
+            if ("category" in fields) incoming.category else oldConfig.category,
+            if ("equipmentType" in fields) incoming.equipmentType else oldConfig.equipmentType,
+            if ("variant" in fields) incoming.variant else oldConfig.variant,
+            if ("unitLabel" in fields) incoming.unitLabel else oldConfig.unitLabel,
+            if ("weightScope" in fields) incoming.weightScope else oldConfig.weightScope,
+            if ("carryAllocation" in fields) incoming.carryAllocation else oldConfig.carryAllocation,
+            if ("supply" in fields) incoming.supply else oldConfig.supply
+        )
+        if ((newConfig.unitLabel != oldConfig.unitLabel || newConfig.supply != oldConfig.supply) && !command.hasUnitWeight) {
+            throw ApiContractException.unprocessable("validation_failed", "改变计数单位或补给配置必须明确新重量或清除重量")
+        }
+        TripPreparationRules.apply(item, newConfig)
+        if (original.name != item.name || original.quantity != item.quantity ||
+            original.unitWeightGrams != item.unitWeightGrams || TripPreparationRules.configuration(item) != oldConfig) {
+            item.packedQuantity = 0
+        }
+        if (item.supplyKind != null) item.ownershipStatus = "unconfirmed_owned"
+        TripPreparationRules.validate(item)
         when (item.source) {
             "system_suggestion" -> {
                 requireValidDerivation(tripId, item)
@@ -135,8 +172,8 @@ class TripEquipmentApplicationService(
     }
 
     @Transactional
-    fun deleteItem(accountId: String, tripId: String, itemId: String): TripEquipmentProjection {
-        val aggregate = requireEditableAggregate(accountId, tripId)
+    fun deleteItem(accountId: String, tripId: String, itemId: String, expectedRevision: String? = null): TripEquipmentProjection {
+        val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
         val item = requireCurrentItem(aggregate.snapshot.id, itemId)
         when (item.source) {
             "user_added" -> {
@@ -167,11 +204,11 @@ class TripEquipmentApplicationService(
     }
 
     @Transactional
-    fun recheckOwnership(accountId: String, tripId: String): TripEquipmentProjection {
-        val aggregate = requireEditableAggregate(accountId, tripId)
+    fun recheckOwnership(accountId: String, tripId: String, expectedRevision: String? = null): TripEquipmentProjection {
+        val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
         val ownedByName = ownedEquipmentByNormalizedName(accountId)
         aggregate.items.forEach { item ->
-            item.ownershipStatus = if ((ownedByName[item.normalizedName]?.ownedQuantity ?: 0) >= item.quantity) {
+            item.ownershipStatus = if (item.supplyKind == null && (ownedByName[item.normalizedName]?.ownedQuantity ?: 0) >= item.quantity) {
                 "owned"
             } else {
                 "unconfirmed_owned"
@@ -181,15 +218,140 @@ class TripEquipmentApplicationService(
         return completeMutation(aggregate, aggregate.items)
     }
 
+    @Transactional(readOnly = true)
+    fun preparation(accountId: String, tripId: String): TripPreparationProjection {
+        val aggregate = requireAggregate(accountId, tripId)
+        return try {
+            TripPreparationRules.preparation(tripId, aggregate.trip.revision, aggregate.items)
+        } catch (_: ApiContractException) { throw equipmentUnavailable() }
+    }
+
+    @Transactional
+    fun fromPersonal(accountId: String, tripId: String, command: SelectPersonalEquipmentCommand,
+                     expectedRevision: String, idempotencyKey: String): TripEquipmentProjection {
+        commandStore.lockAccount(accountId)
+        requireOwnedTripOnly(accountId, tripId)
+        return commandStore.execute(accountId, "POST:/api/v1/trips/$tripId/equipment/items:from-personal", idempotencyKey,
+            mapOf("body" to command, "ifMatch" to expectedRevision), TripEquipmentProjection::class.java) {
+            val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
+            val item = personalItem(accountId, aggregate, command, nextOrder(aggregate), ownedEquipmentByNormalizedName(accountId))
+            requireUniqueNames(aggregate.items + item)
+            itemRepository.save(item)
+            aggregate.items += item
+            completeMutation(aggregate, aggregate.items)
+        }
+    }
+
+    @Transactional
+    fun appendList(accountId: String, tripId: String, command: AppendEquipmentListCommand,
+                   expectedRevision: String, idempotencyKey: String): TripEquipmentProjection {
+        commandStore.lockAccount(accountId)
+        requireOwnedTripOnly(accountId, tripId)
+        return commandStore.execute(accountId, "POST:/api/v1/trips/$tripId/equipment:append-list", idempotencyKey,
+            mapOf("body" to command, "ifMatch" to expectedRevision), TripEquipmentProjection::class.java) {
+            val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
+            listOwnershipRepository.findByEquipmentListIdAndAccountId(command.equipmentListId, accountId)
+                ?: throw ApiContractException.notFound()
+            listRepository.findById(command.equipmentListId).orElseThrow { ApiContractException.notFound() }
+            val owned = ownedEquipmentByNormalizedName(accountId)
+            val firstOrder = nextOrder(aggregate)
+            val candidates = memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc(command.equipmentListId)
+                .sortedBy { it.personalEquipmentId }.mapIndexed { index, member ->
+                    personalItem(accountId, aggregate, SelectPersonalEquipmentCommand(member.personalEquipmentId, member.quantity), firstOrder + index, owned)
+                }
+            requireUniqueNames(aggregate.items + candidates)
+            itemRepository.saveAll(candidates)
+            aggregate.items += candidates
+            completeMutation(aggregate, aggregate.items)
+        }
+    }
+
+    @Transactional
+    fun replacePersonal(accountId: String, tripId: String, itemId: String,
+                        command: SelectPersonalEquipmentCommand, expectedRevision: String): TripEquipmentProjection {
+        val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
+        val previous = requireCurrentItem(aggregate.snapshot.id, itemId)
+        val copied = personalItem(accountId, aggregate, command, previous.displayOrder, ownedEquipmentByNormalizedName(accountId))
+        val replacement = copied.copy(id = previous.id, note = previous.note, source = previous.source, packedQuantity = 0)
+        when (previous.source) {
+            "system_suggestion", "user_adjusted" -> {
+                requireValidDerivation(tripId, previous)
+                replacement.source = "user_adjusted"
+            }
+            "user_added" -> if (derivationRepository.findByItemId(previous.id) != null) throw relationshipInconsistent()
+            else -> throw relationshipInconsistent()
+        }
+        requireUniqueNames(aggregate.items.filter { it.id != itemId } + replacement)
+        itemRepository.save(replacement)
+        replaceItem(aggregate.items, replacement)
+        return completeMutation(aggregate, aggregate.items)
+    }
+
+    @Transactional
+    fun setPacking(accountId: String, tripId: String, itemId: String, packedQuantity: Int,
+                   expectedRevision: String): TripEquipmentProjection {
+        val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
+        val item = requireCurrentItem(aggregate.snapshot.id, itemId).copy(packedQuantity = packedQuantity)
+        TripPreparationRules.validate(item)
+        itemRepository.save(item)
+        replaceItem(aggregate.items, item)
+        return completeMutation(aggregate, aggregate.items)
+    }
+
+    @Transactional
+    fun resetPacking(accountId: String, tripId: String, expectedRevision: String): TripEquipmentProjection {
+        val aggregate = requireEditableAggregate(accountId, tripId, expectedRevision)
+        aggregate.items.forEach { it.packedQuantity = 0 }
+        itemRepository.saveAll(aggregate.items)
+        return completeMutation(aggregate, aggregate.items)
+    }
+
+    private fun requireOwnedTripOnly(accountId: String, tripId: String) {
+        ownershipRepository.findByTripIdAndAccountId(tripId, accountId) ?: throw ApiContractException.notFound()
+        if (!tripRepository.existsById(tripId)) throw ApiContractException.notFound()
+    }
+
+    private fun personalItem(accountId: String, aggregate: EquipmentAggregate, command: SelectPersonalEquipmentCommand,
+                             order: Int, owned: Map<String, PersonalEquipmentRecord>): PersonalTripEquipmentItemRecord {
+        equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId(command.personalEquipmentId, accountId)
+            ?: throw ApiContractException.notFound()
+        val personal = equipmentRepository.findById(command.personalEquipmentId).orElseThrow { ApiContractException.notFound() }
+        if (personal.category in TripPreparationRules.supplyKinds) {
+            throw ApiContractException.unprocessable("validation_failed", "请在本次装备中填写实际补给量")
+        }
+        val name = equipmentDomainService.normalizeEquipmentName(personal.name)
+        val quantity = equipmentDomainService.requirePositiveQuantity(command.quantity)
+        val item = PersonalTripEquipmentItemRecord(
+            id = IdGenerator.generateIdWithPrefix("tei"), snapshotId = aggregate.snapshot.id, displayOrder = order,
+            name = name.display, normalizedName = name.comparison, quantity = quantity,
+            unitWeightGrams = personal.unitWeightGrams?.let(equipmentDomainService::requirePositiveWeight),
+            source = "user_added",
+            ownershipStatus = if ((owned[name.comparison]?.ownedQuantity ?: 0) >= quantity) "owned" else "unconfirmed_owned"
+        )
+        TripPreparationRules.apply(item, TripItemConfiguration(personal.category, personal.equipmentType, personal.variant, personal.unitLabel, personal.weightScope))
+        TripPreparationRules.validate(item)
+        return item
+    }
+
+    private fun nextOrder(aggregate: EquipmentAggregate) = (aggregate.items.maxOfOrNull { it.displayOrder } ?: 0) + 1
+
+    private fun requireUniqueNames(items: List<PersonalTripEquipmentItemRecord>) {
+        if (items.map { it.normalizedName }.toSet().size != items.size) throw equipmentNameConflict()
+    }
+
     private fun requireAggregate(accountId: String, tripId: String): EquipmentAggregate {
         ownershipRepository.findByTripIdAndAccountId(tripId, accountId) ?: throw ApiContractException.notFound()
         val trip = tripRepository.findById(tripId).orElseThrow { ApiContractException.notFound() }
         return loadAggregate(trip)
     }
 
-    private fun requireEditableAggregate(accountId: String, tripId: String): EquipmentAggregate {
+    private fun requireEditableAggregate(accountId: String, tripId: String, expectedRevision: String?): EquipmentAggregate {
+        commandStore.lockAccount(accountId)
         val trip = tripRepository.findByIdForUpdate(tripId) ?: throw ApiContractException.notFound()
         ownershipRepository.findByTripIdAndAccountId(tripId, accountId) ?: throw ApiContractException.notFound()
+        if (expectedRevision != null && trip.revision != expectedRevision) {
+            throw ApiContractException.conflict("concurrent_modification", "行程 revision 已变化")
+        }
         val aggregate = loadAggregate(trip)
         if (tripDomainService.status(aggregate.trip) != "planned") {
             throw ApiContractException.conflict("trip_equipment_read_only", "当前行程装备只读")
@@ -226,10 +388,11 @@ class TripEquipmentApplicationService(
         val normalizedNames = mutableSetOf<String>()
         val logicalSuggestionIds = mutableSetOf<String>()
         items.forEach { item ->
+            try { TripPreparationRules.validate(item) } catch (_: ApiContractException) { throw equipmentUnavailable() }
             val normalized = equipmentDomainService.normalizeEquipmentName(item.name)
             if (item.snapshotId != snapshotId || item.normalizedName != normalized.comparison ||
                 !normalizedNames.add(item.normalizedName) || item.quantity <= 0 ||
-                item.unitWeightGrams?.let { it <= 0 } == true || item.note?.isBlank() == true
+                item.unitWeightGrams?.let { !it.isFinite() || it <= 0 } == true || item.note?.isBlank() == true
             ) {
                 throw equipmentUnavailable()
             }
@@ -245,7 +408,7 @@ class TripEquipmentApplicationService(
                 }
                 else -> throw equipmentUnavailable()
             }
-            if (item.ownershipStatus !in OWNERSHIP_STATUSES) throw equipmentUnavailable()
+            if (item.ownershipStatus !in OWNERSHIP_STATUSES || item.supplyKind != null && item.ownershipStatus != "unconfirmed_owned") throw equipmentUnavailable()
         }
     }
 
@@ -295,7 +458,13 @@ class TripEquipmentApplicationService(
                         unitWeight = item.unitWeightGrams?.let(::WeightProjection),
                         note = item.note,
                         source = item.source,
-                        ownershipStatus = item.ownershipStatus
+                        ownershipStatus = item.ownershipStatus,
+                        category = item.category, equipmentType = item.equipmentType, variant = item.variant,
+                        unitLabel = item.unitLabel, weightScope = item.weightScope,
+                        carryAllocation = TripPreparationRules.configuration(item).carryAllocation,
+                        supply = TripPreparationRules.configuration(item).supply,
+                        packedQuantity = item.packedQuantity,
+                        ownershipCheckApplicable = item.supplyKind == null
                     )
                 },
                 summary = summary
@@ -317,7 +486,7 @@ class TripEquipmentApplicationService(
 
     private fun summary(items: List<PersonalTripEquipmentItemRecord>) = TripEquipmentSummaryProjection(
         itemCount = items.size,
-        knownTotalWeight = WeightProjection(items.sumOf { (it.unitWeightGrams ?: 0L) * it.quantity.toLong() }),
+        knownTotalWeight = WeightProjection(TripPreparationRules.totalWeight(items)),
         missingWeightItemCount = items.count { it.unitWeightGrams == null },
         ownedItemCount = items.count { it.ownershipStatus == "owned" },
         unconfirmedOwnedItemCount = items.count { it.ownershipStatus == "unconfirmed_owned" }

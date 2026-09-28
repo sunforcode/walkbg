@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolationException
 import org.example.account.controller.AccountAuthController
 import org.example.account.controller.AccountController
 import org.example.equipment.controller.PersonalEquipmentController
+import org.example.equipment.catalog.controller.EquipmentCatalogController
 import org.example.equipment.controller.UserEquipmentListController
 import org.example.route.controller.PublicRouteController
 import org.example.trip.personal.controller.PersonalTripController
@@ -33,6 +34,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException
         AccountController::class,
         PublicRouteController::class,
         PersonalEquipmentController::class,
+        EquipmentCatalogController::class,
         UserEquipmentListController::class,
         PersonalTripController::class,
         TripGenerationContextController::class,
@@ -83,15 +85,18 @@ class TargetApiExceptionHandler {
     @ExceptionHandler(DataAccessException::class)
     fun handleDataFailure(exception: DataAccessException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         logger.error("Target API data access failure for ${request.method} ${request.requestURI}", exception)
+        val path = request.requestURI.removePrefix(request.contextPath)
         val (code, message) = when {
-            request.requestURI.startsWith("/api/v1/personal-equipment") ||
-                request.requestURI.startsWith("/api/v1/equipment-lists") ->
+            isEquipmentCatalogRequest(request) ->
+                "equipment_catalog_unavailable" to "装备目录暂不可用"
+            path.startsWith("/api/v1/personal-equipment") ||
+                path.startsWith("/api/v1/equipment-lists") ->
                 "personal_equipment_unavailable" to "个人装备服务暂不可用"
-            request.requestURI.startsWith("/api/v1/trips/") && request.requestURI.contains("/equipment") ->
+            path.startsWith("/api/v1/trips/") && path.contains("/equipment") ->
                 "trip_equipment_unavailable" to "本次装备服务暂不可用"
-            request.requestURI.startsWith("/api/v1/public-routes") ->
+            path.startsWith("/api/v1/public-routes") ->
                 "public_route_read_failed" to "公共路线资料暂时无法读取"
-            request.requestURI.startsWith("/api/v1/trips") ->
+            path.startsWith("/api/v1/trips") ->
                 "personal_trip_unavailable" to "个人行程服务暂不可用"
             else -> "account_unavailable" to "账号服务暂不可用"
         }
@@ -101,7 +106,15 @@ class TargetApiExceptionHandler {
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(exception: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         logger.error("Target API internal failure for ${request.method} ${request.requestURI}", exception)
+        if (isEquipmentCatalogRequest(request)) {
+            return error(HttpStatus.SERVICE_UNAVAILABLE, "equipment_catalog_unavailable", "装备目录暂不可用", retryable = true)
+        }
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error", "服务内部错误")
+    }
+
+    private fun isEquipmentCatalogRequest(request: HttpServletRequest): Boolean {
+        val path = request.requestURI.removePrefix(request.contextPath)
+        return path == "/api/v1/equipment-catalog" || path.startsWith("/api/v1/equipment-catalog/")
     }
 
     private fun error(

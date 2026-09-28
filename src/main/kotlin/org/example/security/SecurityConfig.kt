@@ -47,6 +47,8 @@ class SecurityConfig(
                 authorize("/api/v1/trips/**", authenticated)
                 authorize("/api/v1/legacy/trips/**", authenticated)
                 authorize("/api/v1/personal-equipment/**", authenticated)
+                authorize("/api/v1/personal-equipment:from-catalog", authenticated)
+                authorize("/api/v1/equipment-catalog/**", authenticated)
                 authorize("/api/v1/equipment-lists/**", authenticated)
                 authorize("/api/v1/legacy/equipment-lists/**", authenticated)
                 authorize("/api/**", permitAll)
@@ -86,7 +88,7 @@ class SecurityConfig(
         configuration.allowedOriginPatterns = corsProperties.originPatterns()
         configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
         configuration.allowedHeaders = listOf("*")
-        configuration.exposedHeaders = listOf("Authorization")
+        configuration.exposedHeaders = listOf("Authorization", "ETag")
         configuration.maxAge = 3600
 
         val source = UrlBasedCorsConfigurationSource()

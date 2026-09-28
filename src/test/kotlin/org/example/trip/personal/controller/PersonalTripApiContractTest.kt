@@ -104,12 +104,12 @@ class PersonalTripApiContractTest {
                     generationEligibility = org.example.route.dto.RouteGenerationEligibility(true),
                     name = "贡嘎环线"
                 ),
-                personalEquipmentSummary = PersonalEquipmentSummary(0, 1, WeightProjection(0), 0),
+                personalEquipmentSummary = PersonalEquipmentSummary(0, 1, WeightProjection(0.0), 0),
                 equipmentLists = listOf(
                     TripGenerationEquipmentListOption(
                         equipmentListId = "list-1",
                         name = "周末",
-                        summary = EquipmentListSummary(0, WeightProjection(0), 0)
+                        summary = EquipmentListSummary(0, WeightProjection(0.0), 0)
                     )
                 )
             )

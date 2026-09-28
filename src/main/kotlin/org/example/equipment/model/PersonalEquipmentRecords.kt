@@ -23,7 +23,28 @@ data class PersonalEquipmentRecord(
     var ownedQuantity: Int,
 
     @Column(name = "unit_weight_grams")
-    var unitWeightGrams: Long? = null,
+    var unitWeightGrams: Double? = null,
+
+    @Column(length = 32)
+    var category: String? = null,
+
+    @Column(name = "equipment_type", length = 64)
+    var equipmentType: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    var variant: String? = null,
+
+    @Column(name = "unit_label", length = 8)
+    var unitLabel: String? = null,
+
+    @Column(name = "weight_scope", columnDefinition = "TEXT")
+    var weightScope: String? = null,
+
+    @Column(name = "unit_weight_source", length = 32)
+    var unitWeightSource: String? = null,
+
+    @Column(name = "catalog_equipment_id", length = 64)
+    var catalogEquipmentId: String? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),

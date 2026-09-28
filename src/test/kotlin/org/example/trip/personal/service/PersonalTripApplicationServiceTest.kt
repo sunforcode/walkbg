@@ -129,7 +129,7 @@ class PersonalTripApplicationServiceTest {
         whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1"))
             .thenReturn(listOf(EquipmentListMember("list-1", "equipment-1", 2)))
         whenever(equipmentRepository.findById("equipment-1"))
-            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "登山杖", 2, 300)))
+            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "登山杖", 2, 300.0, category = "walking_aids", equipmentType = "trekking_pole", variant = "120cm", unitLabel = "根", weightScope = "含杖尖")))
         whenever(equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId("equipment-1", "account-1"))
             .thenReturn(PersonalEquipmentOwnership("equipment-1", "account-1", "登山杖"))
         whenever(equipmentOwnershipRepository.findByAccountIdOrderByPersonalEquipmentIdAsc("account-1"))
@@ -160,7 +160,7 @@ class PersonalTripApplicationServiceTest {
         assertEquals(1, detail.days.size)
         assertEquals("unavailable", detail.days.single().weather.condition.confidence?.status)
         assertEquals(1, detail.equipmentSnapshot.summary.itemCount)
-        assertEquals(600, detail.equipmentSnapshot.summary.knownTotalWeight.grams)
+        assertEquals(600.0, detail.equipmentSnapshot.summary.knownTotalWeight.grams)
         assertEquals("上海", detail.days.single().actions.first().origin?.value?.name)
         assertEquals("water_source", detail.days.single().points?.single()?.category)
         assertEquals("溪流取水点", detail.days.single().points?.single()?.name)
@@ -169,7 +169,32 @@ class PersonalTripApplicationServiceTest {
         verify(versionRelationRepository).save(any())
         verify(dayRepository).saveAll(any<List<org.example.trip.personal.model.PersonalTripDayRecord>>())
         verify(snapshotRepository).save(any())
-        verify(itemRepository).saveAll(any<List<org.example.trip.personal.model.PersonalTripEquipmentItemRecord>>())
+        val copied = org.mockito.kotlin.argumentCaptor<List<org.example.trip.personal.model.PersonalTripEquipmentItemRecord>>()
+        verify(itemRepository).saveAll(copied.capture())
+        assertEquals("walking_aids", copied.firstValue.single().category)
+        assertEquals("trekking_pole", copied.firstValue.single().equipmentType)
+        assertEquals("120cm", copied.firstValue.single().variant)
+        org.junit.jupiter.api.Assertions.assertNull(copied.firstValue.single().backpackQuantity)
+        org.junit.jupiter.api.Assertions.assertNull(copied.firstValue.single().packedQuantity)
+    }
+
+    @Test
+    fun `generation rejects a selected consumable before saving any trip`() {
+        whenever(listOwnershipRepository.findByEquipmentListIdAndAccountId("list-1", "account-1"))
+            .thenReturn(EquipmentListOwnership("list-1", "account-1"))
+        whenever(listRepository.findById("list-1")).thenReturn(Optional.of(UserEquipmentListRecord("list-1", "补给")))
+        whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1"))
+            .thenReturn(listOf(EquipmentListMember("list-1", "food-1", 1)))
+        whenever(equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId("food-1", "account-1"))
+            .thenReturn(PersonalEquipmentOwnership("food-1", "account-1", "食品"))
+        whenever(equipmentRepository.findById("food-1")).thenReturn(Optional.of(
+            PersonalEquipmentRecord("food-1", "食品", 1, 100.25, category = "food", equipmentType = "food", unitLabel = "份")))
+        val failure = assertThrows(ApiContractException::class.java) {
+            service(DirectTripGenerationPlanner).generate("account-1", "food-key", command(equipmentListId = "list-1"))
+        }
+        assertEquals("validation_failed", failure.code)
+        verify(tripRepository, never()).save(any())
+        verify(itemRepository, never()).saveAll(any<List<org.example.trip.personal.model.PersonalTripEquipmentItemRecord>>())
     }
 
     @Test
@@ -181,7 +206,7 @@ class PersonalTripApplicationServiceTest {
         ) as GenerateTripResult.TripCreated
 
         assertEquals(0, result.trip.equipmentSnapshot.summary.itemCount)
-        assertEquals(0, result.trip.equipmentSnapshot.summary.knownTotalWeight.grams)
+        assertEquals(0.0, result.trip.equipmentSnapshot.summary.knownTotalWeight.grams)
         verify(itemRepository).saveAll(emptyList())
         verify(derivationRepository, never()).saveAll(any<List<org.example.trip.personal.model.PersonalTripEquipmentItemDerivedFromSuggestion>>())
     }
@@ -220,7 +245,7 @@ class PersonalTripApplicationServiceTest {
         whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1"))
             .thenReturn(listOf(EquipmentListMember("list-1", "equipment-1", 2)))
         whenever(equipmentRepository.findById("equipment-1"))
-            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "水瓶", 2, 200)))
+            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "水瓶", 2, 200.0)))
         whenever(equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId("equipment-1", "account-1"))
             .thenReturn(PersonalEquipmentOwnership("equipment-1", "account-1", "水瓶"))
         whenever(equipmentOwnershipRepository.findByAccountIdOrderByPersonalEquipmentIdAsc("account-1"))
@@ -262,7 +287,7 @@ class PersonalTripApplicationServiceTest {
         whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1"))
             .thenReturn(listOf(EquipmentListMember("list-1", "equipment-1", 1)))
         whenever(equipmentRepository.findById("equipment-1"))
-            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", " tent   bag ", 1, 300)))
+            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", " tent   bag ", 1, 300.0)))
         whenever(equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId("equipment-1", "account-1"))
             .thenReturn(PersonalEquipmentOwnership("equipment-1", "account-1", "tent bag"))
 
@@ -314,7 +339,7 @@ class PersonalTripApplicationServiceTest {
                 id = "snapshot-1",
                 tripId = "trip-1",
                 itemCount = 99,
-                knownTotalWeightGrams = 99,
+                knownTotalWeightGrams = 99.0,
                 missingWeightItemCount = 99,
                 ownedItemCount = 99,
                 unconfirmedOwnedItemCount = 0
@@ -329,7 +354,7 @@ class PersonalTripApplicationServiceTest {
                     name = "Tent",
                     normalizedName = "tent",
                     quantity = 4,
-                    unitWeightGrams = 250,
+                    unitWeightGrams = 250.0,
                     source = "user_added",
                     ownershipStatus = "owned"
                 )
@@ -339,9 +364,58 @@ class PersonalTripApplicationServiceTest {
         val result = service(DirectTripGenerationPlanner).detail("account-1", "trip-1")
 
         assertEquals(1, result.equipmentSnapshot.summary.itemCount)
-        assertEquals(1000, result.equipmentSnapshot.summary.knownTotalWeight.grams)
+        assertEquals(1000.0, result.equipmentSnapshot.summary.knownTotalWeight.grams)
         assertEquals(0, result.equipmentSnapshot.summary.missingWeightItemCount)
         assertEquals(1, result.equipmentSnapshot.summary.ownedItemCount)
+    }
+
+    @Test
+    fun `detail reports summary overflow as read unavailable instead of invalid user input`() {
+        val trip = PersonalTripRecord(
+            id = "trip-1",
+            name = "贡嘎环线 · 2026-09-02",
+            firstGeneratedAt = Instant.parse("2026-09-01T04:00:00Z"),
+            departureCity = "上海",
+            startDate = LocalDate.parse("2026-09-02"),
+            endDate = LocalDate.parse("2026-09-02"),
+            totalDayCount = 1,
+            hikingDayCount = 1,
+            revision = "revision-1",
+            frozenRouteBasisJson = objectMapper.writeValueAsString(frozenBasis())
+        )
+        stubOwnedAggregate(trip)
+        whenever(snapshotRepository.findByTripId("trip-1")).thenReturn(
+            org.example.trip.personal.model.PersonalTripEquipmentSnapshotRecord(
+                id = "snapshot-1",
+                tripId = "trip-1",
+                itemCount = 99,
+                knownTotalWeightGrams = 99.0,
+                missingWeightItemCount = 99,
+                ownedItemCount = 99,
+                unconfirmedOwnedItemCount = 0
+            )
+        )
+        whenever(itemRepository.findBySnapshotIdOrderByDisplayOrderAsc("snapshot-1")).thenReturn(
+            listOf(
+                org.example.trip.personal.model.PersonalTripEquipmentItemRecord(
+                    id = "item-1",
+                    snapshotId = "snapshot-1",
+                    displayOrder = 1,
+                    name = "Tent",
+                    normalizedName = "tent",
+                    quantity = 4,
+                    unitWeightGrams = Double.MAX_VALUE,
+                    source = "user_added",
+                    ownershipStatus = "owned"
+                )
+            )
+        )
+
+        val failure = assertThrows(ApiContractException::class.java) {
+            service(DirectTripGenerationPlanner).detail("account-1", "trip-1")
+        }
+        assertEquals("personal_trip_read_failed", failure.code)
+        assertEquals(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, failure.status)
     }
 
     @Test
@@ -497,7 +571,7 @@ class PersonalTripApplicationServiceTest {
         whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1"))
             .thenReturn(listOf(EquipmentListMember("list-1", "equipment-1", 2)))
         whenever(equipmentRepository.findById("equipment-1"))
-            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "登山杖", 1, 300)))
+            .thenReturn(Optional.of(PersonalEquipmentRecord("equipment-1", "登山杖", 1, 300.0)))
         whenever(equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId("equipment-1", "account-1"))
             .thenReturn(PersonalEquipmentOwnership("equipment-1", "account-1", "登山杖"))
         whenever(equipmentOwnershipRepository.findByAccountIdOrderByPersonalEquipmentIdAsc("account-1"))
@@ -525,7 +599,7 @@ class PersonalTripApplicationServiceTest {
         whenever(memberRepository.findByEquipmentListIdOrderByPersonalEquipmentIdAsc("list-1"))
             .thenReturn(listOf(EquipmentListMember("list-1", "selected-equipment", 2)))
         whenever(equipmentRepository.findById("selected-equipment"))
-            .thenReturn(Optional.of(PersonalEquipmentRecord("selected-equipment", " Tent   Bag ", 3, 300)))
+            .thenReturn(Optional.of(PersonalEquipmentRecord("selected-equipment", " Tent   Bag ", 3, 300.0)))
         whenever(equipmentOwnershipRepository.findByPersonalEquipmentIdAndAccountId("selected-equipment", "account-1"))
             .thenReturn(PersonalEquipmentOwnership("selected-equipment", "account-1", "tent bag"))
         whenever(equipmentOwnershipRepository.findByAccountIdOrderByPersonalEquipmentIdAsc("account-1"))
@@ -824,7 +898,9 @@ class PersonalTripApplicationServiceTest {
             name = "我的帐篷",
             normalizedName = "我的帐篷",
             quantity = 2,
-            unitWeightGrams = 800,
+            unitWeightGrams = 800.0,
+            category = "tent", equipmentType = "tent", unitLabel = "套", weightScope = "完整帐篷",
+            backpackQuantity = 2, wornQuantity = 0, handheldQuantity = 0, packedQuantity = 2,
             source = "user_adjusted",
             ownershipStatus = "unconfirmed_owned"
         )
@@ -835,7 +911,7 @@ class PersonalTripApplicationServiceTest {
             name = "水瓶",
             normalizedName = "水瓶",
             quantity = 1,
-            unitWeightGrams = 100,
+            unitWeightGrams = 100.0,
             source = "user_added",
             ownershipStatus = "owned"
         )
@@ -896,7 +972,7 @@ class PersonalTripApplicationServiceTest {
             listOf(org.example.equipment.model.PersonalEquipmentOwnership("owned-tent", "account-1", "我的帐篷"))
         )
         whenever(equipmentRepository.findById("owned-tent")).thenReturn(
-            Optional.of(PersonalEquipmentRecord("owned-tent", "我的帐篷", 2, 800))
+            Optional.of(PersonalEquipmentRecord("owned-tent", "我的帐篷", 2, 800.0))
         )
         val service = service(DirectTripGenerationPlanner)
 
@@ -910,6 +986,9 @@ class PersonalTripApplicationServiceTest {
         val savedItems = org.mockito.kotlin.argumentCaptor<List<org.example.trip.personal.model.PersonalTripEquipmentItemRecord>>()
         verify(itemRepository).saveAll(savedItems.capture())
         assertEquals(listOf("我的帐篷", "水瓶"), savedItems.firstValue.map { it.name })
+        assertEquals(listOf(0, 0), savedItems.firstValue.map { it.packedQuantity })
+        assertEquals("tent", savedItems.firstValue.first().category)
+        assertEquals(2, savedItems.firstValue.first().backpackQuantity)
         assertEquals(listOf("user_adjusted", "user_added"), savedItems.firstValue.map { it.source })
         assertEquals(listOf("owned", "unconfirmed_owned"), savedItems.firstValue.map { it.ownershipStatus })
         val savedRelations = org.mockito.kotlin.argumentCaptor<List<org.example.trip.personal.model.PersonalTripEquipmentItemDerivedFromSuggestion>>()
@@ -1086,7 +1165,7 @@ class PersonalTripApplicationServiceTest {
                 id = "snapshot-1",
                 tripId = "trip-1",
                 itemCount = 0,
-                knownTotalWeightGrams = 0,
+                knownTotalWeightGrams = 0.0,
                 missingWeightItemCount = 0,
                 ownedItemCount = 0,
                 unconfirmedOwnedItemCount = 0
@@ -1173,6 +1252,7 @@ class PersonalTripApplicationServiceTest {
         TripMigrationEquipmentMerger(PersonalEquipmentDomainService()),
         planner,
         objectMapper,
+        org.mockito.kotlin.mock(),
         clock
     )
 

@@ -415,7 +415,8 @@ class PersonalTripApplicationService(
             departureCity = trip.departureCity,
             startDate = trip.startDate,
             basis = basis,
-            points = tripPoints(target)
+            points = tripPoints(target),
+            routeVersion = target
         )
         validateCandidateDays(trip.startDate, basis, days)
 
@@ -518,7 +519,8 @@ class PersonalTripApplicationService(
             departureCity = command.departureCity.trim(),
             startDate = command.startDate,
             basis = basis,
-            points = tripPoints(routeVersion)
+            points = tripPoints(routeVersion),
+            routeVersion = routeVersion
         )
         val trip = PersonalTripRecord(
             id = tripId,
@@ -580,8 +582,10 @@ class PersonalTripApplicationService(
         departureCity: String,
         startDate: java.time.LocalDate,
         basis: FrozenRouteBasisProjection,
-        points: List<TripPointProjection>
+        points: List<TripPointProjection>,
+        routeVersion: RouteVersion
     ): List<PersonalTripDayRecord> {
+        ReferenceDayTripGenerator(objectMapper).generate(tripId, departureCity, startDate, routeVersion, basis)?.let { return it }
         val dayCount = generatedDayCount(basis)
         val pathSlices = splitPath(basis.mainTrackPath, dayCount)
         val distancePerDay = basis.distance?.let { RouteMeters(it.meters / dayCount) }

@@ -92,7 +92,9 @@ class MigrateTripRequest(
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class InformationConfidenceProjection(
     val status: String,
-    val category: String? = null
+    val category: String? = null,
+    val source: String? = null,
+    val updatedAt: Instant? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -206,6 +208,7 @@ data class TripActionProjection(
     val estimatedDuration: QualifiedValueProjection<RouteSeconds>? = null,
     val transferNotes: QualifiedValueProjection<List<String>>? = null,
     val routeSectionSnapshot: RouteSectionSnapshotProjection? = null,
+    val routeSectionConfidence: InformationConfidenceProjection? = null,
     val start: QualifiedValueProjection<PublicRoutePlace>? = null,
     val end: QualifiedValueProjection<PublicRoutePlace>? = null,
     val distance: QualifiedValueProjection<RouteMeters>? = null,
@@ -245,7 +248,8 @@ data class TripDayProjection(
     val hikingDayNumber: Int? = null,
     val actions: List<TripActionProjection>,
     val weather: TripDayWeatherProjection,
-    val points: List<TripPointProjection>? = null
+    val points: List<TripPointProjection>? = null,
+    val routeGuide: TripRouteGuideProjection? = null
 )
 
 data class TripEquipmentSummaryProjection(

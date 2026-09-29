@@ -66,6 +66,9 @@ services:
       KML_AGENT_BASE_URL: http://kml-agent:8001
       KML_AGENT_ENABLED: "true"
       JWT_SECRET: ${JWT_SECRET:?必须设置}
+      # 场景图片地址及独立管理凭据；未配置令牌时管理写入保持关闭。
+      APP_SCENES_PUBLIC_BASE_URL: ${SCENE_PUBLIC_BASE_URL:-https://vialu.cn/walkbg}
+      APP_SCENES_MANAGEMENT_TOKEN: ${SCENE_MANAGEMENT_TOKEN:-}
       # 腾讯云短信验证码（可选：未配置时发码明确失败但不阻塞启动）
       TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}
       TENCENT_SMS_SECRET_KEY: ${TENCENT_SMS_SECRET_KEY:-}

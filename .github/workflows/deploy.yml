@@ -92,6 +92,7 @@ jobs:
           MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SCENE_MANAGEMENT_TOKEN: ${{ secrets.SCENE_MANAGEMENT_TOKEN }}
         run: |
           missing=0
           check() {
@@ -104,10 +105,11 @@ jobs:
           check MYSQL_ROOT_PASSWORD  "$MYSQL_ROOT_PASSWORD"
           check JWT_SECRET           "$JWT_SECRET"
           check OPENAI_API_KEY       "$OPENAI_API_KEY"
+          check SCENE_MANAGEMENT_TOKEN "$SCENE_MANAGEMENT_TOKEN"
           if [ "$missing" = "1" ]; then
             echo "::error::有 secret 缺失。创建地址：https://github.com/${{ github.repository }}/settings/secrets/actions"
             echo "::error::路径：Settings → Secrets and variables → Actions → Secrets 标签页 → Repository secrets（不是 Variables、不是 Deploy keys）。"
-            echo "::error::应建：SSH_PRIVATE_KEY(私钥) / WALK_SERVER=ubuntu@124.223.175.153 / WALK_REMOTE_DIR=/home/ubuntu/walk / MYSQL_ROOT_PASSWORD / JWT_SECRET / OPENAI_API_KEY"
+            echo "::error::应建：SSH_PRIVATE_KEY(私钥) / WALK_SERVER=ubuntu@124.223.175.153 / WALK_REMOTE_DIR=/home/ubuntu/walk / MYSQL_ROOT_PASSWORD / JWT_SECRET / OPENAI_API_KEY / SCENE_MANAGEMENT_TOKEN"
             exit 1
           fi
           echo "All required secrets present."
@@ -176,6 +178,7 @@ jobs:
           MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SCENE_MANAGEMENT_TOKEN: ${{ secrets.SCENE_MANAGEMENT_TOKEN }}
           # 验证码放行开关：GitHub 仓库 Variables（非 Secret）。未设置时为 false。
           # 开关只需在 Settings → Secrets and variables → Actions → Variables 修改后重新部署。
           ACCOUNT_VERIFICATION_CODE_BYPASS: ${{ vars.ACCOUNT_VERIFICATION_CODE_BYPASS || 'false' }}
@@ -187,6 +190,7 @@ jobs:
             "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" \
             "JWT_SECRET=${JWT_SECRET}" \
             "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+            "SCENE_MANAGEMENT_TOKEN=${SCENE_MANAGEMENT_TOKEN}" \
             "ACCOUNT_VERIFICATION_CODE_BYPASS=${ACCOUNT_VERIFICATION_CODE_BYPASS}" \
             "CORS_ALLOWED_ORIGINS=http://vialu.cn,http://www.vialu.cn,https://vialu.cn,https://www.vialu.cn" \
             > /tmp/.env

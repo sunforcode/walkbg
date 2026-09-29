@@ -69,6 +69,8 @@ class ScenePersistenceTest {
         assertThrows(ApiContractException::class.java) { service.readMedia("a".repeat(64)) }.also { assertEquals("scene_media_not_found", it.code) }
     }
     @Test fun `route replacement persists normalized day order and leaves published facts untouched`() {
+        // Compare persisted snapshots: database timestamp precision may differ from the seed Instant.
+        em.flush(); em.clear()
         val initialVersion = versions.findById("version-1").orElseThrow()
         val artwork = service.upload(sceneImageBytes(), "image/png")
         assertEquals(0, service.managedRoute("route-1", "version-1").revision)
@@ -166,6 +168,6 @@ class ScenePersistenceTest {
             tx.executeWithoutResult { routeSets.deleteById("race-version"); routeSets.flush(); versions.deleteById("race-version") }
         }
     }
-    private fun routeVersion() = RouteVersion("version-1", "route-1", routeType = "multi_day", mainTrackAvailability = "valid", mainTrackReferenceSystem = "WGS84", mainTrackJson = "[[30.0,100.0],[30.1,100.0],[30.2,100.0]]", referenceDaysJson = """[{"identity":"ref-1","dayNumber":1,"mainTrackRange":{"startPathPosition":{"precedingPositionIndex":0,"progressToNextPosition":0},"endPathPosition":{"precedingPositionIndex":1,"progressToNextPosition":0}}},{"identity":"ref-2","dayNumber":2,"mainTrackRange":{"startPathPosition":{"precedingPositionIndex":1,"progressToNextPosition":0},"endPathPosition":{"precedingPositionIndex":2}}}]""")
+    private fun routeVersion() = RouteVersion("version-1", "route-1", createdAt = Instant.parse("2026-09-29T20:00:00.077745211Z"), routeType = "multi_day", mainTrackAvailability = "valid", mainTrackReferenceSystem = "WGS84", mainTrackJson = "[[30.0,100.0],[30.1,100.0],[30.2,100.0]]", referenceDaysJson = """[{"identity":"ref-1","dayNumber":1,"mainTrackRange":{"startPathPosition":{"precedingPositionIndex":0,"progressToNextPosition":0},"endPathPosition":{"precedingPositionIndex":1,"progressToNextPosition":0}}},{"identity":"ref-2","dayNumber":2,"mainTrackRange":{"startPathPosition":{"precedingPositionIndex":1,"progressToNextPosition":0},"endPathPosition":{"precedingPositionIndex":2}}}]""")
     private fun content(index: Int) = mapper.writeValueAsString(mapOf("actions" to listOf(mapOf("actionType" to "hike", "sequence" to 1, "routeSectionSnapshot" to mapOf("path" to (index..index + 1).map { mapOf("latitude" to 30.0 + it * 0.1, "longitude" to 100.0, "referenceSystem" to "WGS84") } )))))
 }

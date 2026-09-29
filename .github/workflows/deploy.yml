@@ -112,6 +112,21 @@ jobs:
           fi
           echo "All required secrets present."
 
+      - name: Validate deployment target
+        env:
+          WALK_SERVER: ${{ secrets.WALK_SERVER }}
+          WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$WALK_SERVER" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]; then
+            echo "::error::WALK_SERVER must be user@host without whitespace."
+            exit 1
+          fi
+          if [[ ! "$WALK_REMOTE_DIR" =~ ^/[a-zA-Z0-9_/-]+$ ]] || [[ "$WALK_REMOTE_DIR" == / ]]; then
+            echo "::error::WALK_REMOTE_DIR must be an absolute project directory."
+            exit 1
+          fi
+
       - name: Configure SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -131,7 +146,9 @@ jobs:
           WALK_SERVER: ${{ secrets.WALK_SERVER }}
           WALK_REMOTE_DIR: ${{ secrets.WALK_REMOTE_DIR }}
         run: |
-          rsync -az --delete \
+          set -euo pipefail
+          ssh -o BatchMode=yes "$WALK_SERVER" "test -d '$WALK_REMOTE_DIR/deploy' && test -f '$WALK_REMOTE_DIR/deploy/docker-compose.yml' && test ! -L '$WALK_REMOTE_DIR/walkbg' && test ! -L '$WALK_REMOTE_DIR/kml-agent-service' && test ! -L '$WALK_REMOTE_DIR/walkadmin-react'"
+          rsync -az -e 'ssh -o BatchMode=yes' \
             --exclude '.git' \
             --exclude 'node_modules' \
             --exclude 'dist' \
@@ -143,6 +160,7 @@ jobs:
             --exclude '.DS_Store' \
             --exclude 'deploy/.env' \
             --exclude '.env' \
+            --exclude '.env.*' \
             walkbg kml-agent-service walkadmin-react walkbg/deploy \
             "$WALK_SERVER:$WALK_REMOTE_DIR/"
 

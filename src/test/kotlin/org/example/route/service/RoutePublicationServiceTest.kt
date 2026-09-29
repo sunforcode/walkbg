@@ -23,7 +23,8 @@ import java.math.BigDecimal
 @Import(RouteApplicationService::class, RoutePublicationService::class, PublicRouteApplicationService::class,
     PublicRouteDomainService::class, RouteVersionSummaryPlaceResolver::class, JacksonConfig::class,
     RouteBindingService::class, RouteAnalysisOrchestrationService::class, KmlStorageService::class,
-    KmlAnalysisCallbackService::class, RouteTrackKmlFactory::class, SegmentEditService::class)
+    KmlAnalysisCallbackService::class, RouteTrackKmlFactory::class, SegmentEditService::class,
+    RouteTrackReviewService::class)
 class RoutePublicationServiceTest {
     companion object {
         @org.junit.jupiter.api.io.TempDir @JvmField var uploadDir: java.nio.file.Path? = null
@@ -43,6 +44,8 @@ class RoutePublicationServiceTest {
     @Autowired private lateinit var orders: RouteVersionPublicationOrderRepository
     @MockBean private lateinit var routeService: RouteService
     @Autowired private lateinit var configuration: RoutePublicationConfigurationRepository
+    @Autowired private lateinit var trackReview: RouteTrackReviewService
+    @Autowired private lateinit var trackReviewRecords: RouteTrackReviewRepository
 
     @org.junit.jupiter.api.BeforeEach
     fun initializeAllocator() {
@@ -91,6 +94,68 @@ class RoutePublicationServiceTest {
         val route = route(status = 1)
         publish(route.id)
         assertEquals(route.id, publicRoutes.all().items.single().routeId)
+    }
+
+    @Test
+    fun `approved candidate is published only in a new version and old snapshot is unchanged`() {
+        val route = route()
+        val oldVersionId = requireNotNull(publish(route.id).publishedVersionId)
+        val candidate = trackReview.read(route.id)
+        val review = trackReview.submit(route.id, org.example.route.dto.MainTrackReviewRequest(
+            requireNotNull(candidate.candidateId), candidate.reviewRevision, "track-approval", "approved", true, "WGS84"
+        ))
+        assertEquals("approved", review.review?.decision)
+        assertEquals("pending_review", publicRoutes.detail(route.id).currentVersion.mainTrackAvailability)
+        assertEquals(oldVersionId, publicRoutes.detail(route.id).currentVersion.versionId)
+
+        val newVersionId = requireNotNull(publish(route.id, "publication-after-review").publishedVersionId)
+
+        assertNotEquals(oldVersionId, newVersionId)
+        val detail = publicRoutes.detail(route.id).currentVersion
+        assertEquals("valid", detail.mainTrackAvailability)
+        assertEquals(listOf(30.0, 30.1), requireNotNull(detail.mainTrack).path.map { it.latitude })
+        assertTrue(requireNotNull(detail.mainTrack).path.all { it.referenceSystem == "WGS84" })
+        assertFalse(detail.generationEligibility.eligible, "other required summary fields remain missing")
+        assertFalse(detail.generationEligibility.missingReasons.orEmpty().contains("validMainTrack"))
+        val old = versions.findById(oldVersionId).orElseThrow()
+        assertEquals("pending_review", old.mainTrackAvailability)
+        assertNull(old.mainTrackJson)
+        assertEquals(listOf(1, 2), orders.findByRouteIdOrderByPublishedSequenceAsc(route.id).map { it.publishedSequence })
+    }
+
+    @Test
+    fun `rejected and stale candidates are never published as valid geometry`() {
+        val route = route()
+        val candidate = trackReview.read(route.id)
+        trackReview.submit(route.id, org.example.route.dto.MainTrackReviewRequest(
+            requireNotNull(candidate.candidateId), candidate.reviewRevision, "reject-track", "rejected", false,
+            reason = "含车辆接驳，完整徒步范围尚未确认"
+        ))
+        publish(route.id)
+        val rejected = publicRoutes.detail(route.id).currentVersion
+        assertEquals("invalidated", rejected.mainTrackAvailability)
+        assertNull(rejected.mainTrack)
+
+        route.trackGeoJson = "[[31.0,101.0],[31.1,101.1]]"
+        route.analysisTaskId = "new-input"
+        routes.saveAndFlush(route)
+        publish(route.id, "new-candidate-publication")
+        assertEquals("pending_review", publicRoutes.detail(route.id).currentVersion.mainTrackAvailability)
+        assertNull(publicRoutes.detail(route.id).currentVersion.mainTrack)
+    }
+
+    @Test
+    fun `same publication identity does not mutate an old snapshot after review`() {
+        val route = route()
+        val versionId = publish(route.id).publishedVersionId
+        val candidate = trackReview.read(route.id)
+        trackReview.submit(route.id, org.example.route.dto.MainTrackReviewRequest(
+            requireNotNull(candidate.candidateId), candidate.reviewRevision, "approval-for-retry", "approved", true, "WGS84"
+        ))
+        assertEquals(versionId, publish(route.id).publishedVersionId)
+        assertEquals("pending_review", publicRoutes.detail(route.id).currentVersion.mainTrackAvailability)
+        assertEquals(1L, versions.count())
+        assertEquals(1L, trackReviewRecords.count())
     }
 
     @Test
@@ -525,6 +590,69 @@ class RoutePublicationServiceTest {
                 orders.deleteAll(); versions.deleteAll(); pois.deleteAll(); segments.deleteAll(); schemes.deleteAll()
                 waypoints.deleteAll(); maps.deleteAll(); routes.deleteAll(); storedInputs.deleteAll(); configuration.deleteAll()
             }
+        }
+    }
+
+    @Test
+    fun `HTTP candidate approval is explicit and only becomes public after a new publication`() {
+        val route = route()
+        val mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(
+            org.example.route.controller.RouteTrackReviewController(trackReview))
+            .setMessageConverters(org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper))
+            .setControllerAdvice(org.example.common.exception.GlobalExceptionHandler()).build()
+        val response = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get("/api/v1/routes/${route.id}/main-track-review"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk).andReturn()
+        val candidate = objectMapper.readTree(response.response.contentAsString).path("data")
+        assertTrue(candidate.path("geometry_valid").asBoolean())
+        assertEquals(2, candidate.path("candidate_path").size())
+        val candidateId = candidate.path("candidate_id").asText()
+        val body = """{"candidate_id":"$candidateId","expected_revision":0,"request_id":"http-review",
+            "decision":"approved","confirm_complete_hiking_range":true,"reference_system":"WGS84"}"""
+        val saved = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .post("/api/v1/routes/${route.id}/main-track-review")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(body))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk).andReturn()
+        assertEquals("approved", objectMapper.readTree(saved.response.contentAsString).path("data").path("review").path("decision").asText())
+        assertFalse(collection.existsById(route.id), "review must not publish implicitly")
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .post("/api/v1/routes/${route.id}/main-track-review")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(body))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk)
+        assertEquals(1L, trackReviewRecords.count())
+        publish(route.id)
+        assertNotNull(publicRoutes.detail(route.id).currentVersion.mainTrack)
+    }
+
+    @Test
+    fun `concurrent review submissions admit one revision and never overwrite the winner`() {
+        org.springframework.test.context.transaction.TestTransaction.end()
+        val transaction = org.springframework.transaction.support.TransactionTemplate(transactionManager)
+        val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
+        try {
+            transaction.executeWithoutResult { route() }
+            val candidate = trackReview.read("route-publication")
+            val barrier = java.util.concurrent.CyclicBarrier(2)
+            val futures = (1..2).map { index -> executor.submit<String> {
+                barrier.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                try {
+                    trackReview.submit("route-publication", org.example.route.dto.MainTrackReviewRequest(
+                        requireNotNull(candidate.candidateId), candidate.reviewRevision, "parallel-review-$index",
+                        "approved", true, "WGS84"))
+                    "accepted"
+                } catch (error: org.example.common.exception.BusinessException) {
+                    assertEquals(org.springframework.http.HttpStatus.CONFLICT, error.httpStatus)
+                    "conflict"
+                }
+            } }
+            assertEquals(listOf("accepted", "conflict"), futures.map { it.get(15, java.util.concurrent.TimeUnit.SECONDS) }.sorted())
+            transaction.executeWithoutResult {
+                assertEquals(1L, trackReviewRecords.count())
+                assertEquals(1L, trackReviewRecords.findFirstByRouteIdOrderByRevisionDesc("route-publication")?.revision)
+            }
+        } finally {
+            executor.shutdownNow()
+            transaction.executeWithoutResult { trackReviewRecords.deleteAll(); maps.deleteAll(); routes.deleteAll() }
         }
     }
 

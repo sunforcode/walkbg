@@ -1,6 +1,8 @@
 package org.example.route.dto
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import java.time.Instant
+
 data class RouteMeters(val meters: Double)
 
 data class RouteSeconds(val seconds: Double)
@@ -138,7 +140,9 @@ data class QualifiedRouteText(
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class PublicRouteInformationConfidence(
     val status: String,
-    val category: String? = null
+    val category: String? = null,
+    val source: String? = null,
+    val updatedAt: Instant? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -155,7 +159,10 @@ data class PublicRouteReferenceDay(
     val maxElevation: RouteMeters? = null,
     val minElevation: RouteMeters? = null,
     val accommodation: String? = null,
-    val notes: String? = null
+    val notes: String? = null,
+    val description: String? = null,
+    val accommodationEvidence: QualifiedRouteText? = null,
+    val mainTrackRange: PublicRouteMainTrackRange? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -204,7 +211,8 @@ data class PublicRouteCampsite(
     val positions: List<PublicRouteGeoPosition>,
     val elevation: RouteMeters? = null,
     val details: String? = null,
-    val status: String? = null
+    val status: String? = null,
+    val sourceEvidence: QualifiedRouteText? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)

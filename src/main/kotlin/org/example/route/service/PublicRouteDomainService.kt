@@ -1,6 +1,8 @@
 package org.example.route.service
 
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.common.contract.ApiContractException
 import org.example.route.dto.PublicRouteBrowseSummary
@@ -29,6 +31,8 @@ import org.example.route.dto.PublicRouteWaterSource
 import org.example.route.dto.RouteGenerationEligibility
 import org.example.route.dto.RouteMeters
 import org.example.route.dto.RouteSeconds
+import org.example.route.dto.PublicRouteInformationConfidence
+import org.example.route.dto.QualifiedRouteText
 import org.example.route.model.PublicRouteCollectionEntry
 import org.example.route.model.RouteVersion
 import org.example.route.model.RouteVersionImage
@@ -42,6 +46,7 @@ import org.example.route.repository.RouteVersionRepository
 import org.example.route.repository.RouteVersionSegmentRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import java.time.Instant
 
 @Service
 class RouteVersionSummaryPlaceResolver {
@@ -180,7 +185,7 @@ class PublicRouteDomainService(
                 mainTrack = mainTrack,
                 generationEligibility = eligibility(summary, version.mainTrackAvailability, mainTrack),
                 professionalAnalysis = parseProfessionalAnalysis(version.professionalAnalysisJson),
-                referenceDays = if (version.routeType == "multi_day") parseReferenceDays(version.referenceDaysJson) else null,
+                referenceDays = if (version.routeType == "multi_day") parseReferenceDays(version.referenceDaysJson, mainTrack) else null,
                 segments = segments,
                 keyPoints = points.filter { it.pointKind == "key" }.mapNotNull { it.toNamedPoint() }.takeIf { it.isNotEmpty() },
                 interestPoints = points.filter { it.pointKind == "interest" }.mapNotNull { it.toNamedPoint() }.takeIf { it.isNotEmpty() },
@@ -277,6 +282,7 @@ class PublicRouteDomainService(
     }
 
     private fun RouteVersionPoint.toCampsite(): PublicRouteCampsite? {
+        val evidence = sourceEvidenceJson?.let { parseQualifiedEvidence(readContentTree(it)) }
         val validName = name.nonBlankOrNull() ?: return null
         val position = toGeoPosition() ?: return null
         return PublicRouteCampsite(
@@ -284,7 +290,8 @@ class PublicRouteDomainService(
             name = validName,
             positions = listOf(position),
             elevation = elevation?.finite()?.let(::RouteMeters),
-            details = description.nonBlankOrNull()
+            details = description.nonBlankOrNull(),
+            sourceEvidence = evidence
         )
     }
 
@@ -386,12 +393,100 @@ class PublicRouteDomainService(
             ).any { value -> value != null }
         }
 
-    private fun parseReferenceDays(json: String?): List<PublicRouteReferenceDay>? {
-        val days = parseOptionalNonEmptyList<PublicRouteReferenceDay>(json) ?: return null
-        if (days.map { it.dayNumber } != (1..days.size).toList() || days.any { it.identity.isBlank() }) {
+    private fun parseReferenceDays(json: String?, mainTrack: PublicRouteMainTrack?): List<PublicRouteReferenceDay>? {
+        val content = json.nonBlankOrNull() ?: return null
+        val nodes = readContentTree(content)
+        if (!nodes.isArray) throw readFailure()
+        if (nodes.size() == 0) return null
+        val identities = mutableSetOf<String>()
+        var previousEnd: PublicRouteMainTrackPathPosition? = null
+        val reader = objectMapper.readerFor(PublicRouteReferenceDay::class.java)
+            .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        return nodes.mapIndexed { index, node ->
+            if (!node.isObject) throw readFailure()
+            val identity = contentText(node, "identity") ?: throw readFailure()
+            val number = node.get("dayNumber") ?: throw readFailure()
+            if (!number.isIntegralNumber || !number.canConvertToInt() || number.intValue() != index + 1 || !identities.add(identity)) {
+                throw readFailure()
+            }
+            contentText(node, "description")
+            val evidence = node.get("accommodationEvidence")?.takeUnless { it.isNull }?.let(::parseQualifiedEvidence)
+            if (evidence != null && (evidence.value == null || evidence.value != contentText(node, "accommodation"))) {
+                throw readFailure()
+            }
+            val range = node.get("mainTrackRange")?.takeUnless { it.isNull }?.let { parseDayRange(it, mainTrack) }
+            if (range != null) {
+                if (previousEnd?.let { comparePathPosition(it, range.startPathPosition) > 0 } == true) throw readFailure()
+                previousEnd = range.endPathPosition
+            }
+            try {
+                node.traverse(objectMapper).use { reader.readValue<PublicRouteReferenceDay>(it) }
+                    .copy(accommodationEvidence = evidence, mainTrackRange = range)
+            } catch (_: Exception) {
+                throw readFailure()
+            }
+        }
+    }
+
+    // Only the newly published content uses this strict boundary; legacy professional fields keep their semantics.
+    private fun readContentTree(json: String): JsonNode = try {
+        objectMapper.reader()
+            .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .with(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)
+            .readTree(json) ?: throw readFailure()
+    } catch (_: Exception) {
+        throw readFailure()
+    }
+
+    private fun contentObject(node: JsonNode, fields: Set<String>) {
+        if (!node.isObject || node.fieldNames().asSequence().any { it !in fields }) throw readFailure()
+    }
+
+    private fun contentText(node: JsonNode, field: String): String? {
+        val value = node.get(field)?.takeUnless { it.isNull } ?: return null
+        if (!value.isTextual || value.textValue().isBlank()) throw readFailure()
+        return value.textValue()
+    }
+
+    private fun parseQualifiedEvidence(node: JsonNode): QualifiedRouteText {
+        contentObject(node, setOf("value", "confidence"))
+        val value = contentText(node, "value")
+        val confidence = node.get("confidence")?.takeUnless { it.isNull }?.let { metadata ->
+            contentObject(metadata, setOf("status", "category", "source", "updatedAt"))
+            val status = contentText(metadata, "status") ?: throw readFailure()
+            val category = contentText(metadata, "category") ?: throw readFailure()
+            if (status !in setOf("unknown", "missing", "pending_verification", "stale", "unavailable") ||
+                category !in setOf("public_route_fact", "dynamic_external_information", "generated_suggestion")) {
+                throw readFailure()
+            }
+            val source = contentText(metadata, "source")
+            val updatedAt = contentText(metadata, "updatedAt")?.let {
+                try {
+                    Instant.parse(it)
+                } catch (_: Exception) {
+                    throw readFailure()
+                }
+            }
+            PublicRouteInformationConfidence(status, category, source, updatedAt)
+        }
+        if (value == null && (confidence == null || confidence.status in setOf("pending_verification", "stale"))) {
             throw readFailure()
         }
-        return days
+        return QualifiedRouteText(value, confidence)
+    }
+
+    private fun parseDayRange(node: JsonNode, mainTrack: PublicRouteMainTrack?): PublicRouteMainTrackRange {
+        contentObject(node, setOf("startPathPosition", "endPathPosition"))
+        fun position(field: String): PublicRouteMainTrackPathPosition {
+            val value = node.get(field) ?: throw readFailure()
+            contentObject(value, setOf("precedingPositionIndex", "progressToNextPosition"))
+            val index = value.get("precedingPositionIndex") ?: throw readFailure()
+            if (!index.isIntegralNumber || !index.canConvertToInt()) throw readFailure()
+            val progress = value.get("progressToNextPosition")?.takeUnless { it.isNull }
+            if (progress != null && !progress.isNumber) throw readFailure()
+            return PublicRouteMainTrackPathPosition(index.intValue(), progress?.doubleValue())
+        }
+        return validateMainTrackRange(PublicRouteMainTrackRange(position("startPathPosition"), position("endPathPosition")), mainTrack)
     }
 
     private fun parseSeasonalWeather(json: String?): PublicRouteSeasonalWeather? =
@@ -415,6 +510,10 @@ class PublicRouteDomainService(
 
     private fun parseMainTrackRange(json: String?, mainTrack: PublicRouteMainTrack?): PublicRouteMainTrackRange? {
         val range = parseOptional<PublicRouteMainTrackRange>(json) ?: return null
+        return validateMainTrackRange(range, mainTrack)
+    }
+
+    private fun validateMainTrackRange(range: PublicRouteMainTrackRange, mainTrack: PublicRouteMainTrack?): PublicRouteMainTrackRange {
         val pathSize = mainTrack?.path?.size ?: throw readFailure()
         validatePathPosition(range.startPathPosition, pathSize)
         validatePathPosition(range.endPathPosition, pathSize)

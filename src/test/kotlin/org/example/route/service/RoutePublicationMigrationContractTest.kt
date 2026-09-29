@@ -32,4 +32,16 @@ class RoutePublicationMigrationContractTest {
         assertTrue(sql.contains("reference_system IS NULL AND reason IS NOT NULL"))
         assertTrue(!sql.contains("UPDATE route_versions"), "migration must not approve or rewrite published tracks")
     }
+
+    @Test
+    fun `campsite evidence migration adds only nullable version point evidence without rewriting history`() {
+        val resource = javaClass.classLoader.getResource("db/migration/V18__add_route_campsite_source_evidence.sql")
+        assertNotNull(resource, "publish-adopted-route-day-content requires a new additive migration")
+        val sql = resource!!.readText().trim().replace(Regex("\\s+"), " ").uppercase()
+        org.junit.jupiter.api.Assertions.assertEquals(
+            "ALTER TABLE ROUTE_VERSION_POINTS ADD COLUMN SOURCE_EVIDENCE_JSON TEXT NULL;",
+            sql,
+            "evidence must be nullable with no backfill, destructive statement or equipment migration dependency"
+        )
+    }
 }

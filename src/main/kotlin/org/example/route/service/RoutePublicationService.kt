@@ -25,7 +25,8 @@ class RoutePublicationService(
     private val requests: RoutePublicationRequestRepository,
     private val configuration: RoutePublicationConfigurationRepository,
     private val objectMapper: ObjectMapper,
-    private val trackReviews: RouteTrackReviewService
+    private val trackReviews: RouteTrackReviewService,
+    private val content: RoutePublicationContentService
 ) {
     @Transactional
     fun publish(routeId: String, publicRouteType: String?, publicationId: String?): RouteVersion {
@@ -49,8 +50,9 @@ class RoutePublicationService(
         if (route.name.isBlank()) {
             throw BusinessException.unprocessableEntity("发布前检查未通过：路线名称为空")
         }
-        if (segments.findByRouteId(routeId).any { it.status == "draft" } ||
-            pois.findByRouteId(routeId).any { it.status == "draft" }) {
+        val sourceSegments = segments.findByRouteId(routeId)
+        val sourcePois = pois.findByRouteId(routeId)
+        if (sourceSegments.any { it.status == "draft" } || sourcePois.any { it.status == "draft" }) {
             throw BusinessException.unprocessableEntity("发布前检查未通过：仍有未采纳的分段或 POI 草稿")
         }
         // Always lock the route before the global allocator. The singleton is seeded by Flyway.
@@ -59,8 +61,10 @@ class RoutePublicationService(
             .maxOfOrNull { it.publishedSequence } ?: 0, 1)
         val map = maps.findById(routeId).orElse(null)
         val mainTrack = trackReviews.publicationTrack(route)
+        val versionId = UUID.randomUUID().toString()
+        val publishedContent = content.prepare(versionId, route, requireNotNull(publicRouteType), mainTrack, sourceSegments, sourcePois)
         val version = versions.saveAndFlush(RouteVersion(
-            id = UUID.randomUUID().toString(),
+            id = versionId,
             routeId = routeId,
             routeType = publicRouteType,
             name = route.name,
@@ -72,8 +76,10 @@ class RoutePublicationService(
             tagsJson = objectMapper.writeValueAsString(tags.findByRouteId(routeId).map { it.tag }.filter { it.isNotBlank() }.distinct()),
             mainTrackAvailability = mainTrack.availability,
             mainTrackJson = mainTrack.json,
-            mainTrackReferenceSystem = mainTrack.referenceSystem
+            mainTrackReferenceSystem = mainTrack.referenceSystem,
+            referenceDaysJson = publishedContent.days.takeIf { it.isNotEmpty() }?.let(objectMapper::writeValueAsString)
         ))
+        content.persist(publishedContent)
         writeImages(route, version.id)
         orders.saveAndFlush(RouteVersionPublicationOrder(routeId, version.id, sequence))
         current.saveAndFlush(RouteCurrentPublicVersion(routeId, version.id))

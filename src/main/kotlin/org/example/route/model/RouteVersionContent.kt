@@ -116,5 +116,8 @@ data class RouteVersionPoint(
     val elevation: Double? = null,
 
     @Column(name = "reference_system", nullable = false, length = 64)
-    val referenceSystem: String
+    val referenceSystem: String,
+
+    @Column(name = "source_evidence_json", columnDefinition = "TEXT")
+    val sourceEvidenceJson: String? = null
 )

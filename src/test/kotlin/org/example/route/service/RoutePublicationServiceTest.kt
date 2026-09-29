@@ -24,7 +24,7 @@ import java.math.BigDecimal
     PublicRouteDomainService::class, RouteVersionSummaryPlaceResolver::class, JacksonConfig::class,
     RouteBindingService::class, RouteAnalysisOrchestrationService::class, KmlStorageService::class,
     KmlAnalysisCallbackService::class, RouteTrackKmlFactory::class, SegmentEditService::class,
-    RouteTrackReviewService::class)
+    RouteTrackReviewService::class, RoutePublicationContentService::class)
 class RoutePublicationServiceTest {
     companion object {
         @org.junit.jupiter.api.io.TempDir @JvmField var uploadDir: java.nio.file.Path? = null
@@ -171,6 +171,341 @@ class RoutePublicationServiceTest {
         assertFalse(current.existsById(route.id))
         assertTrue(versions.existsById(first))
         assertEquals(1, orders.findByRouteIdOrderByPublishedSequenceAsc(route.id).size)
+    }
+
+    private fun adoptedContent(approveTrack: Boolean = true): Route {
+        val route = route()
+        val started = java.time.Instant.parse("2026-07-20T00:00:00Z")
+        route.trackGeoJson = objectMapper.writeValueAsString((0..9).map { listOf(30.0 + it * 0.01, 100.0 + it * 0.01, 4000.0 + it) })
+        route.analysisTaskId = "content-task"
+        route.analysisStartedAt = started
+        route.analysisStatus = "completed"
+        routes.saveAndFlush(route)
+        for (kind in listOf("day", "slope")) {
+            schemes.saveAndFlush(org.example.route.model.SegmentScheme("scheme-$kind", route.id, kind, kind,
+                isDefault = kind == "slope", createdAt = started.plusSeconds(1)))
+            for (number in listOf(3, 1, 5, 2, 4)) {
+                segments.saveAndFlush(org.example.route.model.Segment(
+                    id = "$kind-$number", routeId = route.id, name = "$kind 第${number}天",
+                    description = "${kind}原说明$number", notes = "原轨迹提示：过河$number（待核验）",
+                    distance = number * 1.25, elevationGain = number * 100.0, elevationLoss = number * 20.0,
+                    estimatedTime = number * 45.0, difficulty = 1, routeType = 2,
+                    sequenceNumber = number, trackStartIndex = (number - 1) * 2, trackEndIndex = number * 2 - 1,
+                    schemeId = "scheme-$kind", schemeType = kind, status = "confirmed",
+                    createdAt = started.plusSeconds(2), updatedAt = started.plusSeconds(2)
+                ))
+            }
+        }
+        for (number in 1..5) {
+            val dayNumber = if (number == 5) 1 else number
+            val name = if (number == 5) "看到甲营地" else "第${number}天营地"
+            val snapshot = mapOf("camp_analysis" to mapOf(
+                "status" to "pending_verification", "source" to "source_marker",
+                "usage" to if (number == 5) "along_route" else "recorded_overnight",
+                "evidence" to name, "associations" to listOf(mapOf(
+                    "scheme_type" to "day", "day_number" to dayNumber,
+                    "track_start_index" to (dayNumber - 1) * 2, "track_end_index" to dayNumber * 2 - 1,
+                    "basis" to "explicit_day", "distance_meters" to 2.0
+                ))
+            ))
+            pois.saveAndFlush(org.example.route.model.PoiPoint(
+                id = "source-camp-$number", routeId = route.id, name = name,
+                latitude = 30.0 + number * 0.01, longitude = 100.0 + number * 0.01, elevation = 4100.0,
+                category = "camp", source = "kml_marker", confidence = 1.0, status = "confirmed",
+                description = "<div>原营地标注</div><img src=\"files/photo.png\"/>",
+                cardData = objectMapper.writeValueAsString(snapshot), createdAt = started.plusSeconds(3)
+            ))
+        }
+        if (approveTrack) {
+            val candidate = trackReview.read(route.id)
+            trackReview.submit(route.id, org.example.route.dto.MainTrackReviewRequest(
+                requireNotNull(candidate.candidateId), candidate.reviewRevision, "content-track-review", "approved", true, "WGS84"))
+        }
+        return route
+    }
+
+    @Test
+    fun `publication includes all adopted days segments and source camps in the public version`() {
+        val route = adoptedContent()
+        publish(route.id)
+        val detail = publicRoutes.detail(route.id).currentVersion
+        val json = objectMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(detail)
+        assertEquals(5, detail.referenceDays?.size)
+        assertEquals((1..5).toList(), detail.referenceDays!!.map { it.dayNumber })
+        assertEquals(5, detail.segments?.size)
+        assertEquals(5, detail.campsites?.size)
+        for (number in 1..5) {
+            val day = json.path("referenceDays")[number - 1]
+            assertEquals("day原说明$number", day.path("description").asText())
+            assertEquals("原轨迹提示：过河$number（待核验）", day.path("notes").asText())
+            assertEquals(number * 1250.0, day.path("distance").path("meters").asDouble())
+            assertEquals(number * 2700.0, day.path("estimatedDuration").path("seconds").asDouble())
+            assertEquals(number * 100.0, day.path("ascent").path("meters").asDouble())
+            assertEquals((number - 1) * 2, day.path("mainTrackRange").path("startPathPosition").path("precedingPositionIndex").asInt())
+            assertFalse(day.has("start"), "unnamed endpoints must not be invented")
+            assertFalse(day.has("segments"), "daily data is independent of slope segments")
+            if (number < 5) {
+                assertTrue(day.path("accommodation").asText().contains("第${number}天营地"))
+                assertEquals(day.path("accommodation"), day.path("accommodationEvidence").path("value"))
+                assertEquals("pending_verification", day.path("accommodationEvidence").path("confidence").path("status").asText())
+            } else {
+                assertFalse(day.has("accommodation"))
+                assertFalse(day.has("accommodationEvidence"))
+            }
+        }
+        assertFalse(json.path("referenceDays")[4].path("mainTrackRange").path("endPathPosition").has("progressToNextPosition"))
+        assertEquals(listOf("slope原说明1", "slope原说明2", "slope原说明3", "slope原说明4", "slope原说明5"), detail.segments!!.map { it.description })
+        assertTrue(detail.segments!!.all { it.difficulty == null && it.terrainOrRoadType == null })
+        json.path("campsites").forEach { camp ->
+            assertEquals("WGS84", camp.path("positions")[0].path("referenceSystem").asText())
+            assertEquals("pending_verification", camp.path("sourceEvidence").path("confidence").path("status").asText())
+            assertEquals("public_route_fact", camp.path("sourceEvidence").path("confidence").path("category").asText())
+            assertTrue(camp.path("sourceEvidence").path("confidence").path("source").asText().isNotBlank())
+            assertFalse(camp.has("status"), "source confidence is not a campsite business status")
+            assertFalse(camp.toString().contains("track_start_index"))
+            assertFalse(camp.toString().contains("photo.png"))
+        }
+        assertNull(detail.summary.estimatedDuration, "do not sum child durations into a summary fact")
+        assertFalse(detail.generationEligibility.eligible)
+    }
+
+    @Test
+    fun `republishing content creates isolated local identities without rewriting prior days`() {
+        val route = adoptedContent()
+        val first = requireNotNull(publish(route.id).publishedVersionId)
+        val old = objectMapper.writeValueAsString(publicRoutes.detail(route.id).currentVersion)
+        val edited = segments.findById("day-1").orElseThrow()
+        edited.description = "人工修改后的第一天说明"
+        segments.saveAndFlush(edited)
+        assertEquals(first, publish(route.id).publishedVersionId)
+        assertEquals(old, objectMapper.writeValueAsString(publicRoutes.detail(route.id).currentVersion))
+        val second = requireNotNull(publish(route.id, "republish-content").publishedVersionId)
+        assertNotEquals(first, second)
+        assertTrue(publicRoutes.detail(route.id).currentVersion.referenceDays?.first()?.let {
+            objectMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(it).path("description").asText() == "人工修改后的第一天说明"
+        } == true)
+        val oldDays = objectMapper.readTree(versions.findById(first).orElseThrow().referenceDaysJson)
+        assertEquals("day原说明1", oldDays[0].path("description").asText())
+        assertNotEquals(oldDays[0].path("identity").asText(), publicRoutes.detail(route.id).currentVersion.referenceDays!!.first().identity)
+    }
+
+    @Test
+    fun `unreviewed track publishes adopted text without leaking ranges or guessing campsite coordinates`() {
+        val route = adoptedContent(approveTrack = false)
+        publish(route.id)
+        val detail = publicRoutes.detail(route.id).currentVersion
+        val json = objectMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(detail)
+        assertEquals(5, detail.referenceDays?.size)
+        assertEquals(5, detail.segments?.size)
+        assertNull(detail.mainTrack)
+        assertNull(detail.campsites)
+        assertTrue(json.path("referenceDays").all { !it.has("mainTrackRange") && !it.has("accommodation") })
+        assertTrue(detail.segments!!.all { it.mainTrackRange == null })
+    }
+
+    @Test
+    fun `duplicate adopted day number aborts publication instead of renumbering`() {
+        val route = adoptedContent()
+        val day = segments.findById("day-2").orElseThrow()
+        segments.saveAndFlush(day.copy(sequenceNumber = 1))
+        val failure = assertThrows(org.example.common.exception.BusinessException::class.java) { publish(route.id) }
+        assertEquals(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY, failure.httpStatus)
+        assertEquals(0L, versions.count())
+        assertFalse(collection.existsById(route.id))
+    }
+
+    @Test
+    fun `multiple adopted slope schemes are not merged implicitly`() {
+        val route = adoptedContent()
+        schemes.saveAndFlush(org.example.route.model.SegmentScheme("slope-other", route.id, "slope", "另一走法"))
+        segments.saveAndFlush(org.example.route.model.Segment("other-segment", route.id, "其他路段",
+            sequenceNumber = 1, schemeId = "slope-other", schemeType = "slope"))
+        assertEquals(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+            assertThrows(org.example.common.exception.BusinessException::class.java) { publish(route.id) }.httpStatus)
+        assertEquals(0L, versions.count())
+    }
+
+    @Test
+    fun `one day publication never leaks a reference day collection`() {
+        val route = adoptedContent()
+        management.changeRouteStatus(route.id, 1, null, "one_day", "one-day-content")
+        val detail = publicRoutes.detail(route.id).currentVersion
+        assertNull(detail.referenceDays)
+        assertEquals(5, detail.segments?.size)
+        assertEquals(5, detail.campsites?.size)
+    }
+
+    @Test
+    fun `older adopted content cannot reuse the new analysis track ranges or camp associations`() {
+        val route = adoptedContent()
+        route.analysisStartedAt = requireNotNull(route.analysisStartedAt).plusSeconds(20)
+        route.analysisTaskId = "new-analysis-task"
+        routes.saveAndFlush(route)
+        val candidate = trackReview.read(route.id)
+        trackReview.submit(route.id, org.example.route.dto.MainTrackReviewRequest(
+            requireNotNull(candidate.candidateId), candidate.reviewRevision, "new-track-review", "approved", true, "WGS84"))
+        publish(route.id)
+        val detail = publicRoutes.detail(route.id).currentVersion
+        val json = objectMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(detail)
+        assertEquals(5, detail.referenceDays?.size)
+        assertTrue(json.path("referenceDays").all { !it.has("mainTrackRange") && !it.has("accommodation") })
+        assertTrue(detail.segments!!.all { it.mainTrackRange == null })
+        assertNull(detail.campsites)
+    }
+
+    @Test
+    fun `invalid current source range or evidence aborts before advancing the public version`() {
+        val route = adoptedContent()
+        val camp = pois.findById("source-camp-1").orElseThrow()
+        pois.saveAndFlush(camp.copy(cardData = """{"camp_analysis":{"status":"verified","source":"source_marker","usage":"recorded_overnight","evidence":"不应核验","associations":[]}}"""))
+        val failure = assertThrows(org.example.common.exception.BusinessException::class.java) { publish(route.id) }
+        assertEquals(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY, failure.httpStatus)
+        assertEquals(0L, versions.count())
+        assertFalse(collection.existsById(route.id))
+    }
+
+    @Test
+    fun `overlapping or out of bounds adopted day ranges cannot be published`() {
+        val route = adoptedContent()
+        val original = segments.findById("day-2").orElseThrow()
+        segments.saveAndFlush(original.copy(trackStartIndex = 0))
+        assertEquals(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+            assertThrows(org.example.common.exception.BusinessException::class.java) { publish(route.id) }.httpStatus)
+        assertEquals(0L, versions.count())
+    }
+
+    @Test
+    fun `negative day statistics are not silently replaced by zero`() {
+        val route = adoptedContent()
+        segments.saveAndFlush(segments.findById("day-2").orElseThrow().copy(estimatedTime = -1.0))
+        assertEquals(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+            assertThrows(org.example.common.exception.BusinessException::class.java) { publish(route.id) }.httpStatus)
+        assertEquals(0L, versions.count())
+    }
+
+    @Test
+    fun `unmatched old camp associations keep source evidence without inventing accommodation`() {
+        val route = adoptedContent()
+        val camp = pois.findById("source-camp-1").orElseThrow()
+        val data = objectMapper.readTree(camp.cardData)
+        (data.path("camp_analysis").path("associations")[0] as com.fasterxml.jackson.databind.node.ObjectNode)
+            .put("track_end_index", 2)
+        pois.saveAndFlush(camp.copy(cardData = objectMapper.writeValueAsString(data)))
+        publish(route.id)
+        val detail = publicRoutes.detail(route.id).currentVersion
+        assertNull(detail.referenceDays!!.first().accommodation)
+        assertEquals(5, detail.campsites!!.size)
+    }
+
+    @Test
+    fun `public day content is returned by the actual HTTP detail controller`() {
+        val route = adoptedContent()
+        publish(route.id)
+        val mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(
+            org.example.route.controller.PublicRouteController(publicRoutes))
+            .setMessageConverters(org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper)).build()
+        val response = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get("/api/v1/public-routes/${route.id}"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk).andReturn()
+        val currentVersion = objectMapper.readTree(response.response.contentAsString).path("data").path("currentVersion")
+        assertEquals((1..5).toList(), currentVersion.path("referenceDays").map { it.path("dayNumber").asInt() })
+        assertTrue(currentVersion.path("referenceDays").all { it.path("description").asText().isNotBlank() })
+        assertEquals(5, currentVersion.path("segments").size())
+        assertEquals(5, currentVersion.path("campsites").size())
+        assertFalse(currentVersion.path("referenceDays").any { it.has("track_start_index") || it.has("segmentIds") })
+    }
+
+    @Test
+    fun `generated callback endpoint labels are not published as actual places`() {
+        val route = route()
+        // Reserve the fixture in this test transaction; binding uses REQUIRES_NEW.
+        route.beginAnalysis("placeholder-task")
+        routes.saveAndFlush(route)
+        val raw = """{"route_id":"${route.id}","task_id":"placeholder-task","status":"completed",
+          "track_path":[[30,100,4000],[30.1,100.1,4100]],
+          "segment_schemes":[
+            {"scheme_type":"day","label":"按天","segments":[
+              {"id":"day","name":"第1天","sequence_number":1,"color":"#2196F3","distance":1,
+               "elevation_gain":100,"elevation_loss":0,"estimated_time":30,"difficulty":1,
+               "track_start_index":0,"track_end_index":1,
+               "start_point":{"latitude":30,"longitude":100},"end_point":{"latitude":30.1,"longitude":100.1}}]},
+            {"scheme_type":"slope","label":"按坡度","segments":[
+              {"id":"slope","name":"爬升段","sequence_number":1,"color":"#2196F3","distance":1,
+               "elevation_gain":100,"elevation_loss":0,"estimated_time":30,"difficulty":1,
+               "track_start_index":0,"track_end_index":1,
+               "start_point":{"latitude":30,"longitude":100},"end_point":{"latitude":30.1,"longitude":100.1}}]}]}"""
+        callback.handleCallback(objectMapper.readValue(raw, org.example.route.dto.KmlAnalysisCallbackRequest::class.java))
+        editing.adoptAllSegments(route.id)
+        assertTrue(waypoints.findByRouteIdOrderBySequenceNumberAsc(route.id).any { it.name == "第1天 起点" })
+        val candidate = trackReview.read(route.id)
+        trackReview.submit(route.id, org.example.route.dto.MainTrackReviewRequest(
+            requireNotNull(candidate.candidateId), candidate.reviewRevision, "placeholder-review", "approved", true, "WGS84"))
+        publish(route.id)
+        val result = publicRoutes.detail(route.id).currentVersion
+        assertNull(result.referenceDays!!.single().start)
+        assertNull(result.referenceDays!!.single().end)
+        assertNull(result.segments!!.single().start)
+        assertNull(result.segments!!.single().end)
+        assertEquals(4, waypoints.findByRouteIdOrderBySequenceNumberAsc(route.id).size,
+            "publication must not modify original management waypoints")
+    }
+
+    @Test
+    fun `explicitly named same route waypoints remain available as segment places`() {
+        val route = adoptedContent()
+        waypoints.saveAndFlush(org.example.route.model.Waypoint("named-start", route.id, "洛绒牛场",
+            latitude = 30.0, longitude = 100.0, type = "trailhead", sequenceNumber = 0))
+        waypoints.saveAndFlush(org.example.route.model.Waypoint("named-end", route.id, "圣水门",
+            latitude = 30.01, longitude = 100.01, type = "segment_split", sequenceNumber = 1))
+        for (id in listOf("day-1", "slope-1")) {
+            segments.saveAndFlush(segments.findById(id).orElseThrow().copy(startPointId = "named-start", endPointId = "named-end"))
+        }
+        publish(route.id)
+        val result = publicRoutes.detail(route.id).currentVersion
+        assertEquals("洛绒牛场", result.referenceDays!!.first().start?.name)
+        assertEquals("圣水门", result.referenceDays!!.first().end?.name)
+        assertEquals("洛绒牛场", result.segments!!.first().start?.name)
+        assertEquals("圣水门", result.segments!!.first().end?.name)
+    }
+
+    @Test
+    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named = "WALK_YADING_ANALYSIS_FIXTURE", matches = ".+")
+    fun `real Yading analysis survives callback adoption publication and public HTTP projection`() {
+        val source = java.nio.file.Path.of(requireNotNull(System.getenv("WALK_YADING_ANALYSIS_FIXTURE")))
+        val raw = objectMapper.readTree(java.nio.file.Files.readString(source)) as com.fasterxml.jackson.databind.node.ObjectNode
+        val route = route()
+        route.beginAnalysis("yading-fixture")
+        routes.saveAndFlush(route)
+        raw.put("route_id", route.id).put("task_id", "yading-fixture").put("status", "completed")
+        callback.handleCallback(objectMapper.treeToValue(raw, org.example.route.dto.KmlAnalysisCallbackRequest::class.java))
+        editing.adoptAllSegments(route.id)
+        editing.adoptAllPois(route.id)
+        val candidate = trackReview.read(route.id)
+        trackReview.submit(route.id, org.example.route.dto.MainTrackReviewRequest(
+            requireNotNull(candidate.candidateId), candidate.reviewRevision, "yading-track-approval", "approved", true, "WGS84"))
+        publish(route.id)
+        val detail = publicRoutes.detail(route.id)
+        val version = detail.currentVersion
+        assertEquals(36838, version.mainTrack!!.path.size)
+        assertEquals(5, version.referenceDays!!.size)
+        assertEquals((1..5).toList(), version.referenceDays!!.map { it.dayNumber })
+        assertEquals(24, version.segments!!.size)
+        assertEquals(5, version.campsites!!.size)
+        assertEquals(listOf(15480.0, 14940.0, 22800.0, 17040.0, 24300.0), version.referenceDays!!.map { it.estimatedDuration!!.seconds })
+        val json = objectMapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(version)
+        assertTrue(json.path("referenceDays").all { it.path("description").asText().isNotBlank() && it.has("mainTrackRange") })
+        assertTrue(json.path("segments").all { it.path("description").asText().isNotBlank() && it.has("mainTrackRange") })
+        assertEquals(4, version.referenceDays!!.count { it.accommodation != null })
+        assertNull(version.referenceDays!![4].accommodation)
+        assertEquals(3958.5, version.referenceDays!!.sumOf { it.ascent!!.meters }, 0.11)
+        assertEquals(4023.6, version.referenceDays!!.sumOf { it.descent!!.meters }, 0.11)
+        assertTrue(json.path("campsites").all { it.path("sourceEvidence").path("confidence").path("status").asText() == "pending_verification" })
+        System.getenv("WALK_YADING_PUBLIC_OUTPUT")?.let { destination ->
+            val target = java.nio.file.Path.of(destination)
+            require(java.nio.file.Files.isDirectory(target.parent) && !java.nio.file.Files.exists(target))
+            java.nio.file.Files.writeString(target, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapOf("data" to detail)),
+                java.nio.file.StandardOpenOption.CREATE_NEW)
+        }
     }
 
     @Test

@@ -1,6 +1,8 @@
 package org.example.trip.personal.service
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.example.config.JacksonConfig
 import org.example.route.dto.PublicRouteGeoPosition
 import org.example.route.dto.PublicRoutePlace
@@ -70,6 +72,84 @@ class ReferenceDayTripGeneratorTest {
         val old = mapper.valueToTree<com.fasterxml.jackson.databind.node.ObjectNode>(fresh).apply { remove("routeGuide") }
         assertNull(mapper.treeToValue(old, TripDayProjection::class.java).routeGuide)
         assertEquals(old, mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(old, TripDayProjection::class.java))))
+    }
+    @Test fun `frozen route text and elevation profile roundtrip while legacy missing and null fields stay absent`() {
+        val fields = listOf("introduction", "routeOrientation", "elevationProfile")
+        val old = mapper.valueToTree<ObjectNode>(basis)
+        fields.forEach { assertFalse(old.has(it), "$it must not be synthesized") }
+        assertEquals(old, mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(old, FrozenRouteBasisProjection::class.java))))
+        val withNulls = old.deepCopy().apply { fields.forEach { putNull(it) } }
+        assertEquals(old, mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(withNulls, FrozenRouteBasisProjection::class.java))))
+
+        val enriched = old.deepCopy().apply {
+            put("introduction", "生成时冻结的路线概述")
+            put("routeOrientation", "沿原记录起点，经垭口到终点")
+            set<JsonNode>("elevationProfile", mapper.readTree("""
+                {
+                  "minElevation": {"meters": 3900.0},
+                  "maxElevation": {"meters": 4700.0},
+                  "samples": [
+                    {"distance": {"meters": 0.0}, "elevation": {"meters": 4000.0}},
+                    {"distance": {"meters": 1500.5}, "elevation": {"meters": 4700.0}},
+                    {"distance": {"meters": 3200.75}, "elevation": {"meters": 3900.0}},
+                    {"distance": {"meters": 5000.0}, "elevation": {"meters": 4200.0}}
+                  ]
+                }
+            """.trimIndent()))
+        }
+        val roundtrip = mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(enriched, FrozenRouteBasisProjection::class.java)))
+        assertEquals(enriched, roundtrip, "frozen text, every ordered sample and extrema must survive without sample identities")
+    }
+    @Test fun `qualified reference guide and elevation profile roundtrip while legacy missing and null fields stay absent`() {
+        val fields = listOf("title", "start", "end")
+        val old = mapper.valueToTree<ObjectNode>(projections().first())
+        val oldGuide = old.get("routeGuide") as ObjectNode
+        fields.forEach { assertFalse(oldGuide.has(it), "$it must not be synthesized") }
+        assertFalse(oldGuide.get("referenceTrack").has("elevationProfile"))
+        assertEquals(old, mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(old, TripDayProjection::class.java))))
+        val withNulls = old.deepCopy().apply {
+            val guide = get("routeGuide") as ObjectNode
+            fields.forEach { guide.putNull(it) }
+            (guide.get("referenceTrack") as ObjectNode).putNull("elevationProfile")
+        }
+        assertEquals(old, mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(withNulls, TripDayProjection::class.java))))
+
+        val enriched = old.deepCopy().apply {
+            val guide = get("routeGuide") as ObjectNode
+            guide.set<JsonNode>("title", mapper.readTree("""
+                {"value": "已采纳的完整参考日", "confidence": {
+                  "status": "pending_verification", "category": "public_route_fact",
+                  "source": "原记录含步行和电瓶车，采纳完整范围及算法估时，非纯徒步实测"
+                }}
+            """.trimIndent()))
+            guide.set<JsonNode>("start", mapper.readTree("""
+                {"value": {"name": "原记录轨迹起点", "position": {
+                  "latitude": 30.0, "longitude": 100.0, "referenceSystem": "WGS84"
+                }}, "confidence": {
+                  "status": "pending_verification", "category": "public_route_fact", "source": "原参考日起点，未实地核验"
+                }}
+            """.trimIndent()))
+            guide.set<JsonNode>("end", mapper.readTree("""
+                {"value": {"name": "原记录轨迹终点", "position": {
+                  "latitude": 30.02, "longitude": 100.0, "referenceSystem": "WGS84"
+                }}, "confidence": {
+                  "status": "pending_verification", "category": "public_route_fact", "source": "原参考日终点，未实地核验"
+                }}
+            """.trimIndent()))
+            (guide.get("referenceTrack") as ObjectNode).set<JsonNode>("elevationProfile", mapper.readTree("""
+                {
+                  "minElevation": {"meters": 4000.0},
+                  "maxElevation": {"meters": 4250.0},
+                  "samples": [
+                    {"distance": {"meters": 0.0}, "elevation": {"meters": 4000.0}},
+                    {"distance": {"meters": 500.25}, "elevation": {"meters": 4250.0}},
+                    {"distance": {"meters": 950.5}, "elevation": {"meters": 4100.0}}
+                  ]
+                }
+            """.trimIndent()))
+        }
+        val roundtrip = mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(enriched, TripDayProjection::class.java)))
+        assertEquals(enriched, roundtrip, "qualified title and endpoints, source confidence, ordered samples and existing day content must survive unchanged")
     }
     @Test fun `long valid reference title cannot reject generation or truncate guide content`() {
         val description = "历史记录完整说明".repeat(80)

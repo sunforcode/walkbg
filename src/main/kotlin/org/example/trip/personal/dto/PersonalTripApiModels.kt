@@ -129,7 +129,23 @@ data class FrozenRouteBasisProjection(
     val distance: RouteMeters? = null,
     val ascent: RouteMeters? = null,
     val descent: RouteMeters? = null,
-    val maxElevation: RouteMeters? = null
+    val maxElevation: RouteMeters? = null,
+    val introduction: String? = null,
+    val routeOrientation: String? = null,
+    val elevationProfile: FrozenRouteElevationProfileProjection? = null
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class FrozenRouteElevationProfileProjection(
+    val minElevation: RouteMeters,
+    val maxElevation: RouteMeters,
+    val samples: List<FrozenRouteElevationSampleProjection>
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class FrozenRouteElevationSampleProjection(
+    val distance: RouteMeters,
+    val elevation: RouteMeters
 )
 
 data class TripRouteReference(

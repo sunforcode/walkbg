@@ -2,6 +2,7 @@ package org.example.trip.personal.dto
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import org.example.route.dto.PublicRouteGeoPosition
+import org.example.route.dto.PublicRoutePlace
 import org.example.route.dto.RouteMeters
 import org.example.route.dto.RouteSeconds
 
@@ -12,7 +13,10 @@ data class TripRouteGuideProjection(
     val description: QualifiedValueProjection<String>? = null,
     val notes: QualifiedValueProjection<String>? = null,
     val accommodationReference: QualifiedValueProjection<String>? = null,
-    val referenceTrack: TripReferenceTrackProjection? = null
+    val referenceTrack: TripReferenceTrackProjection? = null,
+    val title: QualifiedValueProjection<String>? = null,
+    val start: QualifiedValueProjection<PublicRoutePlace>? = null,
+    val end: QualifiedValueProjection<PublicRoutePlace>? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -22,5 +26,6 @@ data class TripReferenceTrackProjection(
     val ascent: RouteMeters? = null,
     val descent: RouteMeters? = null,
     val estimatedDuration: RouteSeconds? = null,
-    val confidence: InformationConfidenceProjection
+    val confidence: InformationConfidenceProjection,
+    val elevationProfile: FrozenRouteElevationProfileProjection? = null
 )

@@ -116,3 +116,6 @@ walkbg-api-documentation.md
 # 数据库文件
 data/
 uploads/
+
+# Python
+__pycache__/

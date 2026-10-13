@@ -24,7 +24,8 @@ class RoutePublicationService(
     private val collection: PublicRouteCollectionRepository,
     private val requests: RoutePublicationRequestRepository,
     private val configuration: RoutePublicationConfigurationRepository,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val trackReviews: RouteTrackReviewService
 ) {
     @Transactional
     fun publish(routeId: String, publicRouteType: String?, publicationId: String?): RouteVersion {
@@ -57,6 +58,7 @@ class RoutePublicationService(
         val sequence = Math.addExact(orders.findByRouteIdOrderByPublishedSequenceAsc(routeId)
             .maxOfOrNull { it.publishedSequence } ?: 0, 1)
         val map = maps.findById(routeId).orElse(null)
+        val mainTrack = trackReviews.publicationTrack(route)
         val version = versions.saveAndFlush(RouteVersion(
             id = UUID.randomUUID().toString(),
             routeId = routeId,
@@ -68,7 +70,9 @@ class RoutePublicationService(
             ascentMeters = map?.elevationGain,
             descentMeters = map?.elevationLoss,
             tagsJson = objectMapper.writeValueAsString(tags.findByRouteId(routeId).map { it.tag }.filter { it.isNotBlank() }.distinct()),
-            mainTrackAvailability = if (route.trackGeoJson.isNullOrBlank()) "missing" else "pending_review"
+            mainTrackAvailability = mainTrack.availability,
+            mainTrackJson = mainTrack.json,
+            mainTrackReferenceSystem = mainTrack.referenceSystem
         ))
         writeImages(route, version.id)
         orders.saveAndFlush(RouteVersionPublicationOrder(routeId, version.id, sequence))

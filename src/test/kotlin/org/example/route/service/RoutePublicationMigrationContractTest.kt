@@ -17,4 +17,19 @@ class RoutePublicationMigrationContractTest {
         assertTrue(sql.contains("publication_id varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL"),
             "publication identities require NO PAD binary comparison, including trailing spaces")
     }
+
+    @Test
+    fun `track review migration keeps candidate decisions immutable and requests unique`() {
+        val resource = javaClass.classLoader.getResource("db/migration/V17__add_route_track_reviews.sql")
+        assertNotNull(resource)
+        val sql = resource!!.readText()
+        assertTrue(sql.contains("CREATE TABLE route_track_reviews"))
+        assertTrue(sql.contains("UNIQUE KEY uk_route_track_review_revision (route_id, revision)"))
+        assertTrue(sql.contains("UNIQUE KEY uk_route_track_review_request (route_id, request_id)"))
+        assertTrue(sql.contains("request_id varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL"))
+        assertTrue(sql.contains("REFERENCES routes (id)"))
+        assertTrue(sql.contains("decision = 'approved' AND complete_hiking_range_confirmed = true"))
+        assertTrue(sql.contains("reference_system IS NULL AND reason IS NOT NULL"))
+        assertTrue(!sql.contains("UPDATE route_versions"), "migration must not approve or rewrite published tracks")
+    }
 }

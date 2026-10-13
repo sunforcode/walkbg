@@ -254,11 +254,12 @@ data class PublicRouteSafetyNotice(
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class PublicRouteImage(
-    val identity: String,
-    val mediaReference: String,
-    val role: String,
-    val caption: String? = null,
-    val position: PublicRouteGeoPosition? = null
+val identity: String,
+val mediaReference: String,
+val role: String,
+val caption: String? = null,
+val description: String? = null,
+val position: PublicRouteGeoPosition? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)

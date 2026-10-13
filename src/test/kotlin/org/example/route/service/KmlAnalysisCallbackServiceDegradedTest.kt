@@ -1,7 +1,10 @@
 package org.example.route.service
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.route.dto.CallbackPoiPointDto
+import org.example.route.dto.CallbackSegmentDto
+import org.example.route.dto.CallbackSegmentSchemeDto
 import org.example.route.dto.KmlAnalysisCallbackRequest
 import org.example.route.dto.PoiResolveAgentResponse
 import org.example.route.dto.PoiResolveAgentResultItem
@@ -9,6 +12,8 @@ import org.example.route.model.PoiLibraryItem
 import org.example.route.model.PoiPoint
 import org.example.route.model.Route
 import org.example.route.model.RouteMapData
+import org.example.route.model.Segment
+import org.example.route.model.SegmentScheme
 import org.example.route.repository.PoiLibraryRepository
 import org.example.route.repository.PoiPointRepository
 import org.example.route.repository.RouteMapDataRepository
@@ -25,6 +30,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.Optional
@@ -256,6 +262,158 @@ class KmlAnalysisCallbackServiceDegradedTest {
             generatedDescription = "本次结果", trackPath = listOf(listOf(30.0, 120.0, 100.0)),
             poiPoints = listOf(CallbackPoiPointDto(name = "点位", latitude = 30.0, longitude = 120.0, category = "photo"))
         )
+    }
+
+    @Test
+    fun `completed callback preserves day and slope content and camp analysis in management detail`() {
+        // enrich-grounded-segment-content: route-analysis-schema / route-management-api.
+        val f = DeliveryFixture()
+        val mapper = ObjectMapper()
+        val daySegment = CallbackSegmentDto(
+            id = "agent-day-1",
+            name = "第1天",
+            sequenceNumber = 1,
+            color = "#3388FF",
+            description = "计算统计：0.15公里、爬升10米。原记录：第一天营地。",
+            distance = 0.15,
+            elevationGain = 10.0,
+            elevationLoss = 0.0,
+            estimatedTime = 5,
+            difficulty = 1,
+            trackStartIndex = 0,
+            trackEndIndex = 1,
+            startPoint = null,
+            endPoint = null,
+            segmentType = null,
+            slopeDirection = null,
+            avgSlopeDegrees = null,
+            maxSlopeDegrees = null,
+            confidence = 0.8,
+            notes = "原作者提示：第一天过河处留意原路标记。"
+        )
+        val slopeSegment = daySegment.copy(
+            id = "agent-slope-1",
+            name = "路段1",
+            description = "路段统计：0.15公里、爬升10米。原轨迹标注：第一天营地。",
+            notes = "原标注提示：横切处路迹不明。"
+        )
+        val campAnalysis = mapOf(
+            "status" to "pending_verification",
+            "source" to "source_marker",
+            "usage" to "recorded_overnight",
+            "evidence" to "第一天营地",
+            "associations" to listOf(
+                mapOf(
+                    "scheme_type" to "day",
+                    "track_start_index" to 0,
+                    "track_end_index" to 1,
+                    "day_number" to 1,
+                    "basis" to "explicit_day",
+                    "distance_meters" to 2.0
+                ),
+                mapOf(
+                    "scheme_type" to "slope",
+                    "track_start_index" to 0,
+                    "track_end_index" to 1,
+                    "basis" to "explicit_day",
+                    "distance_meters" to 2.0
+                )
+            )
+        )
+        val campCardData = mapOf("camp_analysis" to campAnalysis)
+        val camp = CallbackPoiPointDto(
+            name = "第一天营地",
+            latitude = 30.001018,
+            longitude = 120.001,
+            elevation = 110.0,
+            category = "camp",
+            source = "kml_marker",
+            description = "第一天营地",
+            confidence = 1.0,
+            cardData = campCardData
+        )
+        val request = f.request().copy(
+            trackPath = listOf(listOf(30.0, 120.0, 100.0), listOf(30.001, 120.001, 110.0)),
+            segmentSchemes = listOf(
+                CallbackSegmentSchemeDto(schemeType = "day", label = "按天", segments = listOf(daySegment)),
+                CallbackSegmentSchemeDto(schemeType = "slope", label = "按坡度", isDefault = true, segments = listOf(slopeSegment))
+            ),
+            poiPoints = listOf(camp)
+        )
+
+        f.service.handleCallback(request)
+        commitEvents()
+
+        val savedRoute = argumentCaptor<Route>()
+        val savedMap = argumentCaptor<RouteMapData>()
+        val savedSchemes = argumentCaptor<SegmentScheme>()
+        val savedSegments = argumentCaptor<Segment>()
+        val savedPois = argumentCaptor<PoiPoint>()
+        verify(f.routes).save(savedRoute.capture())
+        verify(f.maps).save(savedMap.capture())
+        verify(f.schemes, times(2)).save(savedSchemes.capture())
+        verify(f.segments, times(2)).save(savedSegments.capture())
+        verify(f.pois).save(savedPois.capture())
+        val expectedCardData = mapper.valueToTree<JsonNode>(campCardData)
+        assertEquals(expectedCardData, mapper.readTree(requireNotNull(savedPois.firstValue.cardData)))
+
+        // 详情只能读回真实回调捕获的实体，不能用请求或手组 DTO 替代保存结果。
+        whenever(f.maps.findById(f.route.id)).thenReturn(Optional.of(savedMap.firstValue))
+        whenever(f.schemes.findByRouteId(f.route.id)).thenReturn(savedSchemes.allValues)
+        whenever(f.segments.findByRouteId(f.route.id)).thenReturn(savedSegments.allValues)
+        whenever(f.pois.findByRouteId(f.route.id)).thenReturn(savedPois.allValues)
+        val routeService = mock<RouteService>()
+        whenever(routeService.getRouteWithAccessCheck(f.route.id, null)).thenReturn(savedRoute.firstValue)
+        val applicationService = RouteApplicationService(
+            routeService = routeService,
+            waypointRepository = mock(),
+            segmentRepository = f.segments,
+            routeTagRepository = mock(),
+            dailyPlanRepository = mock(),
+            hitchhikeContactRepository = mock(),
+            routeImageRepository = mock(),
+            routeMapDataRepository = f.maps,
+            routeRatingRepository = mock(),
+            userRepository = mock(),
+            segmentSchemeRepository = f.schemes,
+            poiPointRepository = f.pois,
+            routeRepository = f.routes,
+            tripRouteAssociationRepository = mock(),
+            tripRepository = mock(),
+            objectMapper = mapper,
+            routePublicationService = mock()
+        )
+        val detail = requireNotNull(applicationService.getRouteFullDetails(f.route.id))
+
+        assertEquals(setOf("day", "slope"), detail.segmentSchemes.map { it.schemeType }.toSet())
+        assertEquals(2, detail.segmentSchemes.size)
+        assertEquals(request.trackPath, detail.trackPath)
+        assertEquals(2, savedSegments.allValues.map { it.id }.toSet().size)
+        for ((schemeType, input) in mapOf("day" to daySegment, "slope" to slopeSegment)) {
+            val stored = savedSegments.allValues.single { it.schemeType == schemeType }
+            val storedScheme = savedSchemes.allValues.single { it.schemeType == schemeType }
+            assertEquals(storedScheme.id, stored.schemeId)
+            assertTrue(stored.id.isNotBlank() && stored.id != input.id, "后端身份不能复用 Agent 临时段 ID")
+            assertEquals(input.description, stored.description)
+            assertTrue(requireNotNull(stored.notes).contains(requireNotNull(input.notes)))
+            assertTrue(requireNotNull(stored.notes).contains("分析置信度: 80%"))
+            val scheme = detail.segmentSchemes.single { it.schemeType == schemeType }
+            val segment = scheme.segments.single()
+            assertEquals(storedScheme.id, scheme.id)
+            assertEquals(stored.id, segment.id)
+            assertEquals(input.description, segment.description)
+            assertEquals(stored.notes, segment.notes)
+            assertEquals(input.trackStartIndex, segment.trackStartIndex)
+            assertEquals(input.trackEndIndex, segment.trackEndIndex)
+        }
+        val detailCamp = detail.poiPoints.single()
+        assertTrue(savedPois.firstValue.id.startsWith("poi_"))
+        assertEquals(savedPois.firstValue.id, detailCamp.id)
+        assertEquals("camp", detailCamp.category)
+        assertEquals("draft", detailCamp.status)
+        assertEquals(camp.confidence, detailCamp.confidence)
+        // 完整 JSON 相等证明快照仍是原范围证据，未被改写成数据库外键或已核验状态。
+        assertEquals(expectedCardData, mapper.valueToTree<JsonNode>(detailCamp.cardData))
     }
 
     @Test

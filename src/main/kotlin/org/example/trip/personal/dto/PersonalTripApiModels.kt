@@ -92,7 +92,9 @@ class MigrateTripRequest(
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class InformationConfidenceProjection(
     val status: String,
-    val category: String? = null
+    val category: String? = null,
+    val source: String? = null,
+    val updatedAt: Instant? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -127,7 +129,23 @@ data class FrozenRouteBasisProjection(
     val distance: RouteMeters? = null,
     val ascent: RouteMeters? = null,
     val descent: RouteMeters? = null,
-    val maxElevation: RouteMeters? = null
+    val maxElevation: RouteMeters? = null,
+    val introduction: String? = null,
+    val routeOrientation: String? = null,
+    val elevationProfile: FrozenRouteElevationProfileProjection? = null
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class FrozenRouteElevationProfileProjection(
+    val minElevation: RouteMeters,
+    val maxElevation: RouteMeters,
+    val samples: List<FrozenRouteElevationSampleProjection>
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class FrozenRouteElevationSampleProjection(
+    val distance: RouteMeters,
+    val elevation: RouteMeters
 )
 
 data class TripRouteReference(
@@ -147,7 +165,7 @@ data class PersonalTripProjection(
     val totalDayCount: Int,
     val hikingDayCount: Int,
     val frozenRouteBasis: FrozenRouteBasisProjection,
-    val weatherOverview: QualifiedValueProjection<String>? = null,
+    val weatherOverview: WeatherOverviewProjection? = null,
     val importantNotices: List<ImportantNoticeProjection>? = null
 )
 
@@ -155,6 +173,18 @@ data class ImportantNoticeProjection(
     val sequence: Int,
     val type: String,
     val content: QualifiedValueProjection<String>
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ImportantWeatherImpactProjection(
+    val sequence: Int,
+    val content: QualifiedValueProjection<String>
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class WeatherOverviewProjection(
+    val summary: QualifiedValueProjection<String>,
+    val importantImpacts: List<ImportantWeatherImpactProjection>? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -206,6 +236,7 @@ data class TripActionProjection(
     val estimatedDuration: QualifiedValueProjection<RouteSeconds>? = null,
     val transferNotes: QualifiedValueProjection<List<String>>? = null,
     val routeSectionSnapshot: RouteSectionSnapshotProjection? = null,
+    val routeSectionConfidence: InformationConfidenceProjection? = null,
     val start: QualifiedValueProjection<PublicRoutePlace>? = null,
     val end: QualifiedValueProjection<PublicRoutePlace>? = null,
     val distance: QualifiedValueProjection<RouteMeters>? = null,
@@ -245,7 +276,8 @@ data class TripDayProjection(
     val hikingDayNumber: Int? = null,
     val actions: List<TripActionProjection>,
     val weather: TripDayWeatherProjection,
-    val points: List<TripPointProjection>? = null
+    val points: List<TripPointProjection>? = null,
+    val routeGuide: TripRouteGuideProjection? = null
 )
 
 data class TripEquipmentSummaryProjection(
@@ -315,24 +347,80 @@ data class PersonalTripDaysProjection(
     val days: List<TripDayProjection>
 )
 
-data class TripDayWeatherItemProjection(
-    val tripDayId: String,
-    val dayNumber: Int,
-    @BusinessDate val date: LocalDate,
-    val primaryStage: String,
-    val hikingDayNumber: Int?,
-    val weather: TripDayWeatherProjection
+data class WeatherLocationProjection(
+    val position: PublicRouteGeoPosition,
+    val name: String? = null
+)
+
+data class WeatherTemperatureRangeProjection(
+    val low: Double? = null,
+    val high: Double? = null
+)
+
+data class PrecipitationAmountProjection(val millimeters: Double)
+
+data class WindSpeedProjection(val metersPerSecond: Double)
+
+data class WeatherConditionProjection(val description: String)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class WeatherPrecipitationProjection(
+    val description: String? = null,
+    val probability: Double? = null,
+    val amount: PrecipitationAmountProjection? = null
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+data class WeatherWindProjection(
+    val description: String? = null,
+    val averageSpeed: WindSpeedProjection? = null,
+    val gustSpeed: WindSpeedProjection? = null,
+    val direction: String? = null
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class WeatherForecastPeriodProjection(
+    val periodStart: Instant,
+    val periodEnd: Instant,
+    val condition: QualifiedValueProjection<WeatherConditionProjection>? = null,
+    val temperatureRange: QualifiedValueProjection<WeatherTemperatureRangeProjection>? = null,
+    val precipitation: QualifiedValueProjection<WeatherPrecipitationProjection>? = null,
+    val wind: QualifiedValueProjection<WeatherWindProjection>? = null
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class WeatherForecastProjection(
+    val identity: String,
+    val location: WeatherLocationProjection,
+    val source: String? = null,
+    val publishedAt: Instant? = null,
+    val periods: List<WeatherForecastPeriodProjection>
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class TripWeatherAssociationProjection(
+    val associationIdentity: String,
+    val sequence: Int,
+    val scope: String,
+    val hikeActionIdentity: String? = null,
+    val targetLocation: WeatherLocationProjection,
+    val targetPeriodStart: Instant,
+    val targetPeriodEnd: Instant,
+    val forecastConfidence: InformationConfidenceProjection? = null,
+    val forecast: WeatherForecastProjection? = null
+)
+
+data class TripWeatherDayProjection(
+    val tripDayId: String,
+    val dayNumber: Int,
+    @BusinessDate val date: LocalDate,
+    val weatherAssociations: List<TripWeatherAssociationProjection>
+)
+
 data class PersonalTripWeatherProjection(
     val tripId: String,
     val revision: String,
-    val routeName: String,
-    @BusinessDate val startDate: LocalDate,
-    @BusinessDate val endDate: LocalDate,
-    val days: List<TripDayWeatherItemProjection>,
-    val weatherOverview: QualifiedValueProjection<String>? = null
+    val days: List<TripWeatherDayProjection>
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)

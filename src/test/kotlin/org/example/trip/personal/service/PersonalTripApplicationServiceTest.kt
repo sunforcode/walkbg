@@ -320,6 +320,67 @@ class PersonalTripApplicationServiceTest {
     }
 
     @Test
+    fun `weather returns placeholder association projection derived from stored trip days`() {
+        val trip = PersonalTripRecord(
+            id = "trip-1",
+            name = "贡嘎环线 · 2026-09-02",
+            firstGeneratedAt = Instant.parse("2026-09-01T04:00:00Z"),
+            departureCity = "上海",
+            startDate = LocalDate.parse("2026-09-02"),
+            endDate = LocalDate.parse("2026-09-02"),
+            totalDayCount = 1,
+            hikingDayCount = 1,
+            revision = "revision-1",
+            frozenRouteBasisJson = objectMapper.writeValueAsString(frozenBasis())
+        )
+        stubOwnedAggregate(trip)
+
+        val result = service(DirectTripGenerationPlanner).weather("account-1", "trip-1")
+
+        assertEquals("trip-1", result.tripId)
+        assertEquals("revision-1", result.revision)
+        assertEquals(1, result.days.size)
+        val day = result.days.single()
+        assertEquals("day-1", day.tripDayId)
+        assertEquals(1, day.dayNumber)
+        assertEquals(LocalDate.parse("2026-09-02"), day.date)
+        val association = day.weatherAssociations.single()
+        assertEquals("weather-association-stub-day-1", association.associationIdentity)
+        assertEquals(1, association.sequence)
+        assertEquals("day", association.scope)
+        assertEquals(null, association.hikeActionIdentity)
+        assertEquals(Instant.parse("2026-09-01T16:00:00Z"), association.targetPeriodStart)
+        assertEquals(Instant.parse("2026-09-02T16:00:00Z"), association.targetPeriodEnd)
+        assertEquals("pending_verification", association.forecastConfidence?.status)
+        assertEquals("dynamic_external_information", association.forecastConfidence?.category)
+        assertEquals(null, association.forecastConfidence?.source)
+        assertEquals(null, association.forecastConfidence?.updatedAt)
+        val forecast = association.forecast ?: throw AssertionError("forecast required for pending_verification")
+        assertEquals("weather-forecast-stub-day-1", forecast.identity)
+        assertEquals(association.targetLocation, forecast.location)
+        assertEquals("stub", forecast.source)
+        assertEquals(Instant.parse("2026-09-01T04:00:00Z"), forecast.publishedAt)
+        val period = forecast.periods.single()
+        assertEquals(association.targetPeriodStart, period.periodStart)
+        assertEquals(association.targetPeriodEnd, period.periodEnd)
+        assertEquals("天气数据源尚未接入（占位投影）", period.condition?.value?.description)
+        assertEquals("pending_verification", period.condition?.confidence?.status)
+        assertEquals("dynamic_external_information", period.condition?.confidence?.category)
+    }
+
+    @Test
+    fun `weather hides foreign trip before reporting projection unavailable`() {
+        whenever(ownershipRepository.findByTripIdAndAccountId("trip-1", "account-1")).thenReturn(null)
+
+        val error = assertThrows(ApiContractException::class.java) {
+            service(DirectTripGenerationPlanner).weather("account-1", "trip-1")
+        }
+
+        assertEquals("trip_not_found", error.code)
+        assertEquals(org.springframework.http.HttpStatus.NOT_FOUND, error.status)
+    }
+
+    @Test
     fun `detail derives equipment summary from current visible items instead of stale snapshot cache`() {
         val trip = PersonalTripRecord(
             id = "trip-1",

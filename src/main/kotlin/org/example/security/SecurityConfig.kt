@@ -62,6 +62,7 @@ class SecurityConfig(
                 authenticationEntryPoint = org.springframework.security.web.AuthenticationEntryPoint { _, response, _ ->
                     response.status = 401
                     response.contentType = MediaType.APPLICATION_JSON_VALUE
+                    response.characterEncoding = Charsets.UTF_8.name()
                     objectMapper.writeValue(
                         response.writer,
                         ErrorResponse(ApiError("authentication_required", "需要有效的认证会话", retryable = false))

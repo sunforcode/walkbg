@@ -13,12 +13,21 @@ import org.example.security.JwtAuthenticationFilter
 import org.example.trip.controller.TripController
 import org.example.trip.personal.dto.CalendarDayProjection
 import org.example.trip.personal.dto.GenerateTripResult
+import org.example.trip.personal.dto.InformationConfidenceProjection
 import org.example.trip.personal.dto.PersonalTripCalendarProjection
 import org.example.trip.personal.dto.PersonalTripCollectionProjection
 import org.example.trip.personal.dto.PersonalTripFocusProjection
+import org.example.trip.personal.dto.PersonalTripWeatherProjection
+import org.example.trip.personal.dto.QualifiedValueProjection
 import org.example.trip.personal.dto.TripGenerationContextProjection
 import org.example.trip.personal.dto.TripGenerationEquipmentListOption
 import org.example.trip.personal.dto.TripGenerationRouteProjection
+import org.example.trip.personal.dto.TripWeatherAssociationProjection
+import org.example.trip.personal.dto.TripWeatherDayProjection
+import org.example.trip.personal.dto.WeatherConditionProjection
+import org.example.trip.personal.dto.WeatherForecastPeriodProjection
+import org.example.trip.personal.dto.WeatherForecastProjection
+import org.example.trip.personal.dto.WeatherLocationProjection
 import org.example.trip.personal.service.PersonalTripApplicationService
 import org.example.trip.service.TripService
 import org.junit.jupiter.api.Test
@@ -37,6 +46,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.time.Instant
 import java.time.LocalDate
 
 @WebMvcTest(
@@ -184,6 +194,108 @@ class PersonalTripApiContractTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.resultType").value("transport_selection_required"))
             .andExpect(jsonPath("$.data.selection.options.length()").value(2))
+    }
+
+    @Test
+    fun `weather endpoint returns only frozen association projection`() {
+        val location = WeatherLocationProjection(
+            position = org.example.route.dto.PublicRouteGeoPosition(30.0, 101.0, "WGS84"),
+            name = "D1 徒步区段"
+        )
+        whenever(service.weather("account-1", "trip-1")).thenReturn(
+            PersonalTripWeatherProjection(
+                tripId = "trip-1",
+                revision = "revision-2",
+                days = listOf(
+                    TripWeatherDayProjection(
+                        tripDayId = "day-1",
+                        dayNumber = 1,
+                        date = LocalDate.parse("2026-09-02"),
+                        weatherAssociations = listOf(
+                            TripWeatherAssociationProjection(
+                                associationIdentity = "weather-association-1",
+                                sequence = 1,
+                                scope = "hike_action",
+                                hikeActionIdentity = "hike-action-1",
+                                targetLocation = location,
+                                targetPeriodStart = Instant.parse("2026-09-01T16:00:00Z"),
+                                targetPeriodEnd = Instant.parse("2026-09-02T16:00:00Z"),
+                                forecastConfidence = InformationConfidenceProjection(
+                                    status = "stale",
+                                    category = "dynamic_external_information"
+                                ),
+                                forecast = WeatherForecastProjection(
+                                    identity = "forecast-1",
+                                    location = location,
+                                    source = "provider-a",
+                                    publishedAt = Instant.parse("2026-09-01T08:00:00Z"),
+                                    periods = listOf(
+                                        WeatherForecastPeriodProjection(
+                                            periodStart = Instant.parse("2026-09-01T16:00:00Z"),
+                                            periodEnd = Instant.parse("2026-09-02T04:00:00Z"),
+                                            condition = QualifiedValueProjection(
+                                                value = WeatherConditionProjection("多云")
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        mockMvc.perform(get("/api/v1/trips/trip-1/weather").principal(authentication()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.tripId").value("trip-1"))
+            .andExpect(jsonPath("$.data.revision").value("revision-2"))
+            .andExpect(jsonPath("$.data.days[0].tripDayId").value("day-1"))
+            .andExpect(jsonPath("$.data.days[0].weatherAssociations[0].associationIdentity")
+                .value("weather-association-1"))
+            .andExpect(jsonPath("$.data.days[0].weatherAssociations[0].scope").value("hike_action"))
+            .andExpect(jsonPath("$.data.days[0].weatherAssociations[0].hikeActionIdentity")
+                .value("hike-action-1"))
+            .andExpect(jsonPath("$.data.days[0].weatherAssociations[0].targetLocation.position.referenceSystem")
+                .value("WGS84"))
+            .andExpect(jsonPath("$.data.days[0].weatherAssociations[0].forecastConfidence.status")
+                .value("stale"))
+            .andExpect(jsonPath("$.data.days[0].weatherAssociations[0].forecast.identity")
+                .value("forecast-1"))
+            .andExpect(jsonPath("$.data.days[0].weatherAssociations[0].forecast.periods[0].condition.value.description")
+                .value("多云"))
+            .andExpect(jsonPath("$.data.routeName").doesNotExist())
+            .andExpect(jsonPath("$.data.startDate").doesNotExist())
+            .andExpect(jsonPath("$.data.endDate").doesNotExist())
+            .andExpect(jsonPath("$.data.weatherOverview").doesNotExist())
+            .andExpect(jsonPath("$.data.days[0].weather").doesNotExist())
+    }
+
+    @Test
+    fun `weather endpoint returns bounded unavailable error before relation persistence exists`() {
+        whenever(service.weather("account-1", "trip-1")).thenThrow(
+            ApiContractException.serviceUnavailable(
+                "trip_weather_projection_unavailable",
+                "行程天气关联尚未形成完整投影"
+            )
+        )
+
+        mockMvc.perform(get("/api/v1/trips/trip-1/weather").principal(authentication()))
+            .andExpect(status().isServiceUnavailable)
+            .andExpect(jsonPath("$.error.code").value("trip_weather_projection_unavailable"))
+            .andExpect(jsonPath("$.error.retryable").value(true))
+            .andExpect(jsonPath("$.error.details").doesNotExist())
+    }
+
+    @Test
+    fun `weather endpoint rejects every query parameter`() {
+        mockMvc.perform(
+            get("/api/v1/trips/trip-1/weather")
+                .principal(authentication())
+                .param("refresh", "true")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.code").value("invalid_request"))
     }
 
     @Test

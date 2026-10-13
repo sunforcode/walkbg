@@ -39,6 +39,15 @@ import org.example.trip.personal.dto.GenerateTripCommand
 import org.example.trip.personal.dto.GenerateTripResult
 import org.example.trip.personal.dto.ImportantNoticeProjection
 import org.example.trip.personal.dto.InformationConfidenceProjection
+import org.example.trip.personal.dto.PrecipitationAmountProjection
+import org.example.trip.personal.dto.WeatherConditionProjection
+import org.example.trip.personal.dto.WeatherForecastPeriodProjection
+import org.example.trip.personal.dto.WeatherForecastProjection
+import org.example.trip.personal.dto.WeatherLocationProjection
+import org.example.trip.personal.dto.WeatherPrecipitationProjection
+import org.example.trip.personal.dto.WeatherTemperatureRangeProjection
+import org.example.trip.personal.dto.WeatherWindProjection
+import org.example.trip.personal.dto.WindSpeedProjection
 import org.example.trip.personal.dto.MigrateTripCommand
 import org.example.trip.personal.dto.MigrationTargetChangedDetails
 import org.example.trip.personal.dto.PersonalTripCalendarProjection
@@ -54,8 +63,8 @@ import org.example.trip.personal.dto.RouteVersionReferenceProjection
 import org.example.trip.personal.dto.TransportOptionProjection
 import org.example.trip.personal.dto.TransportSelectionProjection
 import org.example.trip.personal.dto.TripActionProjection
+import org.example.trip.personal.dto.WeatherOverviewProjection
 import org.example.trip.personal.dto.TripDayProjection
-import org.example.trip.personal.dto.TripDayWeatherItemProjection
 import org.example.trip.personal.dto.TripDayWeatherProjection
 import org.example.trip.personal.dto.TripEquipmentSnapshotSummaryReference
 import org.example.trip.personal.dto.TripEquipmentSummaryProjection
@@ -66,6 +75,8 @@ import org.example.trip.personal.dto.TripPointProjection
 import org.example.trip.personal.dto.TripRouteReference
 import org.example.trip.personal.dto.TripRouteVersionStatusProjection
 import org.example.trip.personal.dto.TripSummaryProjection
+import org.example.trip.personal.dto.TripWeatherAssociationProjection
+import org.example.trip.personal.dto.TripWeatherDayProjection
 import org.example.trip.personal.model.PersonalTripDayRecord
 import org.example.trip.personal.model.PersonalTripEquipmentItemDerivedFromSuggestion
 import org.example.trip.personal.model.PersonalTripEquipmentItemRecord
@@ -92,6 +103,7 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 
 @Service
 class PersonalTripApplicationService(
@@ -277,24 +289,82 @@ class PersonalTripApplicationService(
 
     @Transactional(readOnly = true)
     fun weather(accountId: String, tripId: String): PersonalTripWeatherProjection {
+        // 占位投影：真实天气关联持久化尚未实现，先用存储的行程日派生合法结构返回。
         val detail = detail(requireOwnedTrip(accountId, tripId))
         return PersonalTripWeatherProjection(
             tripId = detail.trip.identity,
             revision = detail.revision,
-            routeName = detail.trip.frozenRouteBasis.routeName,
-            startDate = detail.trip.startDate,
-            endDate = detail.trip.endDate,
-            weatherOverview = detail.trip.weatherOverview,
-            days = detail.days.map {
-                TripDayWeatherItemProjection(
-                    tripDayId = it.identity,
-                    dayNumber = it.dayNumber,
-                    date = it.date,
-                    primaryStage = it.primaryStage,
-                    hikingDayNumber = it.hikingDayNumber,
-                    weather = it.weather
+            days = detail.days.map { day -> placeholderWeatherDay(day, detail.trip.frozenRouteBasis) }
+        )
+    }
+
+    private fun placeholderWeatherDay(
+        day: TripDayProjection,
+        basis: FrozenRouteBasisProjection
+    ): TripWeatherDayProjection {
+        val section = day.weather.routeSectionContext?.value as? RouteSectionSnapshotProjection
+        val position = section?.start?.position
+            ?: basis.start.position
+            ?: PublicRouteGeoPosition(0.0, 0.0, "WGS84")
+        val location = WeatherLocationProjection(position = position)
+        val zone = ZoneId.of("Asia/Shanghai")
+        val dayStart = day.date.atStartOfDay(zone).toInstant()
+        val dayEnd = day.date.plusDays(1).atStartOfDay(zone).toInstant()
+        val pending = InformationConfidenceProjection(
+            status = "pending_verification",
+            category = "dynamic_external_information"
+        )
+        val association = TripWeatherAssociationProjection(
+            associationIdentity = "weather-association-stub-${day.identity}",
+            sequence = day.dayNumber,
+            scope = "day",
+            targetLocation = location,
+            targetPeriodStart = dayStart,
+            targetPeriodEnd = dayEnd,
+            forecastConfidence = pending,
+            forecast = WeatherForecastProjection(
+                identity = "weather-forecast-stub-${day.identity}",
+                location = location,
+                source = "stub",
+                publishedAt = clock.instant(),
+                periods = listOf(
+                    WeatherForecastPeriodProjection(
+                        periodStart = dayStart,
+                        periodEnd = dayEnd,
+                        condition = QualifiedValueProjection(
+                            value = WeatherConditionProjection("天气数据源尚未接入（占位投影）"),
+                            confidence = pending
+                        ),
+                        temperatureRange = QualifiedValueProjection(
+                            value = WeatherTemperatureRangeProjection(low = 5.0, high = 15.0),
+                            confidence = pending
+                        ),
+                        precipitation = QualifiedValueProjection(
+                            value = WeatherPrecipitationProjection(
+                                description = "占位数据",
+                                probability = 0.0,
+                                amount = PrecipitationAmountProjection(millimeters = 0.0)
+                            ),
+                            confidence = pending
+                        ),
+                        wind = QualifiedValueProjection(
+                            value = WeatherWindProjection(
+                                description = "占位数据",
+                                averageSpeed = WindSpeedProjection(metersPerSecond = 0.0),
+                                gustSpeed = WindSpeedProjection(metersPerSecond = 0.0),
+                                direction = "占位数据"
+                            ),
+                            confidence = pending
+                        )
+                    )
                 )
-            }
+            )
+        )
+        return TripWeatherDayProjection(
+            tripDayId = day.identity,
+            dayNumber = day.dayNumber,
+            date = day.date,
+            weatherAssociations = listOf(association)
         )
     }
 
@@ -420,7 +490,8 @@ class PersonalTripApplicationService(
             departureCity = trip.departureCity,
             startDate = trip.startDate,
             basis = basis,
-            points = tripPoints(target)
+            points = tripPoints(target),
+            routeVersion = target
         )
         validateCandidateDays(trip.startDate, basis, days)
 
@@ -527,7 +598,8 @@ class PersonalTripApplicationService(
             departureCity = command.departureCity.trim(),
             startDate = command.startDate,
             basis = basis,
-            points = tripPoints(routeVersion)
+            points = tripPoints(routeVersion),
+            routeVersion = routeVersion
         )
         val trip = PersonalTripRecord(
             id = tripId,
@@ -592,8 +664,10 @@ class PersonalTripApplicationService(
         departureCity: String,
         startDate: java.time.LocalDate,
         basis: FrozenRouteBasisProjection,
-        points: List<TripPointProjection>
+        points: List<TripPointProjection>,
+        routeVersion: RouteVersion
     ): List<PersonalTripDayRecord> {
+        ReferenceDayTripGenerator(objectMapper).generate(tripId, departureCity, startDate, routeVersion, basis)?.let { return it }
         val dayCount = generatedDayCount(basis)
         val pathSlices = splitPath(basis.mainTrackPath, dayCount)
         val distancePerDay = basis.distance?.let { RouteMeters(it.meters / dayCount) }
@@ -939,7 +1013,7 @@ class PersonalTripApplicationService(
                 totalDayCount = trip.totalDayCount,
                 hikingDayCount = trip.hikingDayCount,
                 frozenRouteBasis = basis,
-                weatherOverview = trip.weatherOverviewJson?.let { parse<QualifiedValueProjection<String>>(it) },
+                weatherOverview = trip.weatherOverviewJson?.let { parse<WeatherOverviewProjection>(it) },
                 importantNotices = trip.importantNoticesJson?.let { parse<List<ImportantNoticeProjection>>(it) }
             ),
             routeReference = TripRouteReference(

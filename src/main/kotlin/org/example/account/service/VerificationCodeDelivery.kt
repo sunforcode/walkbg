@@ -10,6 +10,16 @@ fun interface VerificationCodeDelivery {
 }
 
 @Component
+@ConfigurationProperties(prefix = "account.verification-code")
+class VerificationCodeProperties {
+    /**
+     * true 时跳过短信下发与验证码比对（任意验证码可登录）。
+     * 仅用于短信服务商接入前的过渡期，默认关闭。
+     */
+    var bypass: Boolean = false
+}
+
+@Component
 @ConfigurationProperties(prefix = "account.avatar-media")
 class AvatarMediaProperties {
     var directory: String = "data/avatar-media"
@@ -23,13 +33,5 @@ class LoggingVerificationCodeDelivery : VerificationCodeDelivery {
 
     override fun send(phone: String, code: String) {
         logger.info("Development verification code issued for {}: {}", phone.takeLast(4).padStart(phone.length, '*'), code)
-    }
-}
-
-@Component
-@Profile("prod")
-class UnavailableVerificationCodeDelivery : VerificationCodeDelivery {
-    override fun send(phone: String, code: String) {
-        throw IllegalStateException("Verification code delivery provider is not configured")
     }
 }

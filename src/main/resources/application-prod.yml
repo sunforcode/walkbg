@@ -86,6 +86,16 @@ account:
   avatar-media:
     directory: ${ACCOUNT_AVATAR_MEDIA_DIRECTORY:/var/lib/walkbg/avatar-media}
     max-size-bytes: ${ACCOUNT_AVATAR_MEDIA_MAX_SIZE_BYTES:5242880}
+  # 腾讯云短信验证码下发。
+  # 与其他必填项不同：这里允许为空——缺失时发送验证码会明确失败，
+  # 但不阻塞服务启动（避免未申请短信服务期间无法部署）。
+  verification-delivery:
+    tencent:
+      secret-id: ${TENCENT_SMS_SECRET_ID:}
+      secret-key: ${TENCENT_SMS_SECRET_KEY:}
+      sdk-app-id: ${TENCENT_SMS_SDK_APP_ID:}
+      sign-name: ${TENCENT_SMS_SIGN_NAME:}
+      template-id: ${TENCENT_SMS_TEMPLATE_ID:}
 
 # 关闭Swagger UI（生产环境）
 springdoc:

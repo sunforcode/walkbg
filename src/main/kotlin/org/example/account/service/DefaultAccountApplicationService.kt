@@ -17,6 +17,7 @@ import org.example.account.repository.AccountSessionRepository
 import org.example.account.repository.AccountVerificationRepository
 import org.example.common.contract.ApiContractException
 import org.example.common.util.IdGenerator
+import org.slf4j.LoggerFactory
 import org.example.security.JwtTokenUtil
 import org.example.user.model.User
 import org.example.user.repository.UserRepository
@@ -42,8 +43,10 @@ class DefaultAccountApplicationService(
     private val jwtTokenUtil: JwtTokenUtil,
     private val verificationCodeDelivery: VerificationCodeDelivery,
     avatarMediaProperties: AvatarMediaProperties,
+    private val verificationCodeProperties: VerificationCodeProperties = VerificationCodeProperties(),
     private val clock: Clock = Clock.systemUTC()
 ) : AccountApplicationService {
+    private val logger = LoggerFactory.getLogger(javaClass)
     private val random = SecureRandom()
     private val avatarDirectory: Path = Paths.get(avatarMediaProperties.directory)
     private val avatarMaxSizeBytes: Long = avatarMediaProperties.maxSizeBytes
@@ -71,10 +74,17 @@ class DefaultAccountApplicationService(
             createdAt = now
         )
         verificationRepository.save(record)
-        try {
-            verificationCodeDelivery.send(phone, code)
-        } catch (exception: Exception) {
-            throw ApiContractException.serviceUnavailable("verification_delivery_failed", "验证码发送失败，请稍后重试")
+        if (verificationCodeProperties.bypass) {
+            logger.warn(
+                "Verification code bypass enabled: skipping SMS delivery for {}",
+                phone.takeLast(4).padStart(phone.length, '*')
+            )
+        } else {
+            try {
+                verificationCodeDelivery.send(phone, code)
+            } catch (exception: Exception) {
+                throw ApiContractException.serviceUnavailable("verification_delivery_failed", "验证码发送失败，请稍后重试")
+            }
         }
         return VerificationCodeResponse(record.id, record.expiresAt, record.resendAvailableAt)
     }
@@ -87,7 +97,7 @@ class DefaultAccountApplicationService(
         if (verification.consumedAt != null || !verification.expiresAt.isAfter(now)) {
             throw ApiContractException.unprocessable("verification_code_expired", "验证码已过期或已使用")
         }
-        if (!passwordEncoder.matches(code, verification.codeHash)) {
+        if (!verificationCodeProperties.bypass && !passwordEncoder.matches(code, verification.codeHash)) {
             throw ApiContractException.unprocessable("verification_code_invalid", "验证码无效")
         }
         verification.consumedAt = now
